@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.451</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.453</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8150,6 +8150,292 @@ body.wg-jugando{overflow:hidden}
   </div>
 </section>
 
+<!-- ============================================================
+     v2.9.452 — LA CONSOLA DE MANDO (ver el bloque JS del mismo nombre).
+     Todo cuelga de `#wg-game.wg-hud-on`: si la consola no se monta (maqueta,
+     lobby), la pantalla queda exactamente como antes.
+     ============================================================ -->
+<style>
+#wg-hud,#wg-tabs,#wg-hud-pop,#wg-hud-tip,#wg-hud-marco,#wg-hud-splash{display:none}
+#screen-wargame.wg-full #wg-game.wg-hud-on{--top-h:46px;--hud-sit:36px;--hud-h:clamp(140px,20.5vh,230px);
+  --hud-total:calc(var(--hud-sit) + var(--hud-h));--acc:#e8c33a;--acc-rgb:232,195,58}
+#screen-wargame.wg-full #wg-game.wg-hud-on.hud-azul{--acc:#4b93ff;--acc-rgb:75,147,255}
+#screen-wargame.wg-full #wg-game.wg-hud-on.hud-rojo{--acc:#ff5252;--acc-rgb:255,82,82}
+#screen-wargame.wg-full #wg-game.wg-hud-on.hud-plegada{--hud-h:0px}
+body.wg-maqueta #wg-hud,body.wg-maqueta #wg-tabs,body.wg-maqueta #wg-hud-marco{display:none!important}
+/* Sin consola (no debería pasar en pantalla completa): el aviso vuelve a su esquina. */
+#screen-wargame.wg-full #wg-game:not(.wg-hud-on) #wg-ayuda{position:absolute;left:56px;bottom:52px;z-index:1035}
+
+/* ---------- BARRA DE ARRIBA ---------- */
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-tl{top:0;left:0;right:0;height:var(--top-h);max-width:none;z-index:1041;
+  flex-wrap:nowrap;gap:6px;padding:0 10px;box-sizing:border-box;
+  background:linear-gradient(180deg,rgba(9,13,19,.97),rgba(9,13,19,.86));
+  border-bottom:1px solid rgba(var(--acc-rgb),.40);box-shadow:0 4px 18px rgba(0,0,0,.45)}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-tl::after{content:'';position:absolute;left:8%;right:8%;bottom:-1px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(var(--acc-rgb),.95),transparent);pointer-events:none}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-tl .wg-rd{width:32px;height:32px;border-radius:9px;font-size:15px;flex:0 0 auto}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-tl .wg-chip{padding:4px 10px;font-size:11.5px;flex:0 0 auto}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-tl .wg-pill{padding:5px 12px;font-size:12px;box-shadow:none}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-tl select{height:30px}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail{position:static;flex-direction:row;gap:3px;margin-left:auto;
+  flex:0 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none;padding:2px 0}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail::-webkit-scrollbar{display:none}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail .wg-rd{width:31px;height:31px;border-radius:8px;font-size:14px;
+  background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.10)}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail .wg-rd:hover{border-color:rgba(var(--acc-rgb),.8);background:rgba(var(--acc-rgb),.14)}
+/* Lo de afinar el rendimiento no es de todos los días: va detrás de «⋯». */
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail:not(.mas) > .wg-rd:first-child,
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail:not(.mas) #wg-btn-vivo,
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail:not(.mas) #wg-btn-seguir,
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail:not(.mas) #wg-btn-conos,
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail:not(.mas) #wg-btn-alivio,
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail:not(.mas) #wg-btn-medir,
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail:not(.mas) #wg-btn-cine{display:none}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail #wg-rail-mas{display:flex}
+#wg-rail-mas{display:none!important}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail #wg-rail-mas{display:flex!important;opacity:.6}
+
+/* LAS PESTAÑAS DEL ÁRBITRO */
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-tabs{display:flex;gap:3px;align-items:center;flex:0 0 auto;margin:0 6px;padding:3px;
+  border-radius:11px;background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.08)}
+#wg-tabs:empty{display:none!important}
+.wg-tab{display:flex;align-items:center;gap:7px;height:30px;padding:0 13px;border-radius:8px;border:1px solid transparent;margin:0;
+  background:transparent;color:#93a8be;font:800 11px/1 system-ui,-apple-system,sans-serif;letter-spacing:1.1px;cursor:pointer;white-space:nowrap;
+  transition:background .15s,color .15s,border-color .15s;width:auto;min-width:0}
+.wg-tab:hover{background:rgba(255,255,255,.07);color:#e9f1f9}
+.wg-tab .pt{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.wg-tab.t-azul .pt{background:#4b93ff;box-shadow:0 0 8px #4b93ff}
+.wg-tab.t-rojo .pt{background:#ff5252;box-shadow:0 0 8px #ff5252}
+.wg-tab.t-todo.on{background:linear-gradient(180deg,rgba(232,195,58,.34),rgba(232,195,58,.10));border-color:#e8c33a;color:#ffeaa6}
+.wg-tab.t-azul.on{background:linear-gradient(180deg,rgba(75,147,255,.40),rgba(75,147,255,.12));border-color:#4b93ff;color:#dbe9ff}
+.wg-tab.t-rojo.on{background:linear-gradient(180deg,rgba(255,82,82,.40),rgba(255,82,82,.12));border-color:#ff5252;color:#ffe0e0}
+.wg-tab.solo{cursor:default}
+
+/* El marco de la lente: el árbitro no se olvida de que está mirando con los ojos de un bando. */
+#screen-wargame.wg-full #wg-game.wg-hud-on.hud-lente #wg-hud-marco{display:block;position:absolute;left:0;right:0;
+  top:var(--top-h);bottom:var(--hud-total);z-index:1031;pointer-events:none;
+  box-shadow:inset 0 0 0 3px rgba(var(--acc-rgb),.85),inset 0 0 46px rgba(var(--acc-rgb),.22)}
+#wg-hud-marco span{position:absolute;top:0;left:50%;transform:translateX(-50%);padding:4px 14px 5px;border-radius:0 0 10px 10px;
+  background:rgba(var(--acc-rgb),.88);color:#fff;font:800 10.5px/1.2 system-ui,sans-serif;letter-spacing:1px;white-space:nowrap;
+  text-shadow:0 1px 2px rgba(0,0,0,.4)}
+
+/* ---------- LO QUE FLOTA SOBRE EL MAPA, ACOMODADO A LA CONSOLA ---------- */
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-arriba-izq{left:12px;top:calc(var(--top-h) + 10px);
+  max-height:calc(100% - var(--top-h) - var(--hud-total) - 30px)}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-armas,
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-vistas,
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-consola,
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-pantallas,
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-orient,
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-unidades-barra{display:none!important}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-zoom{top:calc(var(--top-h) + 10px);right:12px}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-zoom .wg-rd{width:34px;height:34px;border-radius:9px}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-abajo-izq{left:12px;bottom:calc(var(--hud-total) + 10px);
+  max-width:min(620px,calc(100% - 260px));max-height:calc(100% - var(--top-h) - var(--hud-total) - 30px)}
+#screen-wargame.wg-full #wg-game.wg-hud-on:not(.hud-dron-on) #wg-drones{display:none!important}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-drones{box-shadow:0 10px 30px rgba(0,0,0,.55);border-color:rgba(var(--acc-rgb),.45)!important}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-camaras .wg-pill,
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-camaras button{padding:5px 11px;font-size:11px}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-der-abajo{right:12px!important;bottom:calc(var(--hud-total) + 128px)!important}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-acc{right:12px;bottom:calc(var(--hud-total) + 12px);z-index:1035}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-acc .wg-pill{padding:11px 22px;font-size:14px;letter-spacing:.6px;
+  background:linear-gradient(180deg,rgba(var(--acc-rgb),.95),rgba(var(--acc-rgb),.62));border:1px solid rgba(255,255,255,.55);
+  color:#0b1018;text-shadow:0 1px 0 rgba(255,255,255,.35);box-shadow:0 6px 22px rgba(0,0,0,.55),0 0 18px rgba(var(--acc-rgb),.45)}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-hoja{top:var(--top-h);bottom:var(--hud-total);border-radius:14px 0 0 14px}
+#screen-wargame.wg-full #wg-game.wg-hud-on.hoja-abierta #wg-acc,
+#screen-wargame.wg-full #wg-game.wg-hud-on.hoja-abierta #wg-zoom{right:calc(min(340px,88vw) + 16px)}
+/* Los avisos: un cartel arriba al centro, no un texto metido en una esquina. */
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-ayuda{position:absolute;top:calc(var(--top-h) + 12px);left:50%;transform:translateX(-50%);
+  z-index:1044;max-width:min(560px,calc(100% - 40px));pointer-events:auto;font-size:12px;
+  background:rgba(10,15,22,.94);border:1px solid rgba(var(--acc-rgb),.55);box-shadow:0 10px 30px rgba(0,0,0,.5)}
+#screen-wargame.wg-full #wg-game.wg-hud-on .leaflet-bottom{bottom:var(--hud-total)}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-3d .maplibregl-ctrl-bottom-right,
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-3d .maplibregl-ctrl-bottom-left{margin-bottom:var(--hud-total)}
+
+/* ---------- LA CONSOLA ---------- */
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-hud{display:flex;flex-direction:column;position:absolute;left:0;right:0;bottom:0;
+  z-index:1036;height:var(--hud-total);box-sizing:border-box;color:#dbe7f2;
+  font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
+  background:linear-gradient(180deg,rgba(15,21,30,.96),rgba(6,9,14,.985));
+  border-top:1px solid rgba(var(--acc-rgb),.55);box-shadow:0 -12px 30px rgba(0,0,0,.55);transition:height .18s ease}
+#screen-wargame.wg-full #wg-game.wg-hud-on.hud-arrastrando #wg-hud{transition:none}
+#wg-hud::before{content:'';position:absolute;left:0;right:0;top:-1px;height:1px;pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(var(--acc-rgb),1),transparent)}
+#wg-hud-sit{flex:0 0 var(--hud-sit);height:var(--hud-sit);display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:0 8px 0 12px;
+  border-bottom:1px solid rgba(255,255,255,.07);cursor:ns-resize;user-select:none;-webkit-user-select:none;touch-action:none;
+  overflow:hidden;white-space:nowrap;background:linear-gradient(180deg,rgba(var(--acc-rgb),.10),rgba(var(--acc-rgb),0))}
+.wg-sit-tit{font:900 10px/1 system-ui,sans-serif;letter-spacing:2px;color:rgba(var(--acc-rgb),1);flex:0 0 auto}
+#wg-hud-sit.dos{grid-template-columns:auto minmax(0,1fr) auto minmax(0,1fr) auto}
+.wg-sit-g{display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden}
+.wg-sit-b{display:flex;align-items:center;gap:6px;font:900 11px/1 system-ui,sans-serif;letter-spacing:1.4px;color:var(--bc);flex:0 0 auto}
+.wg-sit-b .pt{width:10px;height:10px;border-radius:50%;background:var(--bc);box-shadow:0 0 10px var(--bc)}
+.wg-fc-n{font:800 9.5px/1 system-ui;color:#ff8f8f;background:rgba(255,77,77,.14);border:1px solid rgba(255,77,77,.5);border-radius:5px;padding:2px 4px;letter-spacing:.3px}
+.wg-met{display:flex;align-items:center;gap:5px;font:700 10.5px/1 system-ui,sans-serif;color:#b9c9da;flex:1 1 0;min-width:0;cursor:help}
+.wg-met svg{opacity:.85;flex:0 0 auto}
+.wg-met .lb{opacity:.8}
+.wg-met b{min-width:34px;font:800 11.5px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.wg-met .wg-segs{flex:1 1 auto;width:auto;min-width:12px;max-width:64px}
+.wg-her{display:inline-flex;align-items:center;gap:2px;font:800 10px/1 system-ui;color:#ffb4b4;background:rgba(255,77,77,.16);
+  border:1px solid rgba(255,77,77,.45);border-radius:6px;padding:2px 4px;cursor:help}
+.wg-prc{display:flex;align-items:center;gap:6px;flex:0 0 auto;padding:4px 10px;border-radius:8px;cursor:help;
+  background:rgba(232,195,58,.12);border:1px solid rgba(232,195,58,.55);color:#ffe69c;font:800 10px/1 system-ui;letter-spacing:1px}
+.wg-prc b{font:900 13px/1 system-ui;letter-spacing:.5px;color:#fff3c4;font-variant-numeric:tabular-nums}
+.wg-sit-btn{width:28px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin:0;padding:0;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#dbe7f2;flex:0 0 auto}
+.wg-sit-btn:hover{border-color:rgba(var(--acc-rgb),.9);color:#fff}
+#wg-hud-sit.dos .wg-met .lb{display:none}
+@media (max-width:1400px){ #wg-hud-sit.dos .wg-met .wg-segs{display:none} }
+/* El árbitro con las dos bitácoras: en pantallas de notebook la lista de unidades cede su lugar (está en 🪖 y en el mapa). */
+@media (max-width:1366px){ #wg-game.hud-dos #wg-hud-lista{display:none}
+  #wg-game.hud-dos #wg-hud-cuerpo{grid-template-columns:minmax(210px,250px) minmax(250px,300px) minmax(0,1fr) 150px} }
+@media (max-width:1180px){ .wg-met .lb{display:none} .wg-sit-g{gap:7px} }
+/* El rótulo de la versión no puede tapar la barra de arriba: va a la esquina de abajo. */
+body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px!important;right:auto!important;font-size:9px!important;opacity:.7}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-rol-chip{display:none}
+
+.wg-segs{display:flex;gap:2px;height:7px;width:100%}
+.wg-segs i{flex:1;border-radius:1px;background:rgba(255,255,255,.10)}
+.wg-segs i.f{background:var(--c);box-shadow:0 0 4px var(--c)}
+.wg-segs.vacio{background:repeating-linear-gradient(90deg,rgba(255,255,255,.06) 0 4px,transparent 4px 6px)}
+
+#wg-hud-cuerpo{flex:1;min-height:0;display:grid;gap:8px;padding:7px 10px 8px;
+  grid-template-columns:minmax(140px,205px) minmax(215px,265px) minmax(250px,305px) minmax(0,1fr) minmax(140px,180px)}
+#wg-game.hud-plegada #wg-hud-cuerpo{display:none}
+.wg-hud-col{min-width:0;min-height:0;border-radius:10px;background:rgba(255,255,255,.035);
+  border:1px solid rgba(255,255,255,.075);overflow:hidden;position:relative}
+.wg-vacio{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;
+  color:#7f93a8;font:600 11px/1.3 system-ui;padding:6px}
+.wg-vacio b{color:#cfe0f0;font-size:12.5px}
+.wg-vacio svg{opacity:.6}
+
+/* Unidades */
+#wg-hud-lista{overflow-y:auto;padding:5px 6px;scrollbar-width:thin}
+.wg-rl-cab{font:900 9.5px/1 system-ui;letter-spacing:1.2px;margin:3px 2px 5px}
+.wg-rl{display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;margin-bottom:6px}
+.wg-tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;
+  height:50px;padding:3px 2px 6px;margin:0;border-radius:7px;cursor:pointer;min-width:0;width:auto;
+  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1.5px solid rgba(255,255,255,.09);color:#dbe7f2}
+.wg-tile:hover{border-color:rgba(var(--acc-rgb),.75);background:rgba(var(--acc-rgb),.10)}
+.wg-tile.sel{border-color:#ffd83b;background:rgba(255,216,59,.16);box-shadow:0 0 12px rgba(255,216,59,.45)}
+.wg-tile.fc{opacity:.38;filter:grayscale(1)}
+.wg-tile img{height:26px;max-width:100%;object-fit:contain;pointer-events:none}
+.wg-tile .nm{font:800 8.5px/1.05 system-ui;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
+.wg-tile .pb{position:absolute;left:5px;right:5px;bottom:3px;height:3px;border-radius:2px;background:rgba(0,0,0,.55);overflow:hidden}
+.wg-tile .pb i{display:block;height:100%}
+.wg-tile .al{position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:50%;background:#ff4d4d;color:#fff;
+  font:900 10px/14px system-ui;text-align:center;box-shadow:0 0 6px rgba(255,77,77,.9)}
+
+/* La ficha */
+#wg-hud-ficha{padding:8px}
+.wg-fc{display:flex;gap:10px;height:100%;min-width:0}
+.wg-fc-ret{flex:0 0 auto;width:80px;height:80px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.95),rgba(214,224,236,.92));border:2px solid var(--bc);
+  box-shadow:0 0 0 3px rgba(0,0,0,.35),0 0 18px rgba(var(--acc-rgb),.35)}
+.wg-fc-ret img{max-width:72px;max-height:64px;pointer-events:none}
+.wg-fc-der{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.wg-fc-nom{font:900 13px/1.15 system-ui;color:#fff;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:24px}
+.wg-fc-sub{font:800 9px/1.2 system-ui;color:rgba(var(--acc-rgb),1);letter-spacing:1px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.wg-fila{display:flex;align-items:center;gap:6px;height:14px;font:700 10px/1 system-ui;color:#dbe7f2;cursor:help}
+.wg-fila svg{flex:0 0 auto;opacity:.85}
+.wg-fila b{min-width:42px;text-align:right;font:800 10.5px/1 system-ui;font-variant-numeric:tabular-nums}
+.wg-chips{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px;overflow:hidden;max-height:34px}
+.wg-chips span{font:800 8.5px/1 system-ui;padding:3px 5px;border-radius:5px;letter-spacing:.4px;background:rgba(255,255,255,.07);color:#cfe0f0}
+.wg-chips span.v{background:rgba(57,211,122,.15);color:#9ff0c0}
+.wg-chips span.a{background:rgba(240,165,49,.17);color:#ffd59a}
+.wg-chips span.r{background:rgba(255,77,77,.20);color:#ffb4b4}
+.wg-chips span.o{background:rgba(var(--acc-rgb),.16);color:#fff}
+.wg-fc-i{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+  margin:0;padding:0;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#cfe0f0}
+.wg-fc-i:hover{border-color:rgba(var(--acc-rgb),.9);color:#fff}
+
+/* La grilla de órdenes */
+#wg-hud-grilla{padding:6px;display:flex;flex-direction:column;gap:5px;overflow-y:auto;scrollbar-width:thin}
+.wg-gr{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}
+.wg-gr-f{padding-top:5px;border-top:1px solid rgba(255,255,255,.07)}
+.wg-gr-tit{font:900 9px/1 system-ui;letter-spacing:1.4px;color:#7f93a8;margin:1px 2px}
+.wg-gr-nota{display:flex;align-items:center;gap:6px;font:600 10.5px/1.3 system-ui;color:#8fa3b8;margin-top:4px}
+.wg-cb{position:relative;height:34px;min-width:0;width:auto;margin:0;padding:0;display:flex;align-items:center;justify-content:center;
+  border-radius:8px;cursor:pointer;color:#e3edf7;
+  background:linear-gradient(180deg,rgba(70,86,106,.62),rgba(22,30,40,.92));border:1px solid rgba(255,255,255,.15);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 2px 6px rgba(0,0,0,.35);transition:transform .08s,box-shadow .12s,border-color .12s}
+.wg-cb:hover{border-color:rgba(var(--acc-rgb),.9);color:#fff;box-shadow:0 0 12px rgba(var(--acc-rgb),.5)}
+.wg-cb:active,.wg-cb.pulsado{transform:scale(.92)}
+.wg-cb.fuego{background:linear-gradient(180deg,rgba(96,70,62,.6),rgba(30,22,22,.92))}
+.wg-cb.on{border-color:#ffd83b;background:linear-gradient(180deg,rgba(255,216,59,.38),rgba(120,95,10,.42));color:#fff6cf;
+  box-shadow:0 0 14px rgba(255,216,59,.55),inset 0 0 0 1px rgba(255,216,59,.5)}
+.wg-cb.off{opacity:.42;filter:grayscale(.85)}
+.wg-cb .ia{display:flex;align-items:center;justify-content:center;pointer-events:none}
+.wg-cb .ia svg{width:24px;height:24px}
+.wg-cb > svg{pointer-events:none}
+.wg-cb .k{position:absolute;top:2px;left:3px;font:800 8px/1 ui-monospace,Menlo,monospace;color:rgba(255,255,255,.5);pointer-events:none}
+.wg-cb .bd{position:absolute;top:-5px;right:-4px;min-width:15px;height:15px;border-radius:8px;background:#e23b3b;color:#fff;
+  font:900 9px/15px system-ui;text-align:center;padding:0 3px;box-shadow:0 0 7px rgba(226,59,59,.9);pointer-events:none;box-sizing:border-box}
+.wg-cb .am{position:absolute;left:4px;right:4px;bottom:3px;height:3px;border-radius:2px;background:rgba(0,0,0,.6);overflow:hidden;pointer-events:none}
+.wg-cb .am i{display:block;height:100%}
+.wg-cb .seco{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ff5a5a;opacity:.9;pointer-events:none}
+.wg-mis{display:flex;gap:4px}
+.wg-mis button{flex:1;margin:0;padding:5px 4px;border-radius:7px;cursor:pointer;font:800 10px/1.1 system-ui;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:#dbe7f2;width:auto;min-width:0}
+.wg-mis button.on{background:color-mix(in srgb,var(--mc) 26%,transparent);border-color:var(--mc);color:#fff}
+
+/* La bitácora (la misma de siempre, ahora como columna de la consola) */
+#wg-hud-bitcol{background:none;border:0;border-radius:0;overflow:visible}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-bit,
+#screen-wargame.wg-full #wg-game.wg-hud-on.hoja-abierta #wg-bit{position:relative;left:auto;right:auto;bottom:auto;z-index:auto;
+  height:100%;background:none;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;transition:none}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-bit-asa{display:none}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-bit-cuerpo,
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-bit.cerrada #wg-bit-cuerpo{display:grid;height:100%;padding:0;gap:8px}
+#wg-game.wg-hud-on .wg-bit-caja{border-radius:10px;background:rgba(255,255,255,.035)}
+#wg-game.wg-hud-on .wg-bit-cab{padding:5px 9px}
+
+/* El minimapa */
+#wg-hud-mini{padding:4px;background:rgba(0,0,0,.30)}
+#wg-hud-mapa{width:100%;height:100%;display:block;border-radius:7px;cursor:crosshair}
+
+/* ---------- LA VENTANITA, LA AYUDA Y LA ENTRADA ---------- */
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-hud-pop.ver{display:flex;flex-direction:column;position:absolute;z-index:1045;
+  left:calc(min(230px,18vw) + 20px);bottom:calc(var(--hud-total) + 10px);width:min(420px,calc(100% - 40px));max-height:min(60vh,520px);
+  background:rgba(10,15,22,.97);border:1px solid rgba(var(--acc-rgb),.6);border-radius:13px;box-shadow:0 14px 40px rgba(0,0,0,.6);
+  color:#dbe7f2;font-family:system-ui,-apple-system,sans-serif;overflow:hidden}
+.wg-pop-cab{display:flex;align-items:center;gap:8px;padding:9px 10px 8px 13px;font:900 11px/1.2 system-ui;letter-spacing:1.2px;
+  color:rgba(var(--acc-rgb),1);border-bottom:1px solid rgba(255,255,255,.08);background:rgba(var(--acc-rgb),.08)}
+.wg-pop-cab span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wg-pop-cab button{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;margin:0;padding:0;
+  cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#dbe7f2}
+.wg-pop-cuerpo{overflow-y:auto;padding:10px 12px 12px;font-size:12px;scrollbar-width:thin}
+.wg-pop-nota{font:600 11.5px/1.45 system-ui;color:#b9c9da;margin:4px 0 8px;display:flex;gap:6px;align-items:flex-start}
+.wg-pop-in{width:100%;box-sizing:border-box;font-size:12px;padding:7px 9px;border-radius:8px;background:rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.18);color:#e6eef8}
+.wg-tts{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;margin-bottom:8px}
+.wg-tt{display:flex;align-items:center;gap:7px;padding:8px 9px;margin:0;border-radius:9px;cursor:pointer;width:auto;min-width:0;text-align:left;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-left:3px solid var(--tc);color:#dbe7f2}
+.wg-tt:hover{background:rgba(255,255,255,.09)}
+.wg-tt.on{background:color-mix(in srgb,var(--tc) 24%,transparent);border-color:var(--tc);color:#fff;box-shadow:0 0 12px color-mix(in srgb,var(--tc) 45%,transparent)}
+.wg-tt .i{font-size:15px;flex:0 0 auto}
+.wg-tt .n{font:900 10.5px/1.15 system-ui;letter-spacing:.6px}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-hud-tip{display:block;position:absolute;z-index:1060;left:-9999px;top:0;max-width:300px;
+  padding:8px 11px;border-radius:9px;pointer-events:none;opacity:0;transition:opacity .12s;
+  background:rgba(6,10,15,.97);border:1px solid rgba(var(--acc-rgb),.65);box-shadow:0 10px 26px rgba(0,0,0,.6);
+  color:#c9d7e5;font:600 11px/1.45 system-ui,-apple-system,sans-serif}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-hud-tip.ver{opacity:1}
+#wg-hud-tip b{display:block;color:#fff;font:900 11px/1.3 system-ui;letter-spacing:.8px;margin-bottom:2px}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-hud-splash{display:flex;flex-direction:column;align-items:center;gap:6px;position:absolute;
+  left:50%;top:38%;transform:translate(-50%,-50%);z-index:1050;pointer-events:none;opacity:0;text-align:center}
+#wg-hud-splash.ver{animation:wgSplash 2.2s ease forwards}
+#wg-hud-splash .s1{font:900 clamp(22px,3.4vw,42px)/1.05 system-ui,sans-serif;letter-spacing:6px;color:#fff;
+  padding:14px 34px;border-top:2px solid rgba(var(--acc-rgb),1);border-bottom:2px solid rgba(var(--acc-rgb),1);
+  background:linear-gradient(90deg,transparent,rgba(var(--acc-rgb),.35),transparent);text-shadow:0 2px 14px rgba(0,0,0,.8)}
+#wg-hud-splash .s2{font:800 12px/1.3 system-ui;letter-spacing:2px;color:rgba(255,255,255,.85);text-transform:uppercase;text-shadow:0 1px 8px rgba(0,0,0,.9)}
+@keyframes wgSplash{0%{opacity:0;transform:translate(-50%,-46%) scale(.96)} 18%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  72%{opacity:1} 100%{opacity:0;transform:translate(-50%,-54%)}}
+
+/* Pantallas angostas: se van primero las unidades (hay botón 🪖), después el minimapa. */
+@media (max-width:1240px){ #wg-hud-cuerpo{grid-template-columns:minmax(210px,250px) minmax(250px,300px) minmax(0,1fr) 150px} #wg-hud-lista{display:none} }
+@media (max-width:900px){ #wg-hud-cuerpo{grid-template-columns:minmax(190px,240px) minmax(220px,1fr) minmax(0,1fr)} #wg-hud-mini{display:none}
+  #screen-wargame.wg-full #wg-game.wg-hud-on #wg-tabs .wg-tab span{display:none} }
+@media (max-width:700px){ #wg-hud-cuerpo{grid-template-columns:1fr 1fr} #wg-hud-bitcol{display:none} }
+</style>
 <section id="screen-wargame" class="screen">
   <div class="app-header">
     <button class="back-btn" onclick="wgVolver()">←</button>
@@ -8192,9 +8478,12 @@ body.wg-jugando{overflow:hidden}
         <span id="wg-reloj-ctl" style="display:inline-flex;gap:6px;align-items:center"></span>
         <span id="wg-rol-chip" class="wg-chip"></span>
         <span id="wg-3d-cota" class="wg-chip" style="display:none">—</span>
-      </div>
+        <!-- v2.9.452 — LAS PESTAÑAS DEL ÁRBITRO (⚖️ ÁRBITRO · 🔵 VISTA AZUL · 🔴 VISTA ROJO).
+             Sólo él las ve; a un Estado Mayor se le muestra el rótulo de su bando. -->
+        <div id="wg-tabs"></div>
 
-      <!-- Riel de herramientas: botones redondos, como en los juegos -->
+      <!-- Riel de herramientas: botones redondos, como en los juegos.
+           v2.9.452: vive DENTRO de la barra de arriba (#wg-tl), en fila. -->
       <div id="wg-rail">
         <button class="wg-rd" onclick="wgEstado()" title="Actualizar">🔄</button>
         <button class="wg-rd" id="wg-btn-obs" onclick="wgObsToggle(this)" title="Alcance de observación (niebla de guerra)">👁️</button>
@@ -8223,7 +8512,18 @@ body.wg-jugando{overflow:hidden}
         <button class="wg-rd" id="wg-riel-civil" onclick="wgHoja('civil')" title="Asuntos civiles: poblaciones del sector y áreas restringidas">🏛️</button>
         <button class="wg-rd" onclick="wgBit()" title="Bitácora (abajo: 🔴 | 🔵)">📜</button>
         <button class="wg-rd" id="wg-btn-config" onclick="wgHoja('config')" title="Configurar" style="display:none">⚙️</button>
+        <!-- v2.9.452: las herramientas de afinar el rendimiento quedan detrás de «⋯». -->
+        <button class="wg-rd" id="wg-rail-mas" onclick="wgRielMas(this)" title="Más herramientas: actualizar, en vivo, seguir, cono del dron, alivio, medidor, giro de cámara">⋯</button>
       </div>
+      </div><!-- /#wg-tl (v2.9.452: la barra de arriba envuelve también al riel) -->
+
+      <!-- v2.9.452 — LOS AVISOS, arriba al centro (antes, metidos abajo a la izquierda). -->
+      <div id="wg-ayuda"></div>
+      <!-- v2.9.452 — el marco de la lente del árbitro, la ayuda emergente y la entrada. -->
+      <div id="wg-hud-marco"></div>
+      <div id="wg-hud-tip"></div>
+      <div id="wg-hud-splash"></div>
+      <div id="wg-hud-pop"></div>
 
       <!-- v2.9.261 — COLUMNA DE ARRIBA A LA IZQUIERDA, APILADA.
            Las vistas del árbitro (top:56), la franja de consola (top:100) y el
@@ -8289,9 +8589,8 @@ body.wg-jugando{overflow:hidden}
            clavados en la misma esquina con alturas fijas: al crecer cualquiera,
            se pisaban. Ahora van una debajo de otra en un flujo real. -->
       <div id="wg-abajo-izq">
-        <!-- Ayuda y avisos: PRIMERO de la pila, así empuja al resto en vez de
-             taparlo. Se abre con ❓ o sola cuando hay algo que avisar. -->
-        <div id="wg-ayuda"></div>
+        <!-- v2.9.452: la ayuda y los avisos se mudaron arriba al centro (#wg-ayuda,
+             después de la barra de arriba). -->
         <!-- Estación de control del CW 40 (uno por bando). -->
         <div id="wg-drones" style="background:rgba(10,16,22,.82);backdrop-filter:blur(7px);
           padding:7px 9px;border-radius:11px;border:1px solid rgba(140,210,255,.24);display:none"></div>
@@ -8307,6 +8606,16 @@ body.wg-jugando{overflow:hidden}
            aparezca en dos cuadros, uno de rojo y otro de azul». El árbitro ve los
            dos; cada bando, sólo el suyo. Se abre y se cierra tocando el asa, y se
            estira arrastrándola. -->
+      <!-- v2.9.452 — LA CONSOLA DE MANDO: arriba la franja de SITUACIÓN (lo que
+           Sergio pidió «en la parte superior de la bitácora») y debajo, en
+           columnas: unidades | ficha | órdenes | bitácora 🔴/🔵 | minimapa. -->
+      <div id="wg-hud">
+        <div id="wg-hud-sit"></div>
+        <div id="wg-hud-cuerpo">
+          <div id="wg-hud-lista" class="wg-hud-col"></div>
+          <div id="wg-hud-ficha" class="wg-hud-col"></div>
+          <div id="wg-hud-grilla" class="wg-hud-col"></div>
+          <div id="wg-hud-bitcol" class="wg-hud-col">
       <div id="wg-bit" class="cerrada">
         <div id="wg-bit-asa" title="Bitácora — tocá para abrir o cerrar; arrastrá para estirarla">
           <span class="wg-bit-tit">📜 BITÁCORA</span>
@@ -8315,6 +8624,11 @@ body.wg-jugando{overflow:hidden}
           <span id="wg-bit-flecha">▲</span>
         </div>
         <div id="wg-bit-cuerpo"></div>
+      </div>
+          </div>
+          <div id="wg-hud-mini" class="wg-hud-col"
+            data-tip="MINIMAPA|Todo el sector: ■ tus unidades, □ lo que el dron reportó, ◆ tus instalaciones logísticas y ◇ las del enemigo que descubriste. El círculo punteado es lo que bate el sensor del dron y el recuadro blanco, lo que estás mirando.|Tocá un punto para llevar la cámara ahí."><canvas id="wg-hud-mapa"></canvas></div>
+        </div>
       </div>
 
       <!-- Zoom propio (el de Leaflet queda oculto para no duplicar) -->
@@ -30298,6 +30612,7 @@ async function wgAbrir(partidaId, clave){
   setTimeout(()=>{ try{ WG.map.invalidateSize(); }catch(e){} }, 120);
   setTimeout(()=>{ try{ WG.map.invalidateSize(); wgActualizarZoomChip(); }catch(e){} }, 450);
   await wgEstado();
+  try{ _wgHudMontar(); }catch(e){ console.warn('consola de mando:', e); }   // v2.9.452
   _wgSyncIniciar();   // v2.9.281: desde acá el tablero se mantiene solo al día
   wgCivilCargar();    // v2.9.332: el calco de Asuntos Civiles, para toda la plana
   _wgOrientarLazo();  // v2.9.286: la carta de orientación de la esquina
@@ -30769,13 +31084,54 @@ function _wgVisiblesPorBando(){
 // ============================================================
 const WG_VISTA_TROPA = 4;   // km que ve por sí sola una unidad de tierra
 // Dónde está de verdad el aparato de ese bando (en vuelo, no en el PC).
+// ============================================================
+// v2.9.453 — LA FICHA CAMBIA EN VIVO MIENTRAS EL DRON SE ACERCA.
+// Sergio: «los drones ven algo, puede ser un cuadrado, pero no saben magnitud ni
+// identificación; cuando pasa cerca, como si fuera de verdad». La escalera ya
+// estaba (v2.9.284), pero el dibujo del mapa se rehacía recién con el próximo
+// estado: la estación decía «BATALLÓN ?» y la ficha seguía diciendo «CONTACTO».
+// Ahora el lazo de vuelo (2D y 3D) pregunta, a lo sumo dos veces por segundo,
+// cuánto sabe el bando de cada contacto; si algo subió o bajó de nivel, repinta.
+// Sólo dentro del visor, que es donde se ve al enemigo en vivo.
+// ============================================================
+function _wgNivelesVivo(bando){
+  try{
+    if(WG.dronVista==null) return;
+    const obs=_wgBandoLente() || (WG.soy==='arbitro' ? null : WG.soy);
+    if(obs!==bando) return;
+    const ahora=performance.now();
+    WG._nivT0=WG._nivT0||{};
+    if(WG._nivT0[bando] && ahora-WG._nivT0[bando]<500) return;
+    WG._nivT0[bando]=ahora;
+    const f=_wgContactosDelSensor(bando).map(x=>x.u.id+':'+x.n).join(',');
+    WG._nivFirma=WG._nivFirma||{};
+    if(WG._nivFirma[bando]===f) return;
+    WG._nivFirma[bando]=f;
+    clearTimeout(WG._nivT);
+    WG._nivT=setTimeout(()=>{ try{ _wgRender(); if(WG.map3d) _wg3dDatos(); }catch(_e){} }, 120);
+  }catch(_e){}
+}
 function _wgPosDron(bando){
   const info=_wgDronBando(bando);
-  if(!info || !info.d) return null;
-  const v=(WG.dronesVuelo||[]).find(x=>String(x.u.id)===String(info.portador.id));
+  if(!info || !info.d){ if(info && WG._dronUlt) delete WG._dronUlt[String(info.portador.id)]; return null; }   // v2.9.453: aterrizado, se olvida
+  // v2.9.453 — EN 2D EL APARATO TAMBIÉN VUELA. El lazo de vuelo escribe la posición
+  // en la lista del 3D (`dronesVuelo`) o en la del 2D (`dronesVuelo2D`), según la
+  // vista. Acá se leía sólo la del 3D: en el mapa plano el dron se veía volando pero
+  // la escalera de reconocimiento —y la posición que viaja al servidor en el latido—
+  // lo daban por estacionado en su puesto de mando, y no descubría nada.
+  const de=(l)=>(l||[]).find(x=>String(x.u.id)===String(info.portador.id) && x._pos);
+  const v3=de(WG.dronesVuelo), v2=de(WG.dronesVuelo2D);
+  const v=(typeof _wgEn3D==='function' && _wgEn3D()) ? (v3||v2) : (v2||v3);
+  // Al repintar se rehacen los marcadores del aparato y, por un cuadro, todavía no
+  // tienen posición: se usa la última conocida, no la del puesto de mando (si no,
+  // el sensor «saltaba» al PC y volvía, y la ficha parpadeaba entre niveles).
+  WG._dronUlt=WG._dronUlt||{};
+  const k=String(info.portador.id);
+  if(v) WG._dronUlt[k]={ pos:v._pos, proa:v._proa };
+  const ult=WG._dronUlt[k];
   return { u:info.portador, d:info.d,
-    pos:(v&&v._pos)?v._pos:[info.portador.lng,info.portador.lat],
-    proa:(v&&v._proa!=null)?v._proa:info.d.rumbo };
+    pos:(ult&&ult.pos)?ult.pos:[info.portador.lng,info.portador.lat],
+    proa:(ult&&ult.proa!=null)?ult.proa:info.d.rumbo };
 }
 // ============================================================
 // v2.9.284 — LA ESCALERA DE RECONOCIMIENTO (lo que el dron alcanza a saber).
@@ -31272,7 +31628,8 @@ function _wgIntAntiguedad(turnoDato){
   return Math.max(0, actual-t);
 }
 function _wgContactosSubidos(bando){
-  const intel=((WG.estado&&WG.estado.inteligencia)||[]).filter(x=>x.bando===bando);
+  const intel=((WG.estado&&WG.estado.inteligencia)||[]).filter(x=>x.bando===bando
+    && !(x.datos&&x.datos.instalacion));   // v2.9.453: las instalaciones enemigas se dibujan aparte
   return intel.map(x=>{
     const d=x.datos||{};
     // v2.9.315: el nivel que vale HOY, no el del día que se lo vio.
@@ -32078,6 +32435,49 @@ function _wgInstalaciones(){
   const b=(WG.soy==='arbitro')?_wgBandoLente():WG.soy;
   return ((WG.estado&&WG.estado.instalaciones)||[]).filter(x=>!b||x.bando===b);
 }
+// ============================================================
+// v2.9.453 — LA LOGÍSTICA ENEMIGA EN LA CARTA.
+// Sergio: «sus unidades de logística deben existir… el azul también debe tener
+// chance de destruir o defenderse». El servidor ya anota en la carta de cada
+// bando las instalaciones enemigas que su dron o su tropa descubrieron (en
+// wg_inteligencia, con el id en NEGATIVO). Acá se las dibuja: con su código si
+// se reconoció QUÉ es, con «?» si sólo se sabe que hay una. Tocarla con un arma
+// elegida es pedir fuego ahí; con una unidad elegida, mandarla a arrasarla.
+// `_wgInstalaciones()` sigue siendo SÓLO las propias: las herramientas del G-4
+// (formar convoy, reponer, mover) no pueden tocar nunca una ajena.
+// ============================================================
+function _wgInstalacionesAjenas(){
+  const b=(WG.soy==='arbitro')?_wgBandoLente():WG.soy;
+  if(b!=='azul' && b!=='rojo') return [];   // el árbitro en panorama ya las ve todas, las de los dos
+  return ((WG.estado&&WG.estado.inteligencia)||[])
+    .filter(r=>r && r.bando===b && Number(r.unidad_id)<0 && r.datos && r.datos.instalacion
+      && Number.isFinite(Number(r.lng)) && Number.isFinite(Number(r.lat)))
+    .map(r=>({ id:Number(r.unidad_id), _intel:true, _nivel:Number(r.nivel)||1, turno:r.turno,
+      tipo:(r.datos.tipo && WG_INSTAL[r.datos.tipo]) ? r.datos.tipo : null,
+      bando:r.datos.bando || (b==='azul'?'rojo':'azul'),
+      geojson:{ type:'Point', coordinates:[Number(r.lng), Number(r.lat)] } }));
+}
+function _wgInstalAjenaTip(it){
+  const I=it.tipo?WG_INSTAL[it.tipo]:null;
+  return (I ? `${I.ico} <b>${_rgEsc(I.nom)} enemigo</b>` : `❓ <b>Instalación logística enemiga</b> — todavía no se sabe cuál`)
+    +`<br><span style="opacity:.85">Vista en el turno ${_rgEsc(it.turno||'—')}. `
+    +(I && I.blanco ? _rgEsc(I.blanco)+'<br>' : '')
+    +`Batila con un arma de tiro indirecto, o mandá una fuerza: si llega encima y nadie la defiende, la <b>arrasa</b>.</span>`;
+}
+// El latido avisó que el bando alcanza instalaciones enemigas: si alguna es
+// nueva (o ahora se sabe cuál es), se pide el estado y el servidor la anota.
+async function _wgNovedadesInstal(lista){
+  if(!Array.isArray(lista) || !lista.length) return;
+  const b=WG.soy; if(b!=='azul' && b!=='rojo') return;
+  const tengo=new Map(((WG.estado&&WG.estado.inteligencia)||[])
+    .filter(r=>r.bando===b && Number(r.unidad_id)<0).map(r=>[Number(r.unidad_id), Number(r.nivel)||1]));
+  const nuevas=lista.filter(x=>!tengo.has(Number(x.id)) || tengo.get(Number(x.id))<Number(x.n));
+  if(!nuevas.length) return;
+  await wgEstado(true);
+  _wgRender(); if(WG.map3d) _wg3dDatos();
+  _wgAviso(`🔍 <b>Logística enemiga a la vista</b> — ${nuevas.length===1?'una instalación':nuevas.length+' instalaciones'} `
+    +`en la retaguardia del enemigo. Quedó marcada en tu carta: <b>batila</b> con la artillería o mandá una fuerza a <b>arrasarla</b>.`, 7000);
+}
 // Entrar en modo colocar: el próximo clic en el mapa ubica la instalación.
 function wgInstalarModo(tipo){
   if(!WG_INSTAL[tipo]) return;
@@ -32604,6 +33004,9 @@ function _wgEjeAproximacion(bando){
 function wgVistaArbitro(id){
   WG.vistaArb=id;
   wgPanelVistas();
+  // v2.9.452 — LAS PESTAÑAS DE ARRIBA. Cambiar de pestaña cambia también la
+  // consola entera: su color, la situación, las unidades y el minimapa.
+  try{ if(_wgHudOn()){ WG.sel=null; WG.armaSel=null; WG.hudPop=null; _wgRender(); _wgBitRender(); _wgHudSplash(); } }catch(_e){}
   // v2.9.261: al cambiar de lente cambian las unidades y los drones que se ven.
   wgBarraUnidades&&wgBarraUnidades();
   wgPanelDrones&&wgPanelDrones();
@@ -33344,6 +33747,7 @@ function _wgVolarDrones(){
         cuerpo.style.transform=`skewX(${(alabeo*0.35).toFixed(1)}deg)`;
       }
       v._pos=[lng,lat];
+      _wgNivelesVivo(v.u.bando);   // v2.9.453
     }
     // ============================================================
     // v2.9.323 — EL MISMO VUELO, DIBUJADO SOBRE LA MAQUETA (2D).
@@ -33377,6 +33781,7 @@ function _wgVolarDrones(){
           v.av.style.transform=`rotate(${cin.proa.toFixed(1)}deg) skewX(${(alabeo*0.35).toFixed(1)}deg)`;
         }
         v._pos=[cin.lng,cin.lat];
+        _wgNivelesVivo(v.u.bando);   // v2.9.453
       }
       // El tablero de telemetría, sólo si no hay 3D que ya lo esté escribiendo.
       if(!WG.map3d) for(const v of lista2){
@@ -34597,7 +35002,8 @@ function wgActualizarZoomChip(){
     // Muy alejado el mundo se repite y el ancho supera la vuelta a la Tierra:
     // decirlo en palabras es más claro que un número enorme.
     const vueltaKm = 40075 * Math.cos(lat * Math.PI / 180);
-    el.textContent = 'Z' + z + ' · ' + (anchoKm >= vueltaKm ? '🌍 todo el mundo' : _wgFmtKm(anchoKm));
+    // v2.9.452: en 3D el zoom es fraccionario (Z10.252165997680695): se muestra con un decimal.
+    el.textContent = 'Z' + (Math.round(z*10)/10) + ' · ' + (anchoKm >= vueltaKm ? '🌍 todo el mundo' : _wgFmtKm(anchoKm));
   }catch(e){}
 }
 // Compatibilidad: el botón viejo de configurar abría/cerraba su caja.
@@ -34888,6 +35294,7 @@ async function _wgSyncTick(){
     const ahora=Number(p.turno_actual);
     if(antes==null || !Number.isFinite(ahora) || ahora===Number(antes)){
       await _wgNovedadesInt(p.vistos);   // v2.9.285: ¿el CW 40 descubrió algo?
+      await _wgNovedadesInstal(p.instal_vistas);   // v2.9.453: ¿y alguna instalación enemiga?
       // ========================================================
       // v2.9.333 — REPASO PERIÓDICO DEL TABLERO.
       //
@@ -35178,7 +35585,11 @@ async function wgEstado(silencioso){
   // JEM, G-3) y al G-2 les sirve la lista de unidades.
   if(miRol && !WG._hojaAuto){
     WG._hojaAuto=1;
-    try{ wgHoja(WG_HOJA_DE_ROL[miRol] || 'unidades'); }catch(_e){}
+    // v2.9.452: con la consola de mando la lista de unidades ya está abajo, a la
+    // vista; abrir además la hoja sólo tapaba el mapa. Las hojas propias del
+    // G-1, G-4 y G-5 (personal, logística, civil) se siguen abriendo solas.
+    try{ const hj=WG_HOJA_DE_ROL[miRol] || 'unidades';
+      if(!(hj==='unidades' && document.getElementById('wg-hud') && !WG.maqueta)) wgHoja(hj); }catch(_e){}
   }
   // El botón de su hoja queda marcado en el riel, para que sepa cuál es la suya.
   if(miRol){
@@ -37298,6 +37709,7 @@ function _wg3dDatos(){
     // v2.9.344: sin esto, colocar o mover una instalación no redibujaba el 3D
     // (la firma no cambiaba y la función se salía antes de tocar el DOM).
     _wgInstalaciones().map(it=>[it.id,it.tipo,((it.geojson||{}).coordinates||[]).join(',')]),
+    _wgInstalacionesAjenas().map(it=>[it.id,it.tipo,it._nivel]),   // v2.9.453
     (WG.incendios||[]).length]);
   if(firma===WG._firma3d) return;
   WG._firma3d=firma;
@@ -37453,6 +37865,24 @@ function _wg3dDatos(){
       } else { el.style.cursor='default'; }
       // v2.9.347: la instalación va DETRÁS de las fichas. Sin esto tapaba al
       // convoy que acaba de salir de ella, que es justo lo que hay que ver.
+      try{ mk.getElement().style.zIndex='1'; }catch(_e){}
+      WG.marc3d.push(mk);
+    }catch(_e){}
+  }
+  // v2.9.453 — las instalaciones ENEMIGAS que este bando descubrió (igual que en 2D).
+  for(const it of _wgInstalacionesAjenas()){
+    const c=it.geojson.coordinates;
+    try{
+      const _sim=_wgSimboloInstal(it.tipo||'log_?', it.bando, '');
+      const _F=0.52;
+      const el=document.createElement('img');
+      el.src=_sim.url; el.style.width=(_sim.w*_F)+'px'; el.style.height=(_sim.h*_F)+'px';
+      el.style.cursor='crosshair'; el.style.opacity='.85';
+      const I=it.tipo?WG_INSTAL[it.tipo]:null;
+      el.title=(I?I.nom+' enemigo':'Instalación logística enemiga (sin identificar)')+` — vista en el turno ${it.turno||'—'}`;
+      el.addEventListener('click',(ev)=>{ ev.stopPropagation(); ev.preventDefault();
+        _wgMapClick({ latlng:{lat:c[1], lng:c[0]}, originalEvent:ev }); });
+      const mk=new maplibregl.Marker({element:el, anchor:'center'}).setLngLat([c[0],c[1]]).addTo(map);
       try{ mk.getElement().style.zIndex='1'; }catch(_e){}
       WG.marc3d.push(mk);
     }catch(_e){}
@@ -37939,7 +38369,14 @@ function _wgUnidadPorId(id){
 // Enemigos batidos por un sistema desde la posición de la unidad.
 function _wgBatidosPor(u, arma){
   if(!u||!arma||!arma.alcance) return [];
-  const enemigos=((WG.estado&&WG.estado.unidades)||[]).filter(e=>e.bando!==u.bando && e.estado!=='fuera_combate');
+  // v2.9.453 — SÓLO LO QUE ESTE BANDO CONOCE. Antes los anillos rojos de «en alcance»
+  // salían de la lista cruda del servidor: con el arma elegida aparecía, marcado,
+  // todo enemigo que el dron tuviera en el sensor aunque nadie lo hubiera visto ni
+  // subido a la carta — la escalera de reconocimiento se saltaba por acá. Ahora es
+  // lo visible para quien mira (el árbitro en panorama sigue viendo todo).
+  let base; try{ base=_wgUnidadesVisibles(); }catch(_e){ base=(WG.estado&&WG.estado.unidades)||[]; }
+  const enemigos=base.filter(e=>e.bando!==u.bando && e.estado!=='fuera_combate'
+    && Number.isFinite(Number(e.lng)) && Number.isFinite(Number(e.lat)));
   return enemigos.map(e=>({e, d:_wgHav([u.lng,u.lat],[e.lng,e.lat])}))
     .filter(x=>x.d<=arma.alcance).sort((a,b)=>a.d-b.d);
 }
@@ -42923,6 +43360,18 @@ function _wgRender(){
     if(WG.soy==='arbitro' || _wgRol()===I.rol)
       mk.on('click',(e)=>{ L.DomEvent.stopPropagation(e); _wgInstalClick(it, I); });
   }
+  // v2.9.453 — las instalaciones ENEMIGAS que este bando descubrió. Tocarlas es
+  // tocar el mapa en ese punto: con un arma elegida, fuego ahí; con una unidad, ir.
+  for(const it of _wgInstalacionesAjenas()){
+    const c=it.geojson.coordinates;
+    const _sim=_wgSimboloInstal(it.tipo||'log_?', it.bando, '');
+    const _F=0.62;
+    const mk=L.marker([c[1],c[0]],{ zIndexOffset:190, opacity:0.82, icon:L.icon({
+      iconUrl:_sim.url, iconSize:[_sim.w*_F, _sim.h*_F],
+      iconAnchor:[_sim.w*_F/2, _sim.h*_F/2-4] }) }).addTo(WG.capa);
+    mk.bindTooltip(_wgInstalAjenaTip(it),{direction:'top'});
+    mk.on('click',(e)=>{ L.DomEvent.stopPropagation(e); _wgMapClick({ latlng:L.latLng(c[1],c[0]), originalEvent:e.originalEvent }); });
+  }
   // v2.9.220: las llamas, encima de las fichas (el mismo HTML que en 3D).
   for(const f of (WG.incendios||[])){
     L.marker([f.lat,f.lng],{interactive:false,zIndexOffset:2000,
@@ -43017,6 +43466,7 @@ function _wgRender(){
   if(WG.hoja==='personal') wgPanelPersonal();
   if(WG.hoja==='logistica') wgPanelLogistica();
   wgPanelCamaras();
+  try{ _wgHudRender(); }catch(_e){}   // v2.9.452: la consola de mando sigue al tablero
 }
 function _wgSelById(id){ const u=(WG.estado.unidades||[]).find(x=>String(x.id)===String(id)); if(u) _wgUnidadClick(u); }
 // ============================================================
@@ -44557,6 +45007,9 @@ function _wgBitAsa(){
   }
 }
 function wgBit(abrir){
+  // v2.9.452: con la consola de mando la bitácora es una columna de la consola;
+  // abrir o cerrar la bitácora es desplegar o plegar la consola.
+  if(typeof _wgHudOn==='function' && _wgHudOn()){ wgHudPlegar(abrir==null?null:!abrir); return; }
   const bit=document.getElementById('wg-bit'); if(!bit) return;
   _wgBitInit();
   const ab = abrir==null ? bit.classList.contains('cerrada') : !!abrir;
@@ -44598,6 +45051,749 @@ function _wgBitInit(){
   };
   asa.addEventListener('pointerup',soltar);
   asa.addEventListener('pointercancel',soltar);
+}
+// ============================================================
+// v2.9.452 — LA CONSOLA DE MANDO.
+//
+// Sergio (04-11-2026), con capturas de Age of Empires IV y Galactic
+// Battlegrounds: «no me gusta la organización de la interfaz… lo único que
+// está más o menos es la bitácora abajo… quisiera que en esa parte superior de
+// la bitácora se pueda ver su situación de acuerdo a la logística, personal…
+// cuánto de combustible, cuánto de munición, potencia relativa de combate…
+// que muestren ese porcentaje… no quiero en las herramientas tanto texto…
+// quiero imágenes interactivas didácticas… bien ordenado con cada uno en su
+// bando». Y después: «que en las pestañas el árbitro, sólo el árbitro, pueda
+// ingresar a vista desde rojo o vista azul, para ver cómo lo percibían ellos».
+//
+// Qué cambia (la PANTALLA, no el juego):
+//   · ARRIBA, una barra fina: volver, turno, reloj, ALTO, las PESTAÑAS del
+//     árbitro (⚖️ ÁRBITRO · 🔵 VISTA AZUL · 🔴 VISTA ROJO) y las herramientas.
+//     Las vistas existían desde la 233 («los ojos de cada bando»), pero el
+//     cuadro sólo se dibujaba DESPUÉS de cambiar de cámara: al entrar estaba
+//     vacío y nadie las encontraba.
+//   · ABAJO, una sola consola, como la de los juegos de estrategia:
+//       arriba, la franja de SITUACIÓN (👥 ⛽ 💥 🥫 🛡️ en %, y el PRC para el
+//       árbitro); debajo, las unidades | la ficha de la elegida | la grilla de
+//       órdenes con íconos y atajos | la bitácora 🔴/🔵 | el minimapa.
+//   · El texto largo sale de la pantalla: vive en la ayuda que aparece al
+//     pasar el mouse por cada ícono, y en la ficha ℹ️, que se abre si se pide.
+//   · Cada bando entra con SU color: el azul ve su consola azul, el rojo roja,
+//     el árbitro dorada — y con la lente de un bando, la de ese bando.
+// Nada de esto toca el motor: las órdenes salen por las mismas funciones de
+// siempre (wgElegirUnidad, wgElegirArma, wgAlto, wgReplegar, wgModoApoyar,
+// wgElegirTarea, wgVistaArbitro…). Los paneles viejos siguen en la página,
+// escondidos, porque otras funciones los escriben por id.
+// ============================================================
+const WG_HUD_SVG={
+  mover:'<path d="M4 6l6 6-6 6"/><path d="M11 6l6 6-6 6"/>',
+  alto:'<path d="M8.2 3h7.6L21 8.2v7.6L15.8 21H8.2L3 15.8V8.2z"/><path d="M8 12h8"/>',
+  replegar:'<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  tarea:'<path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/>',
+  apoyar:'<path d="M2 7h12v9H2z"/><path d="M14 10h4l3 3v3h-7"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
+  obras:'<path d="M14 3l7 7"/><path d="M17.5 6.5L7 17"/><path d="M3 21l1-4 3 3z"/>',
+  dron:'<path d="M12 3v17"/><path d="M3 11l9-2 9 2"/><path d="M8 20l4-1.5 4 1.5"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.5"/>',
+  personal:'<circle cx="12" cy="7.5" r="3.8"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/>',
+  combustible:'<path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16z"/><path d="M5 10h10"/><path d="M15 7l3.5 3v7.5a1.75 1.75 0 0 1-3.5 0V14"/>',
+  municion:'<path d="M9.5 21V10l2.5-7 2.5 7v11z"/><path d="M9.5 14.5h5"/>',
+  racion:'<path d="M5 8h14v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M5 8l1.5-4h11L19 8"/><path d="M9 13h6"/>',
+  herido:'<path d="M9.5 3h5v6.5H21v5h-6.5V21h-5v-6.5H3v-5h6.5z"/>',
+  poder:'<path d="M12 3l8 3v6c0 4.8-3.4 8-8 9-4.6-1-8-4.2-8-9V6z"/>',
+  balanza:'<path d="M12 3v17"/><path d="M5 7h14"/><path d="M5 7l-3 7h6z"/><path d="M19 7l-3 7h6z"/><path d="M8 21h8"/>',
+  logistica:'<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4"/><path d="M12 11v10"/>',
+  matriz:'<path d="M4 4h16v16H4z"/><path d="M4 9.5h16"/><path d="M4 15h16"/><path d="M9.5 4v16"/>',
+  calcos:'<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+  civil:'<path d="M3 21h18"/><path d="M5 21V10l7-5 7 5v11"/><path d="M10 21v-5h4v5"/>',
+  cerrar:'<path d="M6 6l12 12"/><path d="M18 6L6 18"/>',
+  plegar:'<path d="M6 9l6 6 6-6"/>',
+  desplegar:'<path d="M6 15l6-6 6 6"/>',
+  lista:'<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3.5 6h.01"/><path d="M3.5 12h.01"/><path d="M3.5 18h.01"/>',
+  mano:'<path d="M7 11V5.5a1.5 1.5 0 0 1 3 0V11"/><path d="M10 10V4a1.5 1.5 0 0 1 3 0v6"/><path d="M13 10V5a1.5 1.5 0 0 1 3 0v6"/><path d="M16 11V8a1.5 1.5 0 0 1 3 0v6a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.5L3 13.5a1.5 1.5 0 0 1 2.5-1.5L7 14"/>',
+};
+function _wgSvg(n, px){
+  px=px||22;
+  return `<svg viewBox="0 0 24 24" width="${px}" height="${px}" fill="none" stroke="currentColor" `
+    +`stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${WG_HUD_SVG[n]||''}</svg>`;
+}
+function _wgHudOn(){ const g=document.getElementById('wg-game'); return !!(g && g.classList.contains('wg-hud-on')); }
+// Verde mientras sobra, ámbar cuando hay que preverlo, rojo cuando ya es un problema de comando.
+function _wgHudColor(p){ return p==null?'#7f93a8':(p>=60?'#39d37a':(p>=30?'#f0a531':'#ff4d4d')); }
+function _wgHudBarra(p, n){
+  n=n||10;
+  if(p==null) return `<span class="wg-segs vacio"></span>`;
+  const llenos=Math.round(Math.max(0,Math.min(100,p))/100*n);
+  let h=`<span class="wg-segs" style="--c:${_wgHudColor(p)}">`;
+  for(let i=0;i<n;i++) h+=`<i${i<llenos?' class="f"':''}></i>`;
+  return h+`</span>`;
+}
+const _wgHudPct=(a,b)=>b>0?Math.max(0,Math.min(100,Math.round(100*a/b))):null;
+// Lo que la consola sabe de UNA unidad (sólo lectura).
+function _wgHudDatos(u){
+  const pm=Number(u.poder_max)||0, pa=Math.max(0,Number(u.poder_actual)||0);
+  const H=_wgHombresDe(u), k=u.carga||{};
+  const falt=Math.min(H,Math.max(0,Number(k.faltan)||0)), her=Math.max(0,Number(k.heridos)||0);
+  const c=_wgCombustible(u), m=_wgMunicionUnidad(u), mp=_wgMunPrincipalPct(u);
+  const tope=Number((u.medios||{}).nivelDias)>0?Math.min(10,Number(u.medios.nivelDias)):3;
+  const dias=k.racion!=null?Math.max(0,Number(k.racion)||0):null;
+  return { pm, pa, H, falt, her,
+    pPod:_wgHudPct(pa,pm), pPer:_wgHudPct(H-falt,H),
+    comb:c, pComb:c?100-c.pct:null, mun:m, mp, pMun:m?m.pct:null,
+    dias, topeDias:tope, pRac:dias==null?null:_wgHudPct(dias,tope) };
+}
+// La situación de UN bando: promedios pesados por el poder de cada unidad
+// (una división pesa más que una sección), y los números absolutos en la ayuda.
+function _wgHudBando(b){
+  const U=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u.bando===b && !_wgEsConvoy(u) && Number(u.poder_max)>0);
+  const S={ n:U.length, fuera:0, pm:0, pa:0, falt:0, her:0, km:0, kmT:0, uf:0, ufT:0, dias:0, nDias:0 };
+  const acc={ per:[0,0], comb:[0,0], mun:[0,0], rac:[0,0] };
+  const sumar=(k,p,w)=>{ if(p==null) return; acc[k][0]+=p*w; acc[k][1]+=w; };
+  for(const u of U){
+    const d=_wgHudDatos(u), w=Math.max(0.5,d.pm);
+    S.pm+=d.pm; S.pa+=d.pa; S.falt+=d.falt; S.her+=d.her;
+    if(u.estado==='fuera_combate') S.fuera++;
+    if(d.comb){ S.km+=d.comb.resta; S.kmT+=d.comb.tanque; }
+    if(d.mun){ S.uf+=d.mun.hay; S.ufT+=d.mun.tope; }
+    if(d.dias!=null){ S.dias+=d.dias; S.nDias++; }
+    sumar('per',d.pPer,w); sumar('comb',d.pComb,w); sumar('mun',d.pMun,w); sumar('rac',d.pRac,w);
+  }
+  const prom=(k)=>acc[k][1]?Math.round(acc[k][0]/acc[k][1]):null;
+  return Object.assign(S,{ pPer:prom('per'), pComb:prom('comb'), pMun:prom('mun'), pRac:prom('rac'),
+    pPod:_wgHudPct(S.pa,S.pm), diasProm:S.nDias?S.dias/S.nDias:null });
+}
+const _wgHudNum=(x,d)=>Number(x||0).toLocaleString('es',{maximumFractionDigits:d==null?0:d});
+// ------------------------------------------------------------
+// MONTAJE (una vez por partida abierta)
+// ------------------------------------------------------------
+function _wgHudMontar(){
+  const g=document.getElementById('wg-game'); if(!g) return;
+  if(WG.maqueta){ g.classList.remove('wg-hud-on'); return; }   // la maqueta no lleva consola
+  if(!g.classList.contains('wg-hud-on')){
+    g.classList.add('wg-hud-on');
+    // La bitácora vive ABIERTA dentro de la consola: el asa ya no hace falta.
+    const bit=document.getElementById('wg-bit'); if(bit) bit.classList.remove('cerrada');
+    g.classList.remove('bit-abierta');
+    try{ const h=Number(localStorage.getItem('wg_hud_h')); if(h>=96 && h<=440) g.style.setProperty('--hud-h', h+'px'); }catch(_e){}
+    try{ if(localStorage.getItem('wg_hud_plegada')==='1') g.classList.add('hud-plegada'); }catch(_e){}
+    _wgHudEventos();
+  }
+  WG.hudPop=null;
+  _wgHudRender();
+  _wgHudSplash();
+}
+function _wgHudEventos(){
+  if(WG._hudEv) return; WG._hudEv=1;
+  const g=document.getElementById('wg-game');
+  g.addEventListener('mouseover', _wgHudTip);
+  g.addEventListener('mouseleave', ()=>{ const t=document.getElementById('wg-hud-tip'); if(t) t.classList.remove('ver'); });
+  window.addEventListener('keydown', _wgHudTeclas);
+  window.addEventListener('resize', ()=>{ if(_wgHudOn()){ WG._hudMapaFirma=null; _wgHudMapa(); } });
+  const cv=document.getElementById('wg-hud-mapa');
+  if(cv) cv.addEventListener('click', _wgHudMapaClick);
+  // La franja de situación es también el ASA de la consola: se arrastra para
+  // estirarla y el botón ▾ la pliega (queda sólo la franja).
+  const sit=document.getElementById('wg-hud-sit');
+  if(sit){
+    let y0=null, h0=0, movio=false;
+    sit.addEventListener('pointerdown',(ev)=>{
+      if(ev.target.closest('button,[data-tip] b')) return;
+      y0=ev.clientY; movio=false;
+      const c=document.getElementById('wg-hud-cuerpo');
+      h0=c?c.getBoundingClientRect().height:150;
+      try{ sit.setPointerCapture(ev.pointerId); }catch(_e){}
+    });
+    sit.addEventListener('pointermove',(ev)=>{
+      if(y0==null) return;
+      const dy=y0-ev.clientY;
+      if(!movio && Math.abs(dy)<6) return;
+      movio=true;
+      const h=Math.max(96, Math.min((window.innerHeight||800)*0.55, h0+dy));
+      g.classList.remove('hud-plegada');
+      g.style.setProperty('--hud-h', Math.round(h)+'px');
+      g.classList.add('hud-arrastrando');
+    });
+    const soltar=()=>{
+      if(y0==null) return; y0=null;
+      g.classList.remove('hud-arrastrando');
+      if(movio){
+        try{ localStorage.setItem('wg_hud_h', String(parseInt(g.style.getPropertyValue('--hud-h'))||150)); }catch(_e){}
+        WG._hudMapaFirma=null; _wgHudMapa();
+      }
+    };
+    sit.addEventListener('pointerup',soltar);
+    sit.addEventListener('pointercancel',soltar);
+  }
+  // El rectángulo de la cámara en el minimapa sigue a la vista (2D o 3D).
+  clearInterval(WG._hudT);
+  WG._hudT=setInterval(()=>{ try{ if(_wgHudOn() && !document.hidden) _wgHudMapa(); }catch(_e){} }, 500);
+}
+// Plegar o desplegar la consola (queda la franja de situación).
+function wgHudPlegar(plegar){
+  const g=document.getElementById('wg-game'); if(!g) return;
+  const p = plegar==null ? !g.classList.contains('hud-plegada') : !!plegar;
+  g.classList.toggle('hud-plegada', p);
+  try{ localStorage.setItem('wg_hud_plegada', p?'1':'0'); }catch(_e){}
+  WG._hudMapaFirma=null;
+  _wgHudRender();
+}
+// Más herramientas en la barra de arriba (las de afinar el rendimiento).
+function wgRielMas(btn){
+  const r=document.getElementById('wg-rail'); if(!r) return;
+  r.classList.toggle('mas');
+  if(btn) btn.style.opacity=r.classList.contains('mas')?1:.6;
+}
+// La estación del dron, a mano: un botón la abre y la cierra.
+function wgHudDron(abrir){
+  const g=document.getElementById('wg-game'); if(!g) return;
+  const ab = abrir==null ? !g.classList.contains('hud-dron-on') : !!abrir;
+  g.classList.toggle('hud-dron-on', ab);
+  if(ab){ try{ wgPanelDrones(); }catch(_e){} }
+  _wgHudRender();
+}
+// ------------------------------------------------------------
+// RENDER (lo llama `_wgRender` al final, y la lente del árbitro)
+// ------------------------------------------------------------
+function _wgHudRender(){
+  if(!_wgHudOn() || !WG.estado) return;
+  const pasos=[_wgHudTema,_wgHudTabs,_wgHudSit,_wgHudLista,_wgHudFicha,_wgHudGrilla,_wgHudPopRender];
+  for(const f of pasos){ try{ f(); }catch(e){ console.warn('consola de mando:', f.name, e); } }
+  WG._hudMapaFirma=null;
+  try{ _wgHudMapa(); }catch(e){ console.warn('minimapa:', e); }
+}
+function _wgHudLado(){ return _wgBandoLente(); }
+function _wgHudTema(){
+  const g=document.getElementById('wg-game'); if(!g) return;
+  const l=_wgHudLado();
+  g.classList.toggle('hud-azul', l==='azul');
+  g.classList.toggle('hud-rojo', l==='rojo');
+  g.classList.toggle('hud-lente', WG.soy==='arbitro' && !!l);
+  g.classList.toggle('hud-dos', WG.soy==='arbitro' && !l);   // las dos bitácoras a la vista
+  // El G-2 vive en la estación del dron: se le abre sola.
+  if(_wgRol()==='g2' && !WG._hudDronG2){ WG._hudDronG2=1; g.classList.add('hud-dron-on'); }
+  const m=document.getElementById('wg-hud-marco');
+  if(m){
+    const txt = (WG.soy==='arbitro' && l)
+      ? `<span>${l==='azul'?'🔵':'🔴'} VISTA DESDE EL ${l.toUpperCase()} — lo que ve su Estado Mayor</span>` : '';
+    if(m._f!==txt){ m._f=txt; m.innerHTML=txt; }
+  }
+}
+// Las PESTAÑAS de arriba. Sólo el árbitro las tiene: un Estado Mayor ve su
+// propio bando y nada más, así que para él la pestaña es un rótulo.
+function _wgHudTabs(){
+  const el=document.getElementById('wg-tabs'); if(!el) return;
+  let h='';
+  if(WG.soy==='arbitro'){
+    const v=WG.vistaArb||'todo';
+    const T=[
+      { id:'todo', ico:_wgSvg('balanza',15), nom:'ÁRBITRO',
+        tip:'ÁRBITRO|Todo el tablero, sin niebla: las dos fuerzas como son de verdad.' },
+      { id:'azul', ico:'<i class="pt"></i>', nom:'VISTA AZUL',
+        tip:'VISTA DESDE EL AZUL|El tablero tal como lo ve el Estado Mayor azul: sus unidades, lo que su dron descubrió y lo que subió a la carta. Nada más.' },
+      { id:'rojo', ico:'<i class="pt"></i>', nom:'VISTA ROJO',
+        tip:'VISTA DESDE EL ROJO|El tablero tal como lo ve el Estado Mayor rojo, con su niebla de guerra.' },
+    ];
+    h=T.map(t=>`<button class="wg-tab t-${t.id}${v===t.id?' on':''}" onclick="wgVistaArbitro('${t.id}')" `
+      +`data-tip="${_rgEsc(t.tip)}">${t.ico}<span>${t.nom}</span></button>`).join('');
+  }else if(WG.soy==='azul' || WG.soy==='rojo'){
+    const r=_wgRolNom();
+    h=`<span class="wg-tab t-${WG.soy} on solo"><i class="pt"></i><span>BANDO ${WG.soy.toUpperCase()}${r?' · '+_rgEsc(r).toUpperCase():''}</span></span>`;
+  }
+  if(el._f!==h){ el._f=h; el.innerHTML=h; }
+}
+// ------------------------------------------------------------
+// LA FRANJA DE SITUACIÓN (arriba de la bitácora)
+// ------------------------------------------------------------
+function _wgHudMetrica(ico, lbl, p, txt, tip, extra){
+  return `<span class="wg-met" data-tip="${_rgEsc(tip)}">${_wgSvg(ico,15)}<span class="lb">${lbl}</span>`
+    +_wgHudBarra(p,8)+`<b style="color:${_wgHudColor(p)}">${txt}</b>${extra||''}</span>`;
+}
+function _wgHudSitBando(b, S){
+  const col=b==='azul'?'#4b93ff':'#ff5252';
+  const pct=(p)=>p==null?'—':p+' %';
+  const her = S.her>=1 ? `<span class="wg-her" data-tip="${_rgEsc(`HERIDOS ESPERANDO|${_wgHudNum(S.her)} heridos esperan evacuación en sus unidades. El 1,5 % por hora se agrava y muere: hay que mandar ambulancias o llevarlos a un puesto de socorro.`)}">${_wgSvg('herido',12)}${_wgHudNum(S.her)}</span>` : '';
+  return `<span class="wg-sit-b" style="--bc:${col}"><i class="pt"></i>${b.toUpperCase()}`
+    +(S.fuera?`<span class="wg-fc-n" data-tip="${_rgEsc('FUERA DE COMBATE|'+S.fuera+' de '+S.n+' unidades ya no combaten.')}">✕${S.fuera}</span>`:'')+`</span>`
+    +_wgHudMetrica('poder','Poder',S.pPod,pct(S.pPod),
+      `PODER DE COMBATE|Le queda el ${pct(S.pPod)} del poder con que empezó (${_wgHudNum(S.pa,1)} de ${_wgHudNum(S.pm,1)}).|Sale del efectivo de cada unidad por la calidad de su armamento.`)
+    +_wgHudMetrica('personal','Personal',S.pPer,pct(S.pPer),
+      `PERSONAL|${pct(S.pPer)} de los efectivos en las filas.|Faltan ${_wgHudNum(S.falt)} hombres (muertos y evacuados) hasta que el G-1 mande reemplazos.`, her)
+    +_wgHudMetrica('combustible','Combustible',S.pComb,pct(S.pComb),
+      `COMBUSTIBLE (Clase III)|Le queda el ${pct(S.pComb)} de la autonomía: ${_wgHudNum(S.km)} de ${_wgHudNum(S.kmT)} km entre todas las unidades con motor.|Sin combustible una unidad no se mueve.`)
+    +_wgHudMetrica('municion','Munición',S.pMun,pct(S.pMun),
+      `MUNICIÓN (Clase V)|Le queda el ${pct(S.pMun)} de la dotación: ${_wgHudNum(S.uf,1)} de ${_wgHudNum(S.ufT)} unidades de fuego.|Sin munición un sistema no tira.`)
+    +_wgHudMetrica('racion','Raciones',S.pRac,S.diasProm==null?'—':_wgHudNum(S.diasProm,1)+' d',
+      `RACIONES Y AGUA (Clase I)|En promedio le quedan ${S.diasProm==null?'—':_wgHudNum(S.diasProm,1)} días (${pct(S.pRac)} del nivel planificado).|Sin raciones la unidad pierde el 8 % de su poder por día.`);
+}
+function _wgHudSit(){
+  const el=document.getElementById('wg-hud-sit'); if(!el) return;
+  const lente=_wgHudLado();
+  const bandos = lente ? [lente] : (WG.soy==='arbitro' ? ['azul','rojo'] : []);
+  let h=`<span class="wg-sit-tit" data-tip="SITUACIÓN DE LA FUERZA|Lo que le queda a cada fuerza, en %. Pasá el mouse por cada ícono para ver los números.|Arrastrá esta franja para agrandar o achicar la consola.">SITUACIÓN</span>`;
+  if(bandos.length===2){
+    const A=_wgHudBando('azul'), R=_wgHudBando('rojo');
+    let prc='—', tipP='';
+    if(A.pa>0 && R.pa>0){
+      const r=A.pa/R.pa;
+      prc = r>=1 ? `${_wgHudNum(r,2)} : 1` : `1 : ${_wgHudNum(1/r,2)}`;
+      tipP=`PODER RELATIVO DE COMBATE (PRC)|AZUL ${_wgHudNum(A.pa,1)} contra ROJO ${_wgHudNum(R.pa,1)}: ${r>=1?'el azul tiene':'el rojo tiene'} ${_wgHudNum(Math.max(r,1/r),2)} veces el poder del otro.|Es la relación de AHORA, con las bajas que ya hubo.`;
+    }
+    h+=`<span class="wg-sit-g">${_wgHudSitBando('azul',A)}</span>`
+      +`<span class="wg-prc" data-tip="${_rgEsc(tipP||'PRC|Hace falta poder en los dos bandos para calcularlo.')}">${_wgSvg('balanza',15)}<span>PRC</span><b>${prc}</b></span>`
+      +`<span class="wg-sit-g">${_wgHudSitBando('rojo',R)}</span>`;
+  }else if(bandos.length===1){
+    h+=`<span class="wg-sit-g">${_wgHudSitBando(bandos[0],_wgHudBando(bandos[0]))}</span>`;
+  }
+  const pleg=document.getElementById('wg-game').classList.contains('hud-plegada');
+  if(bandos.length!==1 && bandos.length!==2) h+=`<span></span>`;
+  el.classList.toggle('dos', bandos.length===2);
+  h+=`<button class="wg-sit-btn" onclick="wgHudPlegar()" data-tip="${pleg?'MOSTRAR LA CONSOLA|Unidades, ficha, órdenes, bitácora y minimapa.':'PLEGAR LA CONSOLA|Deja sólo esta franja y te da todo el mapa.'}">${_wgSvg(pleg?'desplegar':'plegar',16)}</button>`;
+  if(el._f!==h){ el._f=h; el.innerHTML=h; }
+}
+// ------------------------------------------------------------
+// LAS UNIDADES (columna izquierda): fichas chicas, como la selección de un RTS
+// ------------------------------------------------------------
+function _wgHudCorto(u){
+  const d=String(u.designacion||('U'+u.id)).trim();
+  const q=d.match(/«([^»]+)»/);
+  if(q) return q[1];
+  return d.length>12 ? d.slice(0,11)+'…' : d;
+}
+function _wgHudSimbolo(u){
+  try{ return _wgSimboloUnidad(Object.assign({},u,{designacion:''}), false) || {url:''}; }catch(_e){ return {url:''}; }
+}
+function _wgHudTileTip(u){
+  const d=_wgHudDatos(u);
+  const p=(x)=>x==null?'—':x+' %';
+  const est=u.estado==='fuera_combate'?'FUERA DE COMBATE':(u.estado==='desgastada'?'desgastada':'en condiciones');
+  return `${u.designacion||('Unidad '+u.id)}|${(WG_MAGNITUD[u.escalon]||'')} · ${est}`
+    +`|🛡 poder ${p(d.pPod)} · 👥 personal ${p(d.pPer)}`
+    +`|⛽ ${d.comb?d.comb.resta.toFixed(0)+' km':'a pie'} · 💥 ${p(d.mp?d.mp.pct:d.pMun)} · 🥫 ${d.dias==null?'—':d.dias.toFixed(1)+' d'}`;
+}
+function _wgHudLista(){
+  const el=document.getElementById('wg-hud-lista'); if(!el) return;
+  const lente=_wgHudLado();
+  const bandos = lente ? [lente] : (WG.soy==='arbitro' ? ['azul','rojo'] : (WG.soy?[WG.soy]:[]));
+  const vis=_wgUnidadesVisibles().filter(u=>!u._reportado);
+  let h='';
+  for(const b of bandos){
+    const uds=vis.filter(u=>u.bando===b)
+      .sort((x,y)=>(_wgEsConvoy(x)?1:0)-(_wgEsConvoy(y)?1:0)
+        || String(x.designacion||x.id).localeCompare(String(y.designacion||y.id),'es',{numeric:true}));
+    if(!uds.length) continue;
+    h+=`<div class="wg-rl-cab" style="color:${b==='azul'?'#7fb2ff':'#ff8a8a'}">${b==='azul'?'🔵 AZUL':'🔴 ROJO'} · ${uds.length}</div><div class="wg-rl">`;
+    for(const u of uds){
+      const sel=String(WG.sel)===String(u.id), fc=u.estado==='fuera_combate';
+      const s=_wgHudSimbolo(u);
+      const d=_wgHudDatos(u);
+      const peor=Math.min(...[d.pPod,d.pComb,d.mp?d.mp.pct:null,d.pRac].filter(x=>x!=null));
+      h+=`<button class="wg-tile${sel?' sel':''}${fc?' fc':''}" onclick="wgElegirUnidad(${u.id})" data-tip="${_rgEsc(_wgHudTileTip(u))}">`
+        +(s.url?`<img src="${s.url}" alt="">`:'')
+        +`<span class="nm">${_rgEsc(_wgHudCorto(u))}</span>`
+        +`<span class="pb"><i style="width:${d.pPod==null?100:d.pPod}%;background:${_wgHudColor(d.pPod)}"></i></span>`
+        +(Number.isFinite(peor)&&peor<30&&!fc?`<span class="al" title="">!</span>`:'')
+        +`</button>`;
+    }
+    h+=`</div>`;
+  }
+  if(!h) h=`<div class="wg-vacio">${_wgSvg('lista',22)}<span>Sin unidades a la vista</span></div>`;
+  if(el._f!==h){
+    const st=el.scrollTop; el._f=h; el.innerHTML=h; el.scrollTop=st;
+    const s=el.querySelector('.wg-tile.sel');
+    if(s && WG._hudSelVisto!==WG.sel){ WG._hudSelVisto=WG.sel; try{ s.scrollIntoView({block:'nearest'}); }catch(_e){} }
+  }
+}
+// ------------------------------------------------------------
+// LA FICHA de la unidad elegida: retrato, nombre y cuatro barras
+// ------------------------------------------------------------
+const WG_HUD_ARMA_NOM={ infanteria:'Infantería', mecanizada:'Mecanizada', blindada:'Blindada', motorizada:'Motorizada',
+  artilleria:'Artillería', lanzacohetes:'Lanzacohetes', morteros:'Morteros', antitanque:'Antitanque',
+  antiaerea:'Antiaérea', ingenieria:'Ingeniería', cabmec:'Caballería mec.', caballeria:'Caballería',
+  comunicaciones:'Comunicaciones', logistica:'Logística', convoy:'Convoy', ninguna:'Puesto de mando' };
+function _wgHudFicha(){
+  const el=document.getElementById('wg-hud-ficha'); if(!el) return;
+  const u=_wgUnidadPorId(WG.sel);
+  let h;
+  if(!u){
+    h=`<div class="wg-vacio">${_wgSvg('mano',26)}<b>Elegí una unidad</b><span>en la columna de la izquierda o tocándola en el mapa</span></div>`;
+  }else{
+    const s=_wgHudSimbolo(u), d=_wgHudDatos(u), col=WG_COL[u.bando]||'#888';
+    const fila=(ico,p,txt,tip)=>`<div class="wg-fila" data-tip="${_rgEsc(tip)}">${_wgSvg(ico,13)}${_wgHudBarra(p,12)}<b style="color:${_wgHudColor(p)}">${txt}</b></div>`;
+    const pct=(x)=>x==null?'—':x+' %';
+    const est=[];
+    if(u.estado==='fuera_combate') est.push(['FUERA DE COMBATE','r']);
+    else if(u.estado==='desgastada') est.push(['DESGASTADA','a']);
+    else est.push(['EN CONDICIONES','v']);
+    const t=(WG.estado&&WG.estado.partida&&WG.estado.partida.turno_actual)||0;
+    if(Number(u.suprimida_hasta)>=t && u.suprimida_hasta!=null) est.push(['SUPRIMIDA','a']);
+    if(WG.ordenes[u.id]) est.push(['ORDEN '+String(WG.ordenes[u.id].tipo||'').toUpperCase(),'o']);
+    if(_wgEsConvoy(u) && u.carga && u.carga.fase) est.push([({ida:'🚚 VA',descarga:'⏳ DESCARGA',vuelta:'↩️ VUELVE'}[u.carga.fase]||'EN MARCHA'),'o']);
+    if(u.carga && u.carga.auto) est.push(['🤖 G-4 AUTO','o']);
+    if(d.her>=1) est.push([`🚑 ${Math.round(d.her)} HERIDOS`,'a']);
+    const tarea=(_wgMediosDe(u)||{}).tarea;
+    h=`<div class="wg-fc">`
+      +`<div class="wg-fc-ret" style="--bc:${col}">${s.url?`<img src="${s.url}" alt="">`:''}</div>`
+      +`<div class="wg-fc-der">`
+        +`<div class="wg-fc-nom" data-tip="${_rgEsc((u.designacion||'')+(tarea?'|📋 '+tarea:''))}">${_rgEsc(u.designacion||('Unidad '+u.id))}</div>`
+        +`<div class="wg-fc-sub">${_rgEsc(WG_MAGNITUD[u.escalon]||'')} · ${_rgEsc(WG_HUD_ARMA_NOM[u.arma]||u.arma||'')}</div>`
+        +fila('poder',d.pPod,pct(d.pPod),`PODER DE COMBATE|${_wgHudNum(d.pa,1)} de ${_wgHudNum(d.pm,1)} (${pct(d.pPod)}).`)
+        +fila('personal',d.pPer,pct(d.pPer),`PERSONAL|${pct(d.pPer)} de ${_wgHudNum(d.H)} hombres.|Faltan ${_wgHudNum(d.falt)}${d.her>=1?' · '+_wgHudNum(d.her)+' heridos esperan evacuación':''}.`)
+        +fila('combustible',d.pComb,d.comb?d.comb.resta.toFixed(0)+' km':'a pie',
+          d.comb?`COMBUSTIBLE|Le quedan ${d.comb.resta.toFixed(0)} km de ${d.comb.tanque} (gastó ${d.comb.usado.toFixed(0)}).`:'COMBUSTIBLE|Unidad a pie: no consume.')
+        +fila('municion',d.mp?d.mp.pct:d.pMun,pct(d.mp?d.mp.pct:d.pMun),
+          d.mun?`MUNICIÓN|Arma principal${d.mp?' ('+d.mp.arma.nom+')':''}: ${pct(d.mp?d.mp.pct:d.pMun)}.|Total: ${_wgHudNum(d.mun.hay,1)} de ${_wgHudNum(d.mun.tope)} UF${d.mun.secos?' · '+d.mun.secos+' sistema(s) SIN munición':''}.`:'MUNICIÓN|Sin sistemas de tiro.')
+        +fila('racion',d.pRac,d.dias==null?'—':_wgHudNum(d.dias,1)+' d',`RACIONES Y AGUA|${d.dias==null?'—':_wgHudNum(d.dias,1)} días de ${d.topeDias} planificados.`)
+        +`<div class="wg-chips">${est.map(([x,c])=>`<span class="${c}">${_rgEsc(x)}</span>`).join('')}</div>`
+      +`</div>`
+      +`<button class="wg-fc-i" onclick="wgHudPop('ficha')" data-tip="FICHA COMPLETA|Medios, armamento, de dónde sale el poder, tarea y propósito.">${_wgSvg('info',15)}</button>`
+    +`</div>`;
+  }
+  if(el._f!==h){ el._f=h; el.innerHTML=h; }
+}
+// ------------------------------------------------------------
+// LA GRILLA DE ÓRDENES: íconos con atajo de teclado (como en un RTS)
+// ------------------------------------------------------------
+// Sin efectos: `_wgPuedeOrdenarA` avisa con carteles, y esto se llama en cada repintado.
+function _wgHudPuedeOrdenar(u){
+  if(!u || WG.maqueta) return false;
+  const p=(WG.estado&&WG.estado.partida)||{};
+  if(p.estado!=='en_curso') return false;
+  if(!(WG.soy==='arbitro' || u.bando===WG.soy)) return false;
+  const r=_wgRol();
+  if(r==='g1') return _wgEsConvoy(u) && _wgCargaDe(u,'REEMP')>0;
+  if(r==='g4') return (typeof _wgEsFichaDelG4==='function') && _wgEsFichaDelG4(u);
+  return _wgRolOrdena();
+}
+function wgHudMover(){
+  WG.armaSel=null; WG.modoReplegar=false; WG.modoApoyar=false;
+  _wgRender();
+  _wgAviso(`${_wgSvg('mover',14)} <b>MOVER</b> — tocá en el mapa a dónde va. Marcha por el camino más rápido.`, 2600);
+}
+// El orden de las teclas es el de la grilla: maniobra arriba, fuegos abajo.
+const WG_HUD_TECLAS_FUEGO=['1','2','3','4','5','6','7','8','9','0'];
+function _wgHudBoton(o){
+  return `<button class="wg-cb${o.on?' on':''}${o.off?' off':''}${o.cls?' '+o.cls:''}" `
+    +(o.click?`onclick="${o.click}" `:'')+`data-tip="${_rgEsc(o.tip||'')}"${o.k?` data-k="${_rgEsc(o.k)}"`:''}>`
+    +o.ico
+    +(o.k?`<span class="k">${_rgEsc(o.k.toUpperCase())}</span>`:'')
+    +(o.bar!=null?`<span class="am"><i style="width:${Math.max(0,Math.min(100,o.bar))}%;background:${_wgHudColor(o.bar)}"></i></span>`:'')
+    +(o.bd?`<span class="bd">${o.bd}</span>`:'')
+    +(o.seco?`<span class="seco">${_wgSvg('cerrar',26)}</span>`:'')
+    +`</button>`;
+}
+function _wgHudGrilla(){
+  const el=document.getElementById('wg-hud-grilla'); if(!el) return;
+  const u=_wgUnidadPorId(WG.sel);
+  const B=_wgHudBoton;
+  let h='';
+  const g=document.getElementById('wg-game');
+  const dronOn=g && g.classList.contains('hud-dron-on');
+  const lado=_wgHudLado() || (WG.soy==='arbitro'?null:WG.soy);
+  const hayDron = (WG.soy==='arbitro' && !lado) ? !!(_wgDronBando('azul')||_wgDronBando('rojo')) : !!(lado && _wgDronBando(lado));
+  const btnDron = B({ k:'v', ico:_wgSvg('dron',20), on:dronOn, off:!hayDron, click:'wgHudDron()',
+    tip:`ESTACIÓN DEL DRON (${WG_CW40.nom})|Tu mejor arma de reconocimiento. A lo lejos el sensor sólo marca un CONTACTO (un cuadro sin magnitud ni arma); al acercarte reconoce la MAGNITUD, y bien cerca y con aumento IDENTIFICA el arma.|Atajo: V` });
+  if(!u){
+    h=`<div class="wg-gr-tit">HERRAMIENTAS</div><div class="wg-gr">`
+      +btnDron
+      +B({ ico:_wgSvg('logistica',20), click:"wgHoja('logistica')", tip:'LOGÍSTICA|Combustible, munición y raciones de cada unidad. El G-4 forma sus convoyes desde acá.' })
+      +B({ ico:_wgSvg('personal',20), click:"wgHoja('personal')", tip:'PERSONAL|Efectivos, bajas y reemplazos por unidad.' })
+      +B({ ico:_wgSvg('matriz',20), click:"wgHoja('matriz')", tip:'MATRIZ DE SINCRONIZACIÓN|Qué exige cada tarea y a qué hora arranca cada unidad.' })
+      +B({ ico:_wgSvg('calcos',20), click:"wgHoja('capas')", tip:'CALCOS|Qué se ve en la carta: caminos, elevaciones, agua, obstáculos…' })
+      +B({ ico:_wgSvg('civil',20), click:"wgHoja('civil')", tip:'ASUNTOS CIVILES|Poblaciones del sector y áreas restringidas.' })
+      +`</div><div class="wg-gr-nota">${_wgSvg('mano',14)} Elegí una unidad para darle órdenes.</div>`;
+  }else{
+    const puede=_wgHudPuedeOrdenar(u);
+    const conv=_wgEsConvoy(u);
+    const modoMover=!WG.armaSel && !WG.modoReplegar && !WG.modoApoyar;
+    const noPuede = WG.soy!=='arbitro' && u.bando!==WG.soy
+      ? 'No es de tu bando.' : 'Desde tu puesto se asesora: la orden la dan el Comandante, el JEM o el G-3.';
+    const tipNo=(t)=>puede?t:(t.split('|')[0]+'|'+noPuede);
+    h=`<div class="wg-gr">`
+      +B({ k:'m', ico:_wgSvg('mover',20), on:puede&&modoMover, off:!puede, click:'wgHudMover()',
+          tip:tipNo('MOVER|Tocá en el mapa a dónde va: marcha por el camino más rápido y gasta combustible.|Atajo: M') })
+      +B({ k:'x', ico:_wgSvg('alto',20), off:!puede, click:'wgAlto()',
+          tip:tipNo('ALTO|Se queda donde está. Corta la marcha que seguía sola desde el turno anterior.|Atajo: X') })
+      +(conv ? '' : B({ k:'r', ico:_wgSvg('replegar',20), on:!!WG.modoReplegar, off:!puede, click:'wgReplegar()',
+          tip:tipNo('ROMPER CONTACTO|Se retira SIN empeñarse: tocá en el mapa hacia dónde. Si tenía el enemigo encima, aguanta la persecución sin devolver golpes.|Atajo: R') }))
+      +(conv ? B({ k:'b', ico:_wgSvg('apoyar',20), on:!!WG.modoApoyar, off:!puede, click:'wgModoApoyar()',
+          tip:tipNo((_wgCargaDe(u,'EVAC')>0?'EVACUAR':(_wgCargaDe(u,'REEMP')>0?'REEMPLAZAR':'ABASTECER'))
+            +'|Tocá después la unidad propia que tiene que recibirlo. El convoy va por camino y puede ser batido en ruta.|Atajo: B') }) : '')
+      +B({ k:'t', ico:_wgSvg('tarea',20), on:WG.hudPop==='tarea', off:!puede, click:"wgHudPop('tarea')",
+          tip:tipNo('TAREA TÁCTICA|QUÉ hace y PARA QUÉ: destruir, fijar, retardar… Al resolver el turno, la bitácora la evalúa contra ese propósito.|Atajo: T') })
+      +(_wgPuedeZapar(u) ? B({ k:'o', ico:_wgSvg('obras',20), on:WG.hudPop==='obras', off:!puede, click:"wgHudPop('obras')",
+          tip:tipNo('OBRAS DE INGENIERÍA|Campos minados, zanjas, alambradas, demoliciones… y abrir brechas.|Atajo: O') }) : '')
+      +btnDron
+      +B({ k:'f', ico:_wgSvg('info',20), on:WG.hudPop==='ficha', click:"wgHudPop('ficha')",
+          tip:'FICHA COMPLETA|Medios, armamento, calidad, tarea y propósito.|Atajo: F' })
+      +`</div>`;
+    // Los FUEGOS: un botón por sistema, con su munición abajo y cuántos blancos tiene en alcance.
+    const armas=(puede && WG.dronVista==null) ? _wgArmamento(u) : [];
+    if(armas.length){
+      h+=`<div class="wg-gr wg-gr-f">`;
+      armas.forEach((a,i)=>{
+        const mun=a.ingenieria?null:_wgMunicion(u,a.id), tope=a.ingenieria?0:_wgUfTope(u,a.id);
+        const bat=a.ingenieria?[]:_wgBatidosPor(u,a);
+        const seco=mun!=null && mun<=0;
+        const k=WG_HUD_TECLAS_FUEGO[i]||'';
+        const tip=`${a.nom.toUpperCase()}|`
+          +(a.ingenieria ? (a.contra||'') :
+            `Alcance ${String(+(a.alcance||0).toFixed(1)).replace('.',',')} km · ${a.contra||''}`
+            +`|Munición: ${seco?'SIN MUNICIÓN':(+mun.toFixed(1))+' de '+tope+' UF'}`
+            +(a.indirecto?' · tiro indirecto (no necesita ver el blanco)':'')
+            +`|${bat.length?bat.length+' blanco(s) en alcance':'sin blancos en alcance'} — elegila y tocá el mapa (fuego ahí) o un enemigo (empeñarlo).`)
+          +(k?`|Atajo: ${k}`:'');
+        h+=B({ k, ico:`<span class="ia">${_wgIconoArma(a.icono,24)}</span>`, on:WG.armaSel===a.id,
+          off:seco, seco, bar:(mun==null||!tope)?null:Math.round(100*mun/tope), bd:bat.length||null,
+          cls:'fuego', click:`wgElegirArma('${a.id}')`, tip });
+      });
+      h+=`</div>`;
+      const elegida=WG.armaSel?WG_ARMAS[WG.armaSel]:null;
+      if(elegida && elegida.indirecto){
+        const sel=WG.misionSel||'destruccion';
+        h+=`<div class="wg-mis">`+Object.entries(WG_MISIONES).map(([id,m])=>
+          `<button class="${sel===id?'on':''}" style="--mc:${m.col}" onclick="wgElegirMision('${id}')" data-tip="${_rgEsc(m.nom.toUpperCase()+'|'+m.desc)}">${m.ico} ${_rgEsc(m.nom)}</button>`).join('')+`</div>`;
+      }
+    }
+  }
+  if(el._f!==h){ el._f=h; el.innerHTML=h; }
+}
+// ------------------------------------------------------------
+// LA VENTANITA (ficha completa, tarea, obras): sólo cuando se pide
+// ------------------------------------------------------------
+function wgHudPop(tipo){
+  WG.hudPop = (tipo==null || WG.hudPop===tipo) ? null : tipo;
+  _wgHudPopRender(true);
+  _wgHudGrilla();
+}
+const WG_TAREA_GRUPO={ 'Ofensiva':{ico:'⚔️',col:'#ff7a59'}, 'Reconocimiento':{ico:'🔭',col:'#5ec8ff'},
+  'Defensiva':{ico:'🛡️',col:'#5fd38a'}, 'Seguridad':{ico:'👁️',col:'#c39bff'}, 'Retrógrada':{ico:'↩️',col:'#f0b14a'} };
+function _wgHudTareaHTML(u){
+  if(!_wgRolOrdena()) return `<div class="wg-pop-nota">Tu puesto asesora: las tareas las da el Comandante, el JEM o el G-3.</div>`;
+  const o=WG.ordenes[u.id];
+  if(!o) return `<div class="wg-pop-nota">${_wgSvg('mover',16)} Primero dale una ORDEN: tocá el mapa para moverla, o elegí un arma. Después elegís acá QUÉ tarea cumple y PARA QUÉ.</div>`;
+  const ids=_wgTareasPara(o.tipo);
+  const tiles=ids.map(k=>{
+    const t=WG_TAREAS[k], G=WG_TAREA_GRUPO[t.grupo]||{ico:'•',col:'#9fb3c8'};
+    return `<button class="wg-tt${o.tarea===k?' on':''}" style="--tc:${G.col}" onclick="wgElegirTarea(${u.id},'${k}')" `
+      +`data-tip="${_rgEsc(t.nom+'|'+t.grupo+' · '+t.proposito)}"><span class="i">${G.ico}</span><span class="n">${_rgEsc(t.nom)}</span></button>`;
+  }).join('');
+  const T=o.tarea?WG_TAREAS[o.tarea]:null;
+  return `<div class="wg-tts">${tiles}</div>`
+    +(T ? `<div class="wg-pop-nota"><b>Propósito doctrinario:</b> ${_rgEsc(T.proposito)}</div>`
+        +`<input class="wg-pop-in" value="${_rgEsc(o.proposito||'')}" oninput="wgProposito(${u.id},this.value)" placeholder="…y TU propósito, en tus palabras (opcional)">`
+        : `<div class="wg-pop-nota">Sin tarea la orden se ejecuta igual, pero nadie la evalúa.</div>`);
+}
+function _wgHudPopRender(forzar){
+  const el=document.getElementById('wg-hud-pop'); if(!el) return;
+  const u=_wgUnidadPorId(WG.sel);
+  const t=WG.hudPop;
+  if(!t || !u){ if(t && !u) WG.hudPop=null; el.classList.remove('ver'); if(el._f){ el._f=null; el.innerHTML=''; } return; }
+  const a=document.activeElement;
+  if(!forzar && a && el.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;   // no se pisa lo que se está escribiendo
+  let tit='', cuerpo='';
+  if(t==='ficha'){ tit='FICHA · '+(u.designacion||''); cuerpo=_wgPanelMediosHTML(u); }
+  else if(t==='tarea'){ tit='TAREA TÁCTICA · '+(u.designacion||''); cuerpo=_wgHudTareaHTML(u); }
+  else if(t==='obras'){ tit='OBRAS · '+(u.designacion||''); cuerpo=_wgPanelObrasHTML(u)||'<div class="wg-pop-nota">Esta unidad no hace obras.</div>'; }
+  const h=`<div class="wg-pop-cab"><span>${_rgEsc(tit)}</span><button onclick="wgHudPop(null)" data-tip="CERRAR|O la tecla Esc.">${_wgSvg('cerrar',14)}</button></div>`
+    +`<div class="wg-pop-cuerpo">${cuerpo}</div>`;
+  if(el._f!==h){ el._f=h; el.innerHTML=h; }
+  el.classList.add('ver');
+}
+// ------------------------------------------------------------
+// LA AYUDA AL PASAR EL MOUSE: el texto vive acá, no en la pantalla
+// ------------------------------------------------------------
+function _wgHudTip(ev){
+  const tip=document.getElementById('wg-hud-tip'); if(!tip) return;
+  const t=ev.target && ev.target.closest ? ev.target.closest('[data-tip]') : null;
+  if(!t || !t.dataset.tip){ tip.classList.remove('ver'); WG._tipEl=null; return; }
+  if(WG._tipEl===t && tip.classList.contains('ver')) return;
+  WG._tipEl=t;
+  const partes=String(t.dataset.tip).split('|');
+  tip.innerHTML=`<b>${_rgEsc(partes[0])}</b>`+partes.slice(1).filter(Boolean).map(x=>`<div>${_rgEsc(x)}</div>`).join('');
+  tip.classList.add('ver');
+  const r=t.getBoundingClientRect(), tw=tip.offsetWidth, th=tip.offsetHeight;
+  let x=r.left+r.width/2-tw/2; x=Math.max(8,Math.min(window.innerWidth-tw-8,x));
+  let y=r.top-th-10; if(y<8) y=Math.min(window.innerHeight-th-8, r.bottom+10);
+  tip.style.left=Math.round(x)+'px'; tip.style.top=Math.round(y)+'px';
+}
+// ------------------------------------------------------------
+// ATAJOS DE TECLADO. No pisan los del dron (flechas, W A S D, C, I, H, +, −).
+// ------------------------------------------------------------
+function _wgHudTeclas(e){
+  if(!_wgHudOn()) return;
+  const sc=document.getElementById('screen-wargame');
+  if(!sc || !sc.classList.contains('wg-full')) return;
+  const t=e.target && e.target.tagName;
+  if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT') return;
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
+  if(e.key==='Escape'){
+    if(WG.hudPop){ wgHudPop(null); return; }
+    if(WG.armaSel||WG.modoReplegar||WG.modoApoyar){ WG.armaSel=null; WG.modoReplegar=false; WG.modoApoyar=false; _wgRender(); return; }
+    return;
+  }
+  if(WG_TECLAS_DRON[e.key] && typeof _wgDronMando==='function' && _wgDronMando()) return;   // es del dron
+  const k=String(e.key||'').toLowerCase();
+  const b=document.querySelector(`#wg-hud-grilla .wg-cb[data-k="${CSS.escape(k)}"]`);
+  if(!b) return;
+  e.preventDefault();
+  b.classList.add('pulsado'); setTimeout(()=>b.classList.remove('pulsado'),160);
+  b.click();
+}
+// ------------------------------------------------------------
+// EL MINIMAPA (abajo a la derecha): todo el sector, la cámara y el dron
+// ------------------------------------------------------------
+function _wgHudVias(){
+  const T=(WG.estado&&WG.estado.terreno)||WG.terreno||[];
+  if(WG._hudViasDe===T) return WG._hudVias||[];
+  const out=[];
+  for(const t of T){
+    if(!t || t.tipo!=='via' || !t.geojson) continue;
+    const g=t.geojson;
+    if(g.type==='LineString') out.push(g.coordinates);
+    else if(g.type==='MultiLineString') for(const l of g.coordinates) out.push(l);
+  }
+  WG._hudViasDe=T; WG._hudVias=out;
+  return out;
+}
+function _wgHudVista(){
+  try{
+    if(_wgEn3D() && WG.map3d && WG.map3d.getBounds){
+      const b=WG.map3d.getBounds();
+      return { o:b.getWest(), s:b.getSouth(), e:b.getEast(), n:b.getNorth(),
+        c:WG.map3d.getCenter(), rumbo:WG.map3d.getBearing?WG.map3d.getBearing():0 };
+    }
+    if(WG.map && WG.map.getBounds){
+      const b=WG.map.getBounds();
+      return { o:b.getWest(), s:b.getSouth(), e:b.getEast(), n:b.getNorth(), c:WG.map.getCenter(), rumbo:0 };
+    }
+  }catch(_e){}
+  return null;
+}
+function _wgHudMapa(){
+  const cv=document.getElementById('wg-hud-mapa'); if(!cv) return;
+  const W=Math.max(40, cv.clientWidth), H=Math.max(40, cv.clientHeight);
+  if(!cv.clientWidth) return;   // plegada u oculta
+  const dpr=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(W*dpr) || cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); WG._hudMapaFirma=null; }
+  const vista=_wgHudVista();
+  const vis=_wgUnidadesVisibles();
+  const lado=_wgHudLado();
+  const dronesB = lado ? [lado] : (WG.soy==='arbitro' ? ['azul','rojo'] : []);
+  const drones=dronesB.map(b=>({b, d:_wgPosDron(b)})).filter(x=>x.d);
+  const firma=[W,H,vis.length,vis.map(u=>u.id+':'+(+u.lng).toFixed(3)+':'+(+u.lat).toFixed(3)+':'+(u._nivel||'')).join(','),
+    vista?[vista.o,vista.s,vista.e,vista.n,vista.rumbo].map(x=>(+x).toFixed(3)).join(','):'',
+    drones.map(x=>x.b+(+x.d.pos[0]).toFixed(3)+(+x.d.pos[1]).toFixed(3)).join(','),String(WG.sel),
+    _wgInstalaciones().length+':'+_wgInstalacionesAjenas().length].join('|');
+  if(WG._hudMapaFirma===firma) return;
+  WG._hudMapaFirma=firma;
+  // El encuadre: todas las unidades del tablero (no sólo las visibles, así el
+  // sector no salta cuando aparece un contacto) con un 12 % de aire.
+  const todas=((WG.estado&&WG.estado.unidades)||[]).filter(u=>Number.isFinite(+u.lng)&&Number.isFinite(+u.lat));
+  if(!WG._hudCaja || WG._hudCajaN!==todas.length){
+    let o=Infinity,s=Infinity,e=-Infinity,n=-Infinity;
+    for(const u of todas){ o=Math.min(o,+u.lng); e=Math.max(e,+u.lng); s=Math.min(s,+u.lat); n=Math.max(n,+u.lat); }
+    if(!Number.isFinite(o)){ o=-69; e=-68; s=-19; n=-18; }
+    const mx=Math.max(0.05,(e-o)*0.12), my=Math.max(0.05,(n-s)*0.12);
+    WG._hudCaja={o:o-mx,e:e+mx,s:s-my,n:n+my}; WG._hudCajaN=todas.length;
+  }
+  const C=WG._hudCaja;
+  const kx=Math.cos(((C.s+C.n)/2)*Math.PI/180);
+  const ancho=(C.e-C.o)*kx, alto=(C.n-C.s);
+  const esc=Math.min(W/ancho, H/alto);
+  const ox=(W-ancho*esc)/2, oy=(H-alto*esc)/2;
+  const P=(lng,lat)=>[ox+(lng-C.o)*kx*esc, oy+(C.n-lat)*esc];
+  WG._hudProy={C,kx,esc,ox,oy};
+  const g=cv.getContext('2d');
+  g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,W,H);
+  // Fondo: cuadrícula tenue, como una carta.
+  g.fillStyle='rgba(8,14,20,.9)'; g.fillRect(0,0,W,H);
+  g.strokeStyle='rgba(140,210,255,.06)'; g.lineWidth=1;
+  for(let x=0;x<W;x+=16){ g.beginPath(); g.moveTo(x+.5,0); g.lineTo(x+.5,H); g.stroke(); }
+  for(let y=0;y<H;y+=16){ g.beginPath(); g.moveTo(0,y+.5); g.lineTo(W,y+.5); g.stroke(); }
+  // Caminos.
+  g.strokeStyle='rgba(255,90,70,.38)'; g.lineWidth=1;
+  for(const l of _wgHudVias()){
+    g.beginPath();
+    l.forEach((p,i)=>{ const [x,y]=P(p[0],p[1]); if(i) g.lineTo(x,y); else g.moveTo(x,y); });
+    g.stroke();
+  }
+  // v2.9.453 — las instalaciones logísticas: las propias (rombo lleno) y las
+  // enemigas que este bando descubrió (rombo vacío).
+  for(const [x,aj] of _wgInstalaciones().map(x=>[x,false]).concat(_wgInstalacionesAjenas().map(x=>[x,true]))){
+    const c=(x.geojson||{}).coordinates; if(!c||!Number.isFinite(+c[0])) continue;
+    const [px,py]=P(+c[0],+c[1]); const col=x.bando==='azul'?'#4b93ff':'#ff5252';
+    g.save(); g.translate(px,py); g.rotate(Math.PI/4);
+    if(aj){ g.strokeStyle=col; g.lineWidth=1.4; g.strokeRect(-3.2,-3.2,6.4,6.4); }
+    else { g.globalAlpha=.7; g.fillStyle=col; g.fillRect(-2.4,-2.4,4.8,4.8); }
+    g.restore();
+  }
+  // El sensor de cada dron: el círculo que bate.
+  for(const {b,d} of drones){
+    const [x,y]=P(d.pos[0],d.pos[1]);
+    const r=(d.d.km/111.32)*esc;
+    g.save(); g.setLineDash([3,3]); g.strokeStyle=b==='azul'?'rgba(120,180,255,.75)':'rgba(255,120,120,.75)';
+    g.fillStyle=b==='azul'?'rgba(75,147,255,.08)':'rgba(255,82,82,.08)';
+    g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill(); g.stroke(); g.restore();
+  }
+  // Las fichas.
+  for(const u of vis){
+    if(!Number.isFinite(+u.lng)) continue;
+    const [x,y]=P(+u.lng,+u.lat);
+    const col=u.bando==='azul'?'#4b93ff':'#ff5252';
+    const rep=!!u._reportado || (u._nivel!=null && u._nivel<WG_INT_CONF);
+    const r=_wgEsConvoy(u)?2:3.2;
+    g.globalAlpha=u.estado==='fuera_combate'?.35:1;
+    if(rep){ g.strokeStyle=col; g.lineWidth=1.4; g.strokeRect(x-r,y-r,r*2,r*2); }
+    else { g.fillStyle=col; g.fillRect(x-r,y-r,r*2,r*2); g.strokeStyle='rgba(255,255,255,.85)'; g.lineWidth=.8; g.strokeRect(x-r,y-r,r*2,r*2); }
+    if(String(u.id)===String(WG.sel)){ g.strokeStyle='#ffd83b'; g.lineWidth=1.6; g.beginPath(); g.arc(x,y,r+3.5,0,Math.PI*2); g.stroke(); }
+    g.globalAlpha=1;
+  }
+  // El aparato.
+  for(const {b,d} of drones){
+    const [x,y]=P(d.pos[0],d.pos[1]);
+    g.save(); g.translate(x,y); g.rotate(((d.proa||0)*Math.PI)/180);
+    g.fillStyle='#fff'; g.strokeStyle=b==='azul'?'#4b93ff':'#ff5252'; g.lineWidth=1.2;
+    g.beginPath(); g.moveTo(0,-6); g.lineTo(4,4); g.lineTo(0,2); g.lineTo(-4,4); g.closePath(); g.fill(); g.stroke(); g.restore();
+  }
+  // Lo que está mirando la cámara.
+  if(vista){
+    const a=P(vista.o,vista.n), z=P(vista.e,vista.s);
+    const x0=Math.max(-2,Math.min(a[0],z[0])), y0=Math.max(-2,Math.min(a[1],z[1]));
+    const x1=Math.min(W+2,Math.max(a[0],z[0])), y1=Math.min(H+2,Math.max(a[1],z[1]));
+    g.strokeStyle='rgba(255,255,255,.9)'; g.lineWidth=1.2;
+    g.strokeRect(x0+.5,y0+.5,Math.max(4,x1-x0),Math.max(4,y1-y0));
+  }
+  // El norte.
+  g.fillStyle='rgba(220,235,250,.75)'; g.font='700 9px system-ui,sans-serif'; g.fillText('N ▲',W-24,11);
+}
+function _wgHudMapaClick(ev){
+  const pr=WG._hudProy; if(!pr) return;
+  const r=ev.currentTarget.getBoundingClientRect();
+  const x=ev.clientX-r.left, y=ev.clientY-r.top;
+  const lng=pr.C.o+(x-pr.ox)/(pr.kx*pr.esc), lat=pr.C.n-(y-pr.oy)/pr.esc;
+  try{
+    if(_wgEn3D() && WG.map3d){ WG.map3d.easeTo({ center:[lng,lat], duration:700 }); }
+    else if(WG.map){ WG.map.panTo([lat,lng]); }
+  }catch(_e){}
+  WG._hudMapaFirma=null;
+  setTimeout(_wgHudMapa, 750);
+}
+// ------------------------------------------------------------
+// LA ENTRADA: cada bando entra a SU puesto de mando
+// ------------------------------------------------------------
+function _wgHudSplash(){
+  const el=document.getElementById('wg-hud-splash'); if(!el) return;
+  const l=_wgHudLado();
+  const nom=(WG.estado&&WG.estado.partida&&WG.estado.partida.nombre)||'';
+  let t1, t2;
+  if(WG.soy==='arbitro'){
+    t1 = l ? `VISTA DESDE EL ${l.toUpperCase()}` : 'ÁRBITRO';
+    t2 = l ? 'lo que ve su Estado Mayor, con su niebla' : `${nom} · todo el tablero, sin niebla`;
+  }else{
+    t1 = `PUESTO DE MANDO · ${String(WG.soy||'').toUpperCase()}`;
+    t2 = [_wgRolNom(), nom].filter(Boolean).join(' · ');
+  }
+  el.innerHTML=`<div class="s1">${_rgEsc(t1)}</div><div class="s2">${_rgEsc(t2)}</div>`;
+  el.classList.remove('ver'); void el.offsetWidth; el.classList.add('ver');
 }
 async function wgHistorial(){
   const r=await _wgInvoke('historial',{ partida_id:WG.partidaId, clave_acceso:WG.clave });
