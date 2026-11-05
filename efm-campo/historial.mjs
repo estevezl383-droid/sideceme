@@ -1,4 +1,4 @@
-import {tieneNota,calificacionRevision,calificacionVigente} from './historial-estado.mjs?v=25';
+import {tieneNota,calificacionRevision,calificacionVigente} from './historial-estado.mjs?v=26';
 import {esc,estaciones,vigente,marcaRegistro,fechaHora} from './conformidad.mjs?v=22';
 import {resumen} from './informes.mjs?v=22';
 import {gradoArma} from './ui.mjs?v=22';

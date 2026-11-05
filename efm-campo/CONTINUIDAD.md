@@ -1,5 +1,10 @@
 # Evaluación física digital ECEME
 
+## 05/11/2026 · Rojo hasta la conformidad de la revisión vigente
+
+- Por indicación expresa del usuario, la nota actual permanece roja mientras falte su conformidad, aunque esté calificada. Pasa a verde al aceptar esa revisión. Las pruebas personales no requieren conformidad y las revisiones antiguas ya corregidas conservan SUBSANADA.
+- Comprobación de colores efectivos en Chromium de escritorio y móvil antes y después de recibir la conformidad, con actualización automática. Sin cambios de datos o servidor. Cadena de caché frontend v26.
+
 ## 05/11/2026 · Revisiones subsanadas y conformidades diferenciadas
 
 - Verificados los 25 registros vigentes de la diagnóstica: todos tienen nota. Primer ciclo conserva cinco conformidades actuales; una cursante de segundo ciclo tiene cinco notas y dos aceptaciones de revisiones recalculadas todavía sin registrar. No se trasladan ni se crean conformidades de alumnos.

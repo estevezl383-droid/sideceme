@@ -16,8 +16,8 @@
  async function abrir(evaluacionId='',vistaInicial='estacion'){
   if(loading||open||!owner())return;loading=true;
   try{
-   if(!document.getElementById('efmc-style')){const s=document.createElement('link');s.id='efmc-style';s.rel='stylesheet';s.href='efm-campo/style.css?v=25';document.head.append(s);}
-   const tipo=session().tipo,app=tipo==='cursante'?await import('./alumno.mjs?v=22'):await import('./app.mjs?v=25');
+   if(!document.getElementById('efmc-style')){const s=document.createElement('link');s.id='efmc-style';s.rel='stylesheet';s.href='efm-campo/style.css?v=26';document.head.append(s);}
+   const tipo=session().tipo,app=tipo==='cursante'?await import('./alumno.mjs?v=22'):await import('./app.mjs?v=26');
    open=true;const account=allowedKey;await app.abrir({invoke,evaluacionId,vistaInicial,owner:session().user.id,authorized:()=>owner()&&allowedKey===account,onClose:()=>{open=false;checkedAt=0;refresh();}});
   }catch(e){open=false;alert(e.message);}finally{loading=false;}
  }
