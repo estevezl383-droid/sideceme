@@ -5,9 +5,15 @@ import {calificar,edad,calificarExcelencia,esExcelencia} from './baremos.mjs';
 import {validarMedidas,calificarMedidas} from './medidas.mjs';
 import {hojaPDFAlumno} from './documentos.mjs';
 import {leerPaginas,indiceHistorial} from './historial.mjs';
+import {sha256} from './hoja-modelo.mjs';
 const sb=createClient(Deno.env.get('SUPABASE_URL')||'',Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'');
 const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,x-client-info,content-type','Access-Control-Allow-Methods':'POST,OPTIONS','Content-Type':'application/json','Cache-Control':'no-store'};
 const reply=(status:number,data:any)=>new Response(JSON.stringify(data),{status,headers});
+async function registrosActivos(records){
+ if(!records.some(r=>r.modo==='PRUEBA'))return records;
+ const borrados=await leerPaginas(()=>sb.from('efmc_historial_borrados').select('id,registros_ids').eq('estado','BORRADA').order('id'));
+ const ids=new Set(borrados.flatMap(b=>b.registros_ids));return records.filter(r=>r.modo!=='PRUEBA'||!ids.has(r.id));
+}
 async function conConformidades(records){
  const ids=records.filter(r=>r.organizacion_id).map(r=>r.id);
  if(!ids.length)return records;
@@ -75,15 +81,28 @@ Deno.serve(async(req:Request)=>{
    const q=await sb.from('efmc_organizaciones').select('*').eq('habilitado',true);if(q.error)throw q.error;
    return q.data.some(p=>asignaciones(p,s.usuario_id).length)?reply(200,{ok:true,jefe:false}):reply(403,{ok:false,error:'SIN DESIGNACIONES HABILITADAS'});
   }
+  if(['preparar_borrado','confirmar_borrado','historial_borrados'].includes(b.accion)){
+   if(!jefe)return reply(403,{ok:false,error:'SÓLO LOS JEFES PUEDEN BORRAR PRUEBAS Y CONSULTAR SU AUDITORÍA'});
+   if(b.accion==='historial_borrados'){
+    const borrados=await leerPaginas(()=>sb.from('efmc_historial_borrados').select('id,organizacion_id,fecha,ciclo,actor_id,actor_nombre,motivo,resumen,confirmado_en').eq('estado','BORRADA').order('id'));
+    return reply(200,{ok:true,borrados:borrados.sort((a,b)=>b.confirmado_en.localeCompare(a.confirmado_en)),servidor_en:new Date().toISOString()});
+   }
+   if(typeof b.id!=='string'||!/^[0-9a-f-]{36}$/i.test(b.id))return reply(400,{ok:false,error:'SOLICITUD DE BORRADO NO VÁLIDA'});
+   if(b.accion==='preparar_borrado'&&(b.primera_confirmacion!==true||!/^\d{4}-\d{2}-\d{2}$/.test(b.fecha)||edad(b.fecha,b.fecha)===null||!['1ER CICLO','2DO CICLO'].includes(b.ciclo)||typeof b.motivo!=='string'||b.motivo.trim().length<10||b.motivo.trim().length>600))return reply(400,{ok:false,error:'CONFIRMÁ LA SESIÓN E INDICÁ UN MOTIVO DE 10 A 600 CARACTERES'});
+   if(b.accion==='confirmar_borrado'&&b.confirmacion!=='BORRAR')return reply(400,{ok:false,error:'ESCRIBÍ BORRAR PARA LA SEGUNDA CONFIRMACIÓN'});
+   const params={p_id:b.id,p_actor:s.usuario_id,p_sesion_hash:await sha256(b.token)};
+   const r=await sb.rpc(b.accion==='preparar_borrado'?'efmc_preparar_borrado':'efmc_confirmar_borrado',b.accion==='preparar_borrado'?{...params,p_organizacion:plan?.id||null,p_fecha:b.fecha,p_ciclo:b.ciclo,p_motivo:b.motivo.trim()}:{...params,p_confirmacion:b.confirmacion});
+   if(r.error)throw r.error;return reply(r.data?.ok?200:r.data?.status||409,r.data);
+  }
   if(['historial','historial_detalle'].includes(b.accion)){
    if(!jefe)return reply(403,{ok:false,error:'SÓLO LOS JEFES DE ENTRENAMIENTO FÍSICO CONSULTAN EL HISTORIAL GENERAL'});
    if(b.accion==='historial'){
     const [ps,rs,cs]=await Promise.all([
      leerPaginas(()=>sb.from('efmc_organizaciones').select('id,nombre,fecha,ciclo,modo,publicada_en,grupos').order('id')),
-     leerPaginas(()=>sb.from('efmc_registros').select('id,organizacion_id,cursante_id,fecha,prueba,revision,grupo:calculo->>grupo,curso:calculo->>curso,ciclo:calculo->>ciclo').order('id')),
+     leerPaginas(()=>sb.from('efmc_registros').select('id,modo,organizacion_id,cursante_id,fecha,prueba,revision,grupo:calculo->>grupo,curso:calculo->>curso,ciclo:calculo->>ciclo').order('id')),
      leerPaginas(()=>sb.from('cursantes').select('id,ciclo,paralelo').order('id'))
     ]);
-    return reply(200,{ok:true,evaluaciones:indiceHistorial(ps,rs,cs),servidor_en:new Date().toISOString()});
+    return reply(200,{ok:true,evaluaciones:indiceHistorial(ps,await registrosActivos(rs),cs),servidor_en:new Date().toISOString()});
    }
    if(!plan&&(!/^\d{4}-\d{2}-\d{2}$/.test(b.fecha)||edad(b.fecha,b.fecha)===null||!['1ER CICLO','2DO CICLO'].includes(b.ciclo)))return reply(400,{ok:false,error:'SELECCIONÁ UNA EVALUACIÓN DEL HISTORIAL'});
    const fecha=plan?.fecha||b.fecha;
@@ -93,7 +112,7 @@ Deno.serve(async(req:Request)=>{
     plan?leerPaginas(()=>sb.from('efmc_condiciones').select('*').eq('organizacion_id',plan.id).order('id')):[]
    ]);
    const people=new Map(cs.map(c=>[c.id,c]));
-   const registros=rs.filter(r=>plan||(r.calculo?.ciclo||people.get(r.cursante_id)?.ciclo)===b.ciclo),records=[];
+   const registros=await registrosActivos(rs.filter(r=>plan||(r.calculo?.ciclo||people.get(r.cursante_id)?.ciclo)===b.ciclo)),records=[];
    for(let offset=0;offset<registros.length;offset+=200)records.push(...await conConformidades(registros.slice(offset,offset+200)));
    return reply(200,{ok:true,fecha,ciclo:plan?.ciclo||b.ciclo,organizacion:plan?{id:plan.id,nombre:plan.nombre,fecha:plan.fecha,ciclo:plan.ciclo,modo:plan.modo,publicada_en:plan.publicada_en,grupos:plan.grupos.map(g=>({id:g.id,color:g.color,modalidad:g.modalidad,alumnos:g.alumnos}))}:null,cursantes:cs.filter(c=>registros.some(r=>r.cursante_id===c.id)),registros:records,condiciones:conditions,servidor_en:new Date().toISOString()});
   }
@@ -152,7 +171,7 @@ Deno.serve(async(req:Request)=>{
    const signed=paths.length?await sb.storage.from('efm-retratos').createSignedUrls(paths,1800):{data:[]};
    const urls=new Map((signed.data||[]).map(x=>[x.path,x.signedUrl]));
    const safePlan=plan&&(jefe?plan:{id:plan.id,nombre:plan.nombre,ciclo:plan.ciclo,fecha:plan.fecha,version:plan.version,modo:plan.modo,habilitado:plan.habilitado,grupos:plan.grupos.filter(g=>assignments.some(a=>a.grupo===g.id)).map(g=>({id:g.id,color:g.color,modalidad:g.modalidad,alumnos:g.alumnos}))});
-   return reply(200,{ok:true,fecha:b.fecha,jefe,actor_nombre:actorNombre,organizacion:safePlan,organizaciones:disponibles.map(p=>({id:p.id,nombre:p.nombre,ciclo:p.ciclo,modo:p.modo,habilitado:p.habilitado})),asignaciones:assignments,condiciones:safeConditions,personal:people.data,cursantes:c.data.map(x=>{const pp=p.data.find(y=>y.cursante_id===x.id)||{};return {...x,...pp,foto:urls.get(pp.foto_path)||null};}),registros:await conConformidades(safeRecords.map(x=>({...x,evaluador_nombre:x.calculo?.evaluador_nombre||(x.actor_id===s.usuario_id?actorNombre:'')})))});
+   return reply(200,{ok:true,fecha:b.fecha,jefe,actor_nombre:actorNombre,organizacion:safePlan,organizaciones:disponibles.map(p=>({id:p.id,nombre:p.nombre,ciclo:p.ciclo,modo:p.modo,habilitado:p.habilitado})),asignaciones:assignments,condiciones:safeConditions,personal:people.data,cursantes:c.data.map(x=>{const pp=p.data.find(y=>y.cursante_id===x.id)||{};return {...x,...pp,foto:urls.get(pp.foto_path)||null};}),registros:await conConformidades((await registrosActivos(safeRecords)).map(x=>({...x,evaluador_nombre:x.calculo?.evaluador_nombre||(x.actor_id===s.usuario_id?actorNombre:'')})))});
   }
   if(b.accion==='sincronizar'){
    if(!plan)return reply(400,{ok:false,error:'SELECCIONÁ UNA EVALUACIÓN'});
@@ -160,7 +179,7 @@ Deno.serve(async(req:Request)=>{
    if(r.error||c.error)throw r.error||c.error;
    const assignments=jefe?[]:asignaciones(plan,s.usuario_id),ids=new Set(assignments.flatMap(a=>a.alumnos));
    const records=jefe?r.data:r.data.filter(x=>assignments.some(a=>a.prueba===x.prueba&&a.alumnos.includes(x.cursante_id)));
-   return reply(200,{ok:true,version:plan.version,habilitado:plan.habilitado,registros:await conConformidades(records),condiciones:jefe?c.data:c.data.filter(x=>ids.has(x.cursante_id)&&(x.prueba==='TODAS'||assignments.some(a=>a.prueba===x.prueba&&a.alumnos.includes(x.cursante_id)))),servidor_en:new Date().toISOString()});
+   return reply(200,{ok:true,version:plan.version,habilitado:plan.habilitado,registros:await conConformidades(await registrosActivos(records)),condiciones:jefe?c.data:c.data.filter(x=>ids.has(x.cursante_id)&&(x.prueba==='TODAS'||assignments.some(a=>a.prueba===x.prueba&&a.alumnos.includes(x.cursante_id)))),servidor_en:new Date().toISOString()});
   }
   if(!jefe&&!plan)return reply(403,{ok:false,error:'NECESITÁS UNA DESIGNACIÓN HABILITADA'});
   if(b.accion==='guardar_datos'){
