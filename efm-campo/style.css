@@ -19,7 +19,20 @@
 #efmc .efmc-history-card button{width:100%;margin-top:8px}
 #efmc .efmc-history-mode{display:inline-block;font-size:10px;letter-spacing:.06em;border:1px solid #3d7068;border-radius:20px;padding:5px 9px;color:#93e8d0}
 #efmc .efmc-history-count{font-size:12px;letter-spacing:.05em}
+#efmc .efmc-history-status{padding:16px;border:1px solid #3c7867;border-radius:10px;background:#14362f;margin:14px 0;color:#b6f4d7}
+#efmc .efmc-history-status p{margin:6px 0;font-size:12px}
+#efmc .efmc-history-status.sin-nota{border-color:#ad8241;background:#3b301e;color:#f0d491}
+#efmc .efmc-history-grade{padding:14px;border-radius:9px;border:1px solid #ad8241;background:#3b301e;color:#f0d491}
+#efmc .efmc-history-grade.calificada{border-color:#32a675;background:#123f2e;color:#bcf7d7}
+#efmc .efmc-history-grade strong{font-size:22px;display:block}
+#efmc .efmc-history-grade small{color:inherit;font-size:9px}
+#efmc .efmc-history-acceptance{font-size:11px;line-height:1.5;padding:10px 0;color:#94d6bd}
+#efmc .efmc-history-acceptance.pendiente{color:#f1cc7f}
+#efmc .efmc-history-acceptance small{font-size:10px;letter-spacing:0;color:inherit}
+#efmc .efmc-history-resolved{font-weight:bold;color:#91dfbe}
+#efmc .efmc-history-sync{font-size:11px}
 #efmc .efmc-history-dialog caption{text-align:left;color:#adc9d4;padding:12px 0}
+#efmc .efmc-history-dialog table{color:inherit}
 #efmc .efmc-history-dialog td{min-width:145px;vertical-align:top}
 #efmc .efmc-history-dialog th[scope=row]{min-width:215px}
 #efmc .efmc-history-dialog td>strong{display:block;margin-bottom:8px}
