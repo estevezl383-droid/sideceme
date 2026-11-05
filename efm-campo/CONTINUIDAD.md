@@ -1,5 +1,13 @@
 # Evaluación física digital ECEME
 
+## 05/11/2026 · Borrado de pruebas con doble confirmación y auditoría
+
+- Los jefes pueden BORRAR SESIÓN DE PRUEBA desde el historial, para modo PRUEBA/PILOTO. Primer paso: revisar la sesión y escribir un motivo de 10–600 caracteres. Segundo paso: escribir BORRAR y confirmar. La solicitud queda vinculada al actor y al hash de su sesión, vence a los diez minutos y comprueba que los registros no hayan cambiado.
+- El borrado retira los IDs confirmados de historial, captura y sincronización; los registros originales permanecen inmutables. VER SESIONES BORRADAS muestra sesión/ciclo/fecha, autor, fecha/hora de borrado, motivo y cantidades. Las evaluaciones registradas y sesiones con conformidades están protegidas.
+- `efmc_historial_borrados`: RLS activa, sin permisos anon/authenticated; RPC SECURITY INVOKER sólo para service_role y auditoría inmutable tras confirmar. El autor y la hora se obtienen en el servidor. Cancelar no activa el borrado; los reintentos reutilizan el ID y no duplican el registro.
+- Migración aplicada `20261105145850_efmc_borrado_auditado.sql`; función efm-campo v17 desplegada; caché frontend v27. La consulta autenticada posterior conserva cuatro sesiones y los 66 registros originales, incluidos los 35 de evaluaciones reales; la auditoría está vacía. No se ha borrado ninguna sesión real como parte de esta implementación.
+- Prueba SQL en esquema aislado con ROLLBACK: dos confirmaciones, identidad/sesión, permisos/RLS, inmutabilidad, idempotencia, concurrencia, vencimiento y aislamiento de ciclo/evaluación. Pruebas del endpoint y Chromium escritorio/móvil: cancelar en ambos pasos, motivo/BORRAR, respuesta perdida y reintento, auditoría y evaluación registrada conservada. Regresiones de historial, captura, conformidades y baremos pasan. Advisors: únicamente aviso informativo de RLS sin políticas en la tabla privada; acceso por servicio verificado.
+
 ## 05/11/2026 · Rojo hasta la conformidad de la revisión vigente
 
 - Por indicación expresa del usuario, la nota actual permanece roja mientras falte su conformidad, aunque esté calificada. Pasa a verde al aceptar esa revisión. Las pruebas personales no requieren conformidad y las revisiones antiguas ya corregidas conservan SUBSANADA.

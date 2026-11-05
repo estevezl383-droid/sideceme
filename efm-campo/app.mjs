@@ -1,4 +1,4 @@
-import {abrirHistorial} from './historial.mjs?v=26';
+import {abrirHistorial} from './historial.mjs?v=27';
 import {CONDICIONES,puedeRegistrar} from './organizacion.mjs?v=22';
 import {notaConformidad,marcaRegistro,fechaHora} from './conformidad.mjs?v=22';
 import {panelConformidades} from './seguimiento.mjs?v=22';
