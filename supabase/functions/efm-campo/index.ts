@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 import {calificar,edad,calificarExcelencia,esExcelencia} from './baremos.mjs';
 import {validarMedidas,calificarMedidas} from './medidas.mjs';
 import {hojaPDFAlumno} from './documentos.mjs';
+import {leerPaginas,indiceHistorial} from './historial.mjs';
 const sb=createClient(Deno.env.get('SUPABASE_URL')||'',Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'');
 const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,x-client-info,content-type','Access-Control-Allow-Methods':'POST,OPTIONS','Content-Type':'application/json','Cache-Control':'no-store'};
 const reply=(status:number,data:any)=>new Response(JSON.stringify(data),{status,headers});
@@ -63,10 +64,38 @@ Deno.serve(async(req:Request)=>{
    if(!plan||(!jefe&&!asignaciones(plan,s.usuario_id).length))return reply(403,{ok:false,error:'ORGANIZACIÓN NO HABILITADA PARA TU CUENTA'});
    if(b.fecha&&plan.fecha!==b.fecha)return reply(400,{ok:false,error:'LA FECHA NO CORRESPONDE A LA ORGANIZACIÓN'});
   }
+  if(['preparar_publicacion','publicar_diagnostica'].includes(b.accion)){
+   if(!jefe)return reply(403,{ok:false,error:'SÓLO AGUIRRE, LINARES Y MORALES PUEDEN CERRAR Y PUBLICAR'});
+   if(!plan||!Number.isInteger(b.version)||![1,2].includes(b.semestre))return reply(400,{ok:false,error:'REVISAR EVALUACIÓN Y SEMESTRE'});
+   const r=await sb.rpc('efmc_publicar_diagnostica',{p_organizacion:plan.id,p_actor:s.usuario_id,p_version:b.version,p_semestre:b.semestre,p_publicar:b.accion==='publicar_diagnostica',p_huella:typeof b.huella==='string'?b.huella:null});
+   if(r.error)throw r.error;return reply(r.data?.ok?200:409,r.data);
+  }
   if(b.accion==='acceso'){
    if(jefe)return reply(200,{ok:true,jefe:true});
    const q=await sb.from('efmc_organizaciones').select('*').eq('habilitado',true);if(q.error)throw q.error;
    return q.data.some(p=>asignaciones(p,s.usuario_id).length)?reply(200,{ok:true,jefe:false}):reply(403,{ok:false,error:'SIN DESIGNACIONES HABILITADAS'});
+  }
+  if(['historial','historial_detalle'].includes(b.accion)){
+   if(!jefe)return reply(403,{ok:false,error:'SÓLO LOS JEFES DE ENTRENAMIENTO FÍSICO CONSULTAN EL HISTORIAL GENERAL'});
+   if(b.accion==='historial'){
+    const [ps,rs,cs]=await Promise.all([
+     leerPaginas(()=>sb.from('efmc_organizaciones').select('id,nombre,fecha,ciclo,modo,publicada_en,grupos').order('id')),
+     leerPaginas(()=>sb.from('efmc_registros').select('id,organizacion_id,cursante_id,fecha,prueba,revision,grupo:calculo->>grupo,curso:calculo->>curso,ciclo:calculo->>ciclo').order('id')),
+     leerPaginas(()=>sb.from('cursantes').select('id,ciclo,paralelo').order('id'))
+    ]);
+    return reply(200,{ok:true,evaluaciones:indiceHistorial(ps,rs,cs),servidor_en:new Date().toISOString()});
+   }
+   if(!plan&&(!/^\d{4}-\d{2}-\d{2}$/.test(b.fecha)||edad(b.fecha,b.fecha)===null||!['1ER CICLO','2DO CICLO'].includes(b.ciclo)))return reply(400,{ok:false,error:'SELECCIONÁ UNA EVALUACIÓN DEL HISTORIAL'});
+   const fecha=plan?.fecha||b.fecha;
+   const [rs,cs,conditions]=await Promise.all([
+    leerPaginas(()=>(plan?sb.from('efmc_registros').select('*').eq('organizacion_id',plan.id):sb.from('efmc_registros').select('*').is('organizacion_id',null).eq('fecha',fecha)).order('id')),
+    leerPaginas(()=>sb.from('cursantes').select('id,nombre_completo,ciclo,paralelo,grado,arma,activo').order('id')),
+    plan?leerPaginas(()=>sb.from('efmc_condiciones').select('*').eq('organizacion_id',plan.id).order('id')):[]
+   ]);
+   const people=new Map(cs.map(c=>[c.id,c]));
+   const registros=rs.filter(r=>plan||(r.calculo?.ciclo||people.get(r.cursante_id)?.ciclo)===b.ciclo),records=[];
+   for(let offset=0;offset<registros.length;offset+=200)records.push(...await conConformidades(registros.slice(offset,offset+200)));
+   return reply(200,{ok:true,fecha,ciclo:plan?.ciclo||b.ciclo,organizacion:plan?{id:plan.id,nombre:plan.nombre,fecha:plan.fecha,ciclo:plan.ciclo,modo:plan.modo,publicada_en:plan.publicada_en,grupos:plan.grupos.map(g=>({id:g.id,color:g.color,modalidad:g.modalidad,alumnos:g.alumnos}))}:null,cursantes:cs.filter(c=>registros.some(r=>r.cursante_id===c.id)),registros:records,condiciones:conditions,servidor_en:new Date().toISOString()});
   }
   if(b.accion==='conformidades'){
    if(!jefe)return reply(403,{ok:false,error:'SÓLO LOS JEFES DE ENTRENAMIENTO FÍSICO CONSULTAN EL DETALLE GENERAL'});
@@ -83,12 +112,14 @@ Deno.serve(async(req:Request)=>{
    const [cs,ps]=await Promise.all([sb.from('cursantes').select('id,ciclo').eq('activo',true),sb.from('profesores').select('id,activo,grado,es_suboficial,es_auxiliar,solo_lectura').eq('activo',true)]);if(cs.error||ps.error)throw cs.error||ps.error;
    const issue=validarPlan(input,cs.data,ps.data);if(issue)return reply(400,{ok:false,error:issue});
    const prev=await sb.from('efmc_organizaciones').select('*').eq('id',input.id).maybeSingle();if(prev.error)throw prev.error;
+   if(prev.data?.publicada_en)return reply(409,{ok:false,error:'EVALUACIÓN CERRADA Y PUBLICADA. EL HISTORIAL NO SE PUEDE REORGANIZAR.'});
    if(prev.data&&(prev.data.fecha!==input.fecha||prev.data.ciclo!==input.ciclo))return reply(400,{ok:false,error:'CREÁ OTRA ORGANIZACIÓN PARA CAMBIAR FECHA O CICLO'});
    const row={id:input.id,nombre:input.nombre.trim(),fecha:input.fecha,ciclo:input.ciclo,modo:input.modo,habilitado:input.habilitado,grupos:input.grupos,version:input.version+1,actor_id:s.usuario_id,actualizado_en:new Date().toISOString()};
    const q=prev.data?await sb.from('efmc_organizaciones').update(row).eq('id',input.id).eq('version',input.version).select().maybeSingle():input.version===0?await sb.from('efmc_organizaciones').insert(row).select().single():{error:{code:'CONFLICT'}};
    if(q.error?.code==='23505'||q.error?.code==='CONFLICT'||(!q.error&&!q.data))return reply(409,{ok:false,error:'OTRO JEFE ACTUALIZÓ ESTA ORGANIZACIÓN. RECARGÁ ANTES DE EDITAR.'});if(q.error)throw q.error;
    return reply(200,{ok:true,plan:q.data});
   }
+  if(plan?.publicada_en&&['condicion','registrar'].includes(b.accion))return reply(409,{ok:false,error:'EVALUACIÓN CERRADA Y PUBLICADA. REVISÁ LAS NOTAS Y RECLAMOS EN EL PANEL EFM.'});
   if(b.accion==='condicion'){
    if(!plan||!plan.grupos.some(g=>g.alumnos.includes(b.cursante_id))||(!ESTACIONES[b.prueba]&&b.prueba!=='TODAS')||!CONDICIONES[b.estado]||!/^[0-9a-f-]{36}$/i.test(b.id)||typeof b.observacion!=='string'||b.observacion.length>600||typeof b.referencia!=='string'||b.referencia.length>160)return reply(400,{ok:false,error:'REVISAR CURSANTE, PRUEBA Y CONDICIÓN'});
    if(b.estado==='CON_PAPELETA'&&!b.referencia.trim())return reply(400,{ok:false,error:'INDICÁ LA REFERENCIA DE LA PAPELETA MÉDICA'});
@@ -153,11 +184,12 @@ Deno.serve(async(req:Request)=>{
    if(plan&&b.prueba==='barras'&&!excelencia)return reply(403,{ok:false,error:'BARRAS REQUIERE GRUPO DE EXCELENCIA'});
    if(b.no_cumplio!==undefined&&(typeof b.no_cumplio!=='boolean'||!excelencia||!['natacion','barras'].includes(b.prueba)||b.valor!==0||b.no_realizo))return reply(400,{ok:false,error:'NO CUMPLIÓ REQUIERE GRUPO DE EXCELENCIA, BARRAS O NATACIÓN Y SIN MARCA'});
    if(b.prueba!=='aerobica'&&b.prueba!=='talla_peso'&&!(excelencia&&b.prueba==='natacion')&&!Number.isInteger(b.valor))return reply(400,{ok:false,error:'USAR UN NÚMERO ENTERO'});
-   const {data:c,error:ce}=await sb.from('cursantes').select('id').eq('id',b.cursante_id).eq('activo',true).maybeSingle();
+   const {data:c,error:ce}=await sb.from('cursantes').select('id,ciclo,paralelo').eq('id',b.cursante_id).eq('activo',true).maybeSingle();
    if(ce||!c)return reply(400,{ok:false,error:'CURSANTE NO VÁLIDO'});
    const calculo=b.no_cumplio?{estado:'NO_CUMPLIO',modalidad:'EXCELENCIA',cumple:false,nota:0,motivo:'NO CUMPLIÓ LA PRUEBA'}:b.no_realizo?{estado:'NO_REALIZO',nota:null,motivo:'NO REALIZÓ LA PRUEBA'}:b.prueba==='talla_peso'?calificarMedidas(b.valor,b.talla,b.sexo,b.nacimiento,b.fecha):excelencia?calificarExcelencia(b.prueba,b.valor,b.sexo,b.nacimiento,b.fecha):calificar(b.prueba,b.valor,b.sexo,b.nacimiento,b.fecha);
    if(!b.no_realizo&&b.prueba==='talla_peso'&&calculo.nota===null)return reply(400,{ok:false,error:calculo.motivo});
    calculo.evaluador_nombre=actorNombre;
+   calculo.ciclo=plan?.ciclo||c.ciclo;calculo.curso=c.paralelo;
    if(plan){calculo.organizacion_nombre=plan.nombre;calculo.modalidad=excelencia?'EXCELENCIA':'ORDINARIA';calculo.grupo=plan.grupos.find(g=>g.alumnos.includes(b.cursante_id))?.color;}
    const row={id:b.id,cursante_id:b.cursante_id,prueba:b.prueba,fecha:b.fecha,valor:b.valor,sexo:b.sexo,nacimiento:b.nacimiento||null,calculo,actor_id:s.usuario_id,...(plan?{organizacion_id:plan.id,...(plan.modo==='EVALUACION'?{modo:'EVALUACION'}:{})}:{})};
    const {data,error}=await sb.from('efmc_registros').insert(row).select().single();

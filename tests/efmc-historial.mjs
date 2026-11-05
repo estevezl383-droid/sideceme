@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import * as org from '../supabase/functions/efm-campo/organizacion.mjs';
+import * as perfil from '../supabase/functions/efm-campo/perfil.mjs';
+import * as baremos from '../supabase/functions/efm-campo/baremos.mjs';
+import * as medidas from '../supabase/functions/efm-campo/medidas.mjs';
+import {leerPaginas,indiceHistorial} from '../supabase/functions/efm-campo/historial.mjs';
+
+const fecha='2026-11-03',planId='11111111-1111-1111-1111-111111111111',otroId='22222222-2222-2222-2222-222222222222';
+const cursantes=Array.from({length:5},(_,i)=>({id:'TEST'+i,nombre_completo:'CURSANTE FICTICIO '+i,ciclo:i===4?'1ER CICLO':'2DO CICLO',paralelo:i<2?'A':'B',activo:i!==0}));
+const planes=[{id:planId,nombre:'DIAGNÓSTICA FICTICIA',fecha,ciclo:'2DO CICLO',modo:'EVALUACION',habilitado:false,grupos:[{id:'G',color:'AZUL',alumnos:cursantes.slice(0,4).map(c=>c.id)}]}, {id:otroId,nombre:'DIAGNÓSTICA FICTICIA',fecha,ciclo:'1ER CICLO',modo:'EVALUACION',habilitado:true,grupos:[{id:'G',color:'ROJO',alumnos:['TEST4']}]}];
+const registros=cursantes.flatMap((c,i)=>Object.keys(org.ESTACIONES).filter(p=>p!=='barras').map((prueba,j)=>({id:`registro-${i}-${j}`,cursante_id:c.id,organizacion_id:i===4?otroId:planId,fecha,prueba,revision:i*10+j,valor:30,calculo:{nota:100,grupo:i===4?'ROJO':'AZUL'}})));
+registros.push({...registros[1],id:'correccion',revision:100,valor:40});
+registros.push({...registros[2],id:'personal',organizacion_id:null});
+const before=JSON.stringify({planes,registros,cursantes});
+const index=indiceHistorial(planes,registros,cursantes);
+assert.equal(index.length,3);
+assert.deepEqual(index.filter(e=>e.organizacion_id).map(e=>e.alumnos),[1,4]);
+const segundo=index.find(e=>e.organizacion_id===planId);
+assert.equal(segundo.registros,20);assert.equal(segundo.revisiones,21);
+assert.deepEqual(segundo.participantes.map(c=>c.curso),['A','A','B','B']);
+assert.equal(index.find(e=>!e.organizacion_id).modo,'PRUEBA');
+assert.equal(before,JSON.stringify({planes,registros,cursantes}));
+const snapshot={...registros[0],organizacion_id:null,calculo:{...registros[0].calculo,ciclo:'1ER CICLO',curso:'Z',grupo:'VERDE'}};
+const historical=indiceHistorial([], [snapshot],cursantes)[0];
+assert.equal(historical.ciclo,'1ER CICLO');assert.equal(historical.participantes[0].curso,'Z');assert.equal(historical.participantes[0].tanda,'VERDE');
+const paginados=Array.from({length:1201},(_,id)=>({id})),rangos=[];
+assert.deepEqual(await leerPaginas(()=>({range:async(a,b)=>{rangos.push([a,b]);return {data:paginados.slice(a,b+1)};}})),paginados);
+assert.deepEqual(rangos,[[0,499],[500,999],[1000,1499]]);
+await assert.rejects(leerPaginas(()=>({range:async()=>({error:Error('consulta fallida')})})),/consulta fallida/);
+
+let handler,role='jefe',reads=[];
+const profesor={id:'P030',ci:'TEST-CI',activo:true,grado:'Tcnl.'};
+const tables={profesores:[profesor],cursantes,efmc_organizaciones:planes,efmc_registros:registros,efmc_conformidades:[{registro_id:registros[1].id,cursante_id:'TEST0',confirmado_en:'2026-11-03T14:00:00Z'}],efmc_condiciones:[]};
+const sb={from(table){reads.push(table);let filters=[],from=0,to=Infinity;const q={select(){return q;},eq(k,v){filters.push(r=>r[k]===v);return q;},in(k,vs){filters.push(r=>vs.includes(r[k]));return q;},is(k,v){filters.push(r=>(r[k]??null)===v);return q;},order(){return q;},range(a,b){from=a;to=b;return q;},maybeSingle(){return Promise.resolve(result(true));},single(){return Promise.resolve(result(true));},then(a,b){return Promise.resolve(result()).then(a,b);}};
+ function result(single=false){const session={token:'TEST',usuario_id:role==='evaluador'?'P099':profesor.id,usuario_ci:profesor.ci,usuario_tabla:role==='alumno'?'cursantes':'profesores',revocado:role==='revocado',es_master:false,expira_en:new Date(Date.now()+60000).toISOString()};const rows=table==='sesiones'?[session]:table==='profesores'?[{...profesor,id:session.usuario_id}]:tables[table]||[];const data=rows.filter(r=>filters.every(f=>f(r))).slice(from,to===Infinity?undefined:to+1);return {data:single?data[0]||null:data};}return q;}};
+const source=fs.readFileSync(new URL('../supabase/functions/efm-campo/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/:number|:any|:Request/g,'');
+vm.runInNewContext(source,{...org,...perfil,...baremos,...medidas,leerPaginas,indiceHistorial,createClient:()=>sb,console,Response,Date,Number,Deno:{env:{get:()=>''},serve:fn=>handler=fn}});
+const call=b=>handler({method:'POST',json:async()=>({token:'TEST',...b})});
+let r=await call({accion:'historial'});assert.equal(r.status,200);assert.equal((await r.json()).evaluaciones.find(e=>e.organizacion_id===planId).alumnos,4);
+r=await call({accion:'historial_detalle',organizacion_id:planId});assert.equal(r.status,200);const detail=await r.json();assert.equal(detail.cursantes.length,4);assert(detail.cursantes.some(c=>c.activo===false));assert.equal(detail.registros.length,21);assert(detail.registros.find(r=>r.id===registros[1].id).conformidad);assert.equal(detail.registros.find(r=>r.id==='correccion').conformidad,null);
+r=await call({accion:'historial_detalle',fecha,ciclo:'2DO CICLO'});assert.equal(r.status,200);assert.deepEqual((await r.json()).registros.map(r=>r.id),['personal']);
+assert.equal((await call({accion:'historial_detalle',fecha:'incorrecta',ciclo:'2DO CICLO'})).status,400);
+assert.equal((await call({accion:'historial_detalle',fecha,ciclo:'OTRO'})).status,400);
+for(role of ['evaluador','revocado','alumno']){reads=[];r=await call({accion:'historial'});assert([401,403].includes(r.status));assert(!reads.includes('efmc_registros'));}
+assert.equal(before,JSON.stringify({planes,registros,cursantes}));
+console.log('Historial: 4 + 1 cursantes, cursos/tandas, revisiones sin duplicar notas, inactivos y organizaciones deshabilitadas, paginación >1000, aislamiento de pruebas personales, conformidad por revisión y autorización: OK');

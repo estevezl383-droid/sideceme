@@ -1,0 +1,32 @@
+const {chromium}=require(process.env.SIDECEME_PLAYWRIGHT_MODULE||'playwright');
+const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const base=path.resolve(__dirname,'..'),fecha='2026-11-03';
+const students=Array.from({length:5},(_,i)=>({id:'TEST'+i,nombre_completo:'CURSANTE FICTICIO '+i,ciclo:i===4?'1ER CICLO':'2DO CICLO',paralelo:i<2?'A':'B',activo:true}));
+const plans=['2DO CICLO','1ER CICLO'].map((ciclo,i)=>({id:'PLAN'+i,nombre:'PRUEBA DIAGNÓSTICA FICTICIA',fecha,ciclo,modo:'EVALUACION',habilitado:true,grupos:[{id:'G',color:i?'ROJO':'AZUL',alumnos:students.filter(c=>c.ciclo===ciclo).map(c=>c.id)}]}));
+const records=students.flatMap((c,i)=>['talla_peso','flexiones','abdominales','aerobica','natacion'].map((prueba,j)=>({id:`R${i}-${j}`,cursante_id:c.id,organizacion_id:i===4?'PLAN1':'PLAN0',fecha,prueba,revision:i*10+j,valor:30,nacimiento:'1985-01-01',creado_en:'2026-11-03T13:00:00Z',calculo:{nota:100,peso:70,talla:1.70,grupo:i===4?'ROJO':'AZUL',evaluador_nombre:'EVALUADOR FICTICIO'},conformidad:{confirmado_en:'2026-11-03T14:00:00Z'}})));
+records.push({...records[1],id:'CORRECCION',valor:40,revision:100,conformidad:null});
+const evaluations=plans.map(p=>{const participantes=students.filter(c=>c.ciclo===p.ciclo).map(c=>({id:c.id,curso:c.paralelo,tanda:p.grupos[0].color,registros:5,revisiones:c.id==='TEST0'?6:5}));return {...p,organizacion_id:p.id,participantes,alumnos:participantes.length,registros:participantes.length*5};});
+const server=http.createServer((req,res)=>{if(req.url==='/test'){res.setHeader('Content-Type','text/html');return res.end('<link rel="stylesheet" href="/efm-campo/style.css"><script type="module">import {abrir} from "/efm-campo/app.mjs";await abrir({owner:"P030",onClose:()=>{},invoke:window.testInvoke});window.ready=true;</script>');}const file=path.resolve(base,'.'+new URL(req.url,'http://test').pathname);if(!file.startsWith(base+'/')||!fs.existsSync(file)){res.statusCode=404;return res.end();}res.setHeader('Content-Type',file.endsWith('.mjs')?'text/javascript':file.endsWith('.css')?'text/css':'application/json');res.end(fs.readFileSync(file));});
+(async()=>{await new Promise(r=>server.listen(0,'127.0.0.1',r));const browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+try{
+ for(const width of [1440,390]){
+  const page=await browser.newPage({viewport:{width,height:1000}}),errors=[],calls=[];let fail=false;
+  page.on('pageerror',e=>errors.push(e.message));await page.exposeFunction('testInvoke',async b=>{calls.push(b);if(b.accion==='cargar')return {fecha:'2026-11-05',cursantes:students,registros:[],jefe:true,actor_nombre:'EVALUADOR FICTICIO',organizaciones:[],asignaciones:[],condiciones:[],personal:[]};if(b.accion==='historial'){if(fail)throw Error('FALLO FICTICIO');return {evaluaciones:evaluations};}if(b.accion==='historial_detalle'){const p=plans.find(p=>p.id===b.organizacion_id);return {organizacion:p,cursantes:students.filter(c=>c.ciclo===p.ciclo),registros:records.filter(r=>r.organizacion_id===p.id),condiciones:[]};}throw Error(b.accion);});
+  await page.goto(`http://127.0.0.1:${server.address().port}/test`);await page.waitForFunction(()=>window.ready);
+  await page.locator('[data-action=history]').click();assert.equal(await page.locator('.efmc-history-card').count(),2);
+  assert((await page.locator('.efmc-history-card').first().textContent()).includes('4 CURSANTES'));
+  await page.locator('[data-history-filter=ciclo]').selectOption('2DO CICLO');await page.locator('[data-history-filter=curso]').selectOption('B');await page.locator('[data-history-filter=tanda]').selectOption('AZUL');
+  assert((await page.locator('.efmc-history-card').textContent()).includes('2 CURSANTES'));
+  await page.locator('[data-history-open]').click();await page.locator('.efmc-history-revisions').first().waitFor();assert.equal(await page.locator('th[scope=row]').count(),2);
+  await page.locator('[data-history-filter=curso]').selectOption('');assert.equal(await page.locator('th[scope=row]').count(),4);
+  await page.locator('.efmc-history-revisions').first().locator('summary').click();assert((await page.locator('.efmc-history-revisions').first().textContent()).includes('ANTERIOR'));assert((await page.locator('.efmc-history-revisions').first().textContent()).includes('PENDIENTE'));
+  await page.screenshot({path:`/tmp/efmc-historial-detalle-${width}.png`,fullPage:true});
+  await page.locator('[data-history-back]').click();await page.locator('[data-history-filter=ciclo]').selectOption('1ER CICLO');assert((await page.locator('.efmc-history-card').textContent()).includes('1 CURSANTE'));
+  await page.locator('[data-history-open]').click();await page.locator('.efmc-history-revisions').waitFor();assert.equal(await page.locator('th[scope=row]').count(),1);
+  await page.locator('[data-history-back]').click();await page.locator('[data-history-filter=ciclo]').selectOption('');await page.screenshot({path:`/tmp/efmc-historial-${width}.png`,fullPage:true});
+  const overflow=await page.locator('.efmc-history-dialog').evaluate(el=>el.scrollWidth>el.clientWidth);assert.equal(overflow,false);
+  fail=true;await page.locator('[data-history-refresh]').click();await page.getByText('NO SE PUDO CARGAR EL HISTORIAL:',{exact:false}).waitFor();fail=false;await page.locator('[data-history-refresh]').click();await page.locator('.efmc-history-card').first().waitFor();await page.keyboard.press('Escape');assert.equal(await page.locator('.efmc-history-dialog').count(),0);
+  assert.equal(await page.locator('#efmc-date').inputValue(),'2026-11-05');assert(!calls.some(c=>['registrar','confirmar','organizar'].includes(c.accion)));assert.deepEqual(errors,[]);await page.close();
+ }
+ console.log('Historial en Chromium escritorio/móvil: diagnóstico 4 + 1, filtros por ciclo/curso/tanda, revisión anterior y vigente, conformidades separadas, fallo/reintento, sin desbordamiento ni escrituras y fecha actual conservada: OK');
+}finally{await browser.close();server.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
