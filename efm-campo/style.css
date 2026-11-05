@@ -2,6 +2,40 @@
 
 @media(max-width:720px){#efmc.efmc-selected .efmc-grid aside{display:none}#efmc .efmc-timer button{padding:10px;font-size:11px}#efmc .efmc-timer{padding:14px}#efmc .efmc-timer output{font-size:58px;margin:8px}}
 
+/* Historial permanente de evaluaciones por ciclo, curso y tanda. */
+#efmc .efmc-history-entry{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:16px 0 8px;padding:16px 20px;border:1px solid #35655f;border-radius:12px;background:linear-gradient(115deg,#173b3d,#102630)}
+#efmc .efmc-history-entry b{display:block;margin-top:4px}
+#efmc .efmc-history-entry button{border-color:#51c5ad;color:#9bf1db}
+#efmc .efmc-history-dialog{width:min(1240px,96vw);max-width:96vw;max-height:92dvh;overflow:auto;padding:24px;border:1px solid #416c74;border-radius:16px;background:#0e202b;color:#e8f0f3;box-shadow:0 24px 80px #0009}
+#efmc .efmc-history-dialog::backdrop{background:#020b13d9}
+#efmc .efmc-history-dialog header{position:sticky;top:-24px;z-index:1;background:#0e202b;padding:12px 0;border-bottom:1px solid #31505a}
+#efmc .efmc-history-dialog h2{font-size:21px}
+#efmc .efmc-history-dialog h3{line-height:1.45;overflow-wrap:anywhere}
+#efmc .efmc-history-dialog p{line-height:1.65;color:#b1c6ce}
+#efmc .efmc-history-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:20px 0 12px}
+#efmc .efmc-history-actions{display:flex;gap:10px;flex-wrap:wrap}
+#efmc .efmc-history-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+#efmc .efmc-history-card{border:1px solid #32505c;border-radius:12px;padding:20px;background:linear-gradient(140deg,#18353f,#102630)}
+#efmc .efmc-history-card button{width:100%;margin-top:8px}
+#efmc .efmc-history-mode{display:inline-block;font-size:10px;letter-spacing:.06em;border:1px solid #3d7068;border-radius:20px;padding:5px 9px;color:#93e8d0}
+#efmc .efmc-history-count{font-size:12px;letter-spacing:.05em}
+#efmc .efmc-history-dialog caption{text-align:left;color:#adc9d4;padding:12px 0}
+#efmc .efmc-history-dialog td{min-width:145px;vertical-align:top}
+#efmc .efmc-history-dialog th[scope=row]{min-width:215px}
+#efmc .efmc-history-dialog td>strong{display:block;margin-bottom:8px}
+#efmc .efmc-history-revisions{padding:16px 0;border-top:1px solid #32505c}
+#efmc .efmc-history-revisions summary{cursor:pointer;line-height:1.6;font-weight:bold;color:#9be7d7}
+#efmc .efmc-history-empty{padding:32px;text-align:center;border:1px dashed #41606c;border-radius:12px}
+@media(max-width:720px){
+ #efmc .efmc-history-entry{flex-direction:column;align-items:stretch;padding:14px}
+ #efmc .efmc-history-entry button{width:100%}
+ #efmc .efmc-history-dialog{padding:16px;width:96vw}
+ #efmc .efmc-history-dialog header{top:-16px;gap:8px}
+ #efmc .efmc-history-dialog h2{font-size:16px}
+ #efmc .efmc-history-filters{grid-template-columns:1fr;gap:10px}
+ #efmc .efmc-history-list{grid-template-columns:1fr}
+}
+
 /* Evaluador: identidad y cuenta regresiva, adaptados al ancho del teléfono. */
 #efmc{background:radial-gradient(ellipse at 20% 0%,#173a42 0,transparent 42%),#08151d}
 #efmc .efmc-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;align-items:end}

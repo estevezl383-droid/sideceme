@@ -1,5 +1,14 @@
 # Evaluación física digital ECEME
 
+## 05/11/2026 · Historial por ciclo, curso y tanda
+
+- Botón HISTORIAL DE PRUEBAS FÍSICAS junto a los controles de fecha, ciclo y organización. Consulta independiente de la jornada en curso, accesible a Aguirre, Linares y Morales con verificación de sesión en el servidor.
+- Índice de todas las fechas con resultados, filtros por ciclo/curso/tanda, matriz de últimas marcas y notas, conformidades por registro y detalle de cada revisión anterior. Incluye alumnos inactivos y organizaciones deshabilitadas; las pruebas personales se identifican como registros de prueba. No modifica registros ni da conformidades.
+- La diagnóstica del 03/11/2026 ya existe: segundo ciclo, cuatro cursantes de cursos A/B y veinte pruebas; primer ciclo, una cursante del curso A y cinco pruebas. Se consulta desde sus organizaciones originales, sin copiar ni recalificar datos.
+- Acciones autenticadas `historial` / `historial_detalle`, consultas paginadas de 500 filas y conformidades en lotes de 200. Sin tablas, políticas ni permisos nuevos. Los registros nuevos retienen ciclo y curso dentro de `calculo`; los anteriores usan su organización y la nómina disponible cuando no tienen esos datos guardados.
+- Se incorporó al archivo local del endpoint la lógica de cierre/publicación que ya estaba en producción v15, conservando sus bloqueos y RPC. Los otros siete módulos del servidor se comprobaron iguales a producción. Nueva función desplegada v16, caché de la cadena frontend v24.
+- Validación: pruebas de índice/paginación (>1000 filas), cinco alumnos, separación entre organizaciones y pruebas personales, versiones y conformidades, acceso denegado a evaluadores/alumnos/sesiones revocadas y conservación de curso/ciclo histórico. Chromium de escritorio y móvil: filtros, matrices, revisiones, fallo/reintento y fecha actual conservada; regresiones de captura, organización, conformidades, informes, excelencia, medidas, perfil y soporte. La comparación de perfil cliente/servidor ignora únicamente la versión de caché en la importación.
+
 Piloto solicitado por Tcnl. Sergio Morales para probar las estaciones antes de habilitarlas a evaluadores. Acceso exclusivo a su cuenta personal; el servidor verifica la sesión institucional, cuenta activa e identidad, y excluye sesiones maestras y de soporte.
 
 ## Estado

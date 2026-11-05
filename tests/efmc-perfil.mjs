@@ -22,5 +22,5 @@ const body={accion:'guardar_datos',token:'test',cursante_id:'TEST',nacimiento:'1
 let response=await call(body);assert.equal(response.status,200);let data=await response.json();assert.equal(data.perfil.fecha_nacimiento,'1979-01-04');assert.equal(data.perfil.foto_path,'foto.webp');assert.equal(data.perfil.fuente,'RRNN');assert.equal(writes,1);
 for(const delta of [{nacimiento:'0001-01-03'},{nacimiento:null},{sexo:'X'},{cursante_id:'OTHER'},{fecha:'2026-02-30'}])assert.equal((await call({...body,...delta})).status,400);
 assert.equal(writes,1);
-assert.equal(fs.readFileSync(new URL('../efm-campo/perfil.mjs',import.meta.url),'utf8'),fs.readFileSync(new URL('../supabase/functions/efm-campo/perfil.mjs',import.meta.url),'utf8'));
+assert.equal(fs.readFileSync(new URL('../efm-campo/perfil.mjs',import.meta.url),'utf8').replace(/\?v=\d+/g,''),fs.readFileSync(new URL('../supabase/functions/efm-campo/perfil.mjs',import.meta.url),'utf8'));
 console.log('Edición completa, fecha adulta, persistencia, retrato conservado y corrección prioritaria: OK');
