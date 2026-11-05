@@ -1,5 +1,13 @@
 # Evaluación física digital ECEME
 
+## 05/11/2026 · Revisiones subsanadas y conformidades diferenciadas
+
+- Verificados los 25 registros vigentes de la diagnóstica: todos tienen nota. Primer ciclo conserva cinco conformidades actuales; una cursante de segundo ciclo tiene cinco notas y dos aceptaciones de revisiones recalculadas todavía sin registrar. No se trasladan ni se crean conformidades de alumnos.
+- El historial identificaba como PENDIENTE la nota nula de diez revisiones anteriores que ya estaban corregidas. Ahora las presenta como SUBSANADAS, con la nota vigente y su revisión, conservando los valores originales. La selección usa evaluación, fecha, cursante y prueba, y mantiene los pendientes de calificación reales y la nota cero.
+- Se separan la calificación numérica y la aceptación del alumno. Resumen de notas vigentes, conformidades actuales y aviso concreto cuando falta aceptar una nota recalculada. No se alteran los registros ni las conformidades existentes.
+- Actualización del detalle cada cinco segundos y al recuperar foco, conservando filtros, desplazamiento y revisiones desplegadas. Cierre y pérdida de autorización detienen la actualización. Si falla la consulta, se conserva el último detalle con aviso.
+- Validación con la consulta autenticada real: 25 notas, diez revisiones subsanadas y 23 conformidades vigentes. Pruebas unitarias de estados y aislamiento; Chromium de escritorio/móvil verifica el recálculo pendiente de aceptación, una nota corregida y ya confirmada, actualización automática de la conformidad sin perder el detalle y fallo/reintento. Cadena de caché frontend v25; servidor v16 sin cambios.
+
 ## 05/11/2026 · Historial por ciclo, curso y tanda
 
 - Botón HISTORIAL DE PRUEBAS FÍSICAS junto a los controles de fecha, ciclo y organización. Consulta independiente de la jornada en curso, accesible a Aguirre, Linares y Morales con verificación de sesión en el servidor.
