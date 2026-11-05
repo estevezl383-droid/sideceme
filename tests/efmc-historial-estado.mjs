@@ -10,6 +10,8 @@ assert(!calificacionRevision(original,records).includes('PENDIENTE'));
 assert.equal(calificacionRevision(corregida,records),'100');
 const html=calificacionVigente(corregida,records);
 assert.match(html,/grade calificada/);assert.match(html,/100 \/ 100/);
+assert.match(html,/pendiente-conformidad/);
+assert(!calificacionVigente(corregida,records,{evaluacion:false}).includes('pendiente-conformidad'));
 assert.match(html,/Conformidad de esta revisión pendiente/);assert.match(html,/La marca anterior fue confirmada/);
 assert(!html.includes('✓ Conformidad'));assert.equal(corregida.conformidad,null);
 assert.equal(calificacionRevision(original,[original]),'PENDIENTE DE CALIFICACIÓN');

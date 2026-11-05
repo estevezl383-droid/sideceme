@@ -24,10 +24,11 @@
 #efmc .efmc-history-status.sin-nota{border-color:#ad8241;background:#3b301e;color:#f0d491}
 #efmc .efmc-history-grade{padding:14px;border-radius:9px;border:1px solid #ad8241;background:#3b301e;color:#f0d491}
 #efmc .efmc-history-grade.calificada{border-color:#32a675;background:#123f2e;color:#bcf7d7}
+#efmc .efmc-history-grade.pendiente-conformidad{border-color:#b3575f;background:#4d2026;color:#ffd0d5}
 #efmc .efmc-history-grade strong{font-size:22px;display:block}
 #efmc .efmc-history-grade small{color:inherit;font-size:9px}
 #efmc .efmc-history-acceptance{font-size:11px;line-height:1.5;padding:10px 0;color:#94d6bd}
-#efmc .efmc-history-acceptance.pendiente{color:#f1cc7f}
+#efmc .efmc-history-acceptance.pendiente{color:#ffabb3}
 #efmc .efmc-history-acceptance small{font-size:10px;letter-spacing:0;color:inherit}
 #efmc .efmc-history-resolved{font-weight:bold;color:#91dfbe}
 #efmc .efmc-history-sync{font-size:11px}

@@ -25,9 +25,14 @@ try{
   await page.locator('[data-history-filter=curso]').selectOption('');assert.equal(await page.locator('th[scope=row]').count(),4);
   await page.locator('.efmc-history-revisions').first().locator('summary').click();assert((await page.locator('.efmc-history-revisions').first().textContent()).includes('ANTERIOR'));assert((await page.locator('.efmc-history-revisions').first().textContent()).includes('SUBSANADA'));
   assert.equal(await page.locator('.efmc-history-grade.calificada').count(),20);assert.equal(await page.locator('.efmc-history-acceptance.pendiente').count(),1);assert((await page.locator('.efmc-history-status').textContent()).includes('20 / 20 NOTAS CALIFICADAS'));
+  assert.equal(await page.locator('.efmc-history-grade.pendiente-conformidad').count(),1);
+  assert.equal(await page.locator('.efmc-history-grade.pendiente-conformidad').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(77, 32, 38)');
+  assert.equal(await page.locator('.efmc-history-grade.calificada:not(.pendiente-conformidad)').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(18, 63, 46)');
   await page.screenshot({path:`/tmp/efmc-historial-detalle-${width}.png`,fullPage:true});
   records.find(r=>r.id==='CORRECCION').conformidad={confirmado_en:'2026-11-05T15:00:00Z'};
   await page.locator('.efmc-history-acceptance.pendiente').waitFor({state:'detached',timeout:12000});assert.equal(await page.locator('.efmc-history-revisions[open]').count(),1);
+  assert.equal(await page.locator('.efmc-history-grade.pendiente-conformidad').count(),0);
+  assert.equal(await page.locator('.efmc-history-grade.calificada').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(18, 63, 46)');
   await page.locator('[data-history-back]').click();await page.locator('[data-history-filter=ciclo]').selectOption('1ER CICLO');assert((await page.locator('.efmc-history-card').textContent()).includes('1 CURSANTE'));
   await page.locator('[data-history-open]').click();await page.locator('.efmc-history-revisions').waitFor();assert.equal(await page.locator('th[scope=row]').count(),1);
   assert.equal(await page.locator('.efmc-history-acceptance.confirmada').count(),5);assert.equal(await page.locator('.efmc-history-acceptance.pendiente').count(),0);assert((await page.locator('.efmc-history-status').textContent()).includes('5 / 5 NOTAS CALIFICADAS'));
