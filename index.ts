@@ -1,5 +1,5 @@
 // ============================================================
-// EDGE FUNCTION: wargame-ops — Juego de Guerra (PMTD) de SIDECEME.  ·  v2.9.453
+// EDGE FUNCTION: wargame-ops — Juego de Guerra (PMTD) de SIDECEME.  ·  v2.9.457
 // Wargame multijugador POR TURNOS, combate DETERMINISTA, con NIEBLA DE GUERRA.
 //
 // Roles:
@@ -283,7 +283,8 @@ const PUENTE_KM = 0.05;       // un camino a ≤50 m del agua la cruza: es el pu
 const CELDA_GRADOS = 0.01;    // grilla del índice (~1,1 km)
 const TIPOS_POLIGONO_IDX = ["restringido", "severo", "clave", "ae", "defensivo", "minado", "interdiccion"];
 // Qué es cada elemento de la capa de comunicaciones para la marcha.
-//   líneas:    "camino" (abre paso a todos) · "senda" (sólo a pie) · null (no es camino)
+//   líneas:    "camino" (abre paso a todos) · "huella" (camino de 3.ª/4.ª: a pie y el
+//              convoy, ver v2.9.458) · "senda" (sólo a pie) · null (no es camino)
 //   polígonos: "brecha" (la abrió la ingeniería: pasa a través de todo menos del
 //              agua) · "puente" (cruza el agua) · null (el aeródromo importado)
 // Lo importado antes de la v2.9.439 no trae la capa (`e.k`): se mira el nombre, y
@@ -296,11 +297,24 @@ function claseVia(t: any): string | null {
   }
   const k = g.e && g.e.k;
   if (k === "comunicaciones_ffcc" || k === "comunicaciones_aero") return null;
-  if (k === "comunicaciones_huellas") return "senda";
+  // ============================================================
+  // v2.9.458 — 🛤️ LOS CAMINOS DE TERCERA Y CUARTA TAMBIÉN SE ANDAN.
+  // Sergio (05-11-2026): «me gusta que los vehículos elijan las rutas principales,
+  // pero que también reconozcan los caminos de tercera o cuarta… y que me dé la
+  // opción de elegir cuál camino quiero que tome: ésa es la elección del G-4».
+  // La capa «Huellas y sendas (Vía 3/4)» entraba entera como `senda` (sólo a pie)
+  // desde la v2.9.443: en «azafran III» eran 499 tramos que el convoy no veía y por
+  // eso daba toda la vuelta por la carretera. Ahora la huella es de la red del
+  // convoy, más lenta y con su consumo. La senda de verdad (OSM `path`, marcada al
+  // importar como `e.t`) sigue siendo sólo a pie. Los vehículos de combate no la
+  // usan para cruzar terreno: ésa fue la trampa que cerró la v2.9.443.
+  // ============================================================
+  if (k === "comunicaciones_huellas") return g.e.t === "path" ? "senda" : "huella";
   if (k) return "camino";
   const nom = String(g.nom || "");
   if (/ferrocarril|v[ií]a f[eé]rrea|l[ií]nea f[eé]rrea/i.test(nom)) return null;
-  if (/\b(senda|sendero|huella|trocha|camino de herradura)\b/i.test(nom)) return "senda";
+  if (/\b(senda|sendero|camino de herradura)\b/i.test(nom)) return "senda";
+  if (/\b(huella|trocha)\b/i.test(nom)) return "huella";
   return "camino";
 }
 // Qué es cada elemento del calco hidrográfico para la marcha.
@@ -396,11 +410,17 @@ function tramoLibre(idx: any, a: number[], b: number[]) {
 }
 // Lo que hay en el punto, de una sola mirada a su celda: distancia al camino más
 // cercano, si cae en una brecha o un puente, y si cae en agua.
-function sueloEn(pt: number[], c: any, aPie: boolean) {
-  let dCamino = Infinity, poli: string | null = null, agua: string | null = null, rio = false;
+function sueloEn(pt: number[], c: any, aPie: boolean, rueda = false) {
+  let dCamino = Infinity, dHuella = Infinity, poli: string | null = null, agua: string | null = null, rio = false;
   for (const s of c.segs) {
     if (s.c === "rio") { if (!rio && distPtSegKm(pt, s.a, s.b) <= RIO_BANDA_KM) rio = true; continue; }
     if (s.c === "senda" && !aPie) continue;
+    // v2.9.458: la huella le sirve a la tropa a pie (como camino) y al convoy (aparte:
+    // anda más lento). El vehículo de combate no la mira.
+    if (s.c === "huella" && !aPie) {
+      if (rueda) { const dh = distPtSegKm(pt, s.a, s.b); if (dh < dHuella) dHuella = dh; }
+      continue;
+    }
     const d = distPtSegKm(pt, s.a, s.b);
     if (d < dCamino) dCamino = d;
   }
@@ -412,7 +432,7 @@ function sueloEn(pt: number[], c: any, aPie: boolean) {
     else if (!agua) agua = "humedal";
   }
   if (rio && agua !== "agua") agua = "rio";
-  return { dCamino, poli, agua };
+  return { dCamino, dHuella, poli, agua };
 }
 // v2.9.443: ¿el punto cae en una brecha o puente abiertos por la ingeniería?
 function brechaEn(pt: number[], terreno: any[]) {
@@ -528,14 +548,18 @@ function claseTerreno(pt: number[], terreno: any[], bando?: string, medio?: stri
   const c = indiceDe(terreno).celdaDe(pt);
   if (!c) return "libre";
   const obs = bando ? obstaculoEnCelda(pt, c, bando) : null;
-  const s = sueloEn(pt, c, medio === "pie");
+  const rueda = medio === "rueda";   // v2.9.458: el convoy también anda la huella
+  const s = sueloEn(pt, c, medio === "pie", rueda);
   if (s.agua === "agua" || s.agua === "rio") {
     if (s.poli === "puente" || s.dCamino <= PUENTE_KM) return obs === "severo" ? "severo" : (obs || "camino");
+    // La huella que cruza el río es su vado: por ahí la columna pasa, despacio.
+    if (rueda && s.dHuella <= PUENTE_KM) return obs === "severo" ? "severo" : (obs || "huella");
     return s.agua;
   }
   if (s.poli) return "camino";
   if (obs === "severo") return "severo";
   if (s.dCamino <= CAMINO_KM) return obs || "camino"; // la carretera manda sobre el terreno natural
+  if (rueda && s.dHuella <= CAMINO_KM) return obs || "huella";
   let restringido = obs === "restringido" || s.agua === "humedal";
   for (const t of c.polis) {
     if (t._via || t._agua) continue;
@@ -858,7 +882,10 @@ const VEL: any = {
   // v2.9.358 — VELOCIDAD DE COLUMNA, NO DE VEHÍCULO SUELTO. 35 km/h es la marcha
   // de una columna cargada por camino de tercera o cuarta (tierra, ripio), que es
   // por donde va el abastecimiento de verdad; no por autopista.
-  rueda: { camino: 35, libre: 12, restringido: null, severo: null, rio: null, agua: null },   // camión militar 6×6
+  // v2.9.458: por la huella (Vía 3/4: tierra, sin firme) la columna va a 20 km/h. Por
+  // eso elegirla es una decisión: suele ser más corta, pero más lenta y gasta más.
+  // ⚠️ Cifra de referencia, a validar con las tablas de la Escuela.
+  rueda: { camino: 35, huella: 20, libre: 12, restringido: null, severo: null, rio: null, agua: null },   // camión militar 6×6
   pie: { camino: 6, libre: 5, restringido: 1.5, severo: null, rio: 0.5, agua: null },
 };
 // El medio que le toca a cada unidad. El convoy va por llantas aunque su
@@ -866,7 +893,7 @@ const VEL: any = {
 function medioDe(u: any) { return esConvoy(u) ? "rueda" : (u && u.medio) || "pie"; }
 const OBS: any = { camino: 1.0, libre: 1.0, restringido: 0.5, severo: 0.3, rio: 1.0, agua: 1.0 };
 // Cómo se nombra cada clase en la bitácora.
-const NOM_CLASE: any = { camino: "camino", libre: "campo abierto", restringido: "terreno restringido",
+const NOM_CLASE: any = { camino: "camino", huella: "camino de 3.ª/4.ª", libre: "campo abierto", restringido: "terreno restringido",
   severo: "terreno severamente restringido", rio: "un río sin puente", agua: "una laguna" };
 // v2.9.351 — lo que le cuesta al convoy salirse del camino: 40 km/h campo
 // traviesa pasan a 16. No es un castigo: es por qué existe el eje logístico.
@@ -899,15 +926,17 @@ const CONVOY_FUERA_RUTA_KM = 2;
 const AUTONOMIA_KM: any = { motor: 200, oruga: 150, rueda: 200, pie: 0 };
 // Cuánto MÁS consume cada clase de terreno: por eso se planifica la ruta
 // logística y no sólo la táctica.
-const CONSUMO_TERRENO: any = { camino: 0.9, libre: 1.0, restringido: 1.6, severo: 2.2, rio: 2.2, agua: 2.2 };
+const CONSUMO_TERRENO: any = { camino: 0.9, huella: 1.1, libre: 1.0, restringido: 1.6, severo: 2.2, rio: 2.2, agua: 2.2 };
 // Lo que gasta por km ESA unidad en esa clase: el camión cargado fuera de camino
 // gasta la mitad más (v2.9.351). v2.9.443: una sola cuenta para el tope del
 // tanque y para lo que se anota — antes el convoy frenaba con el ×1,5 pero se le
 // anotaba sin él, y la previsión del Juego decía otra cifra.
 function gastoPorKm(u: any, clase: string) {
   const g = CONSUMO_TERRENO[clase] != null ? CONSUMO_TERRENO[clase] : 1;
-  return esConvoy(u) && clase !== "camino" ? g * 1.5 : g;
+  return esConvoy(u) && !sobreCamino(clase) ? g * 1.5 : g;
 }
+// v2.9.458: lo que para el convoy es «ir por el camino»: la ruta y la huella.
+function sobreCamino(clase: string) { return clase === "camino" || clase === "huella"; }
 // ---------- Misiones de artillería (v2.9.226) ----------
 // INTERDICTAR no busca destruir a nadie: busca NEGAR el uso de un camino, un
 // vado o un paso. Por eso no se resuelve con daño instantáneo, sino con una
@@ -939,7 +968,7 @@ function moverUnidad(u: any, destino: number[], terreno: any[], horas: number, p
   const idx = indiceDe(terreno);
   let pos = [u.lng, u.lat];
   const totalDest = haversineKm(pos, destino);
-  const porClase0 = () => ({ camino: 0, libre: 0, restringido: 0, severo: 0, rio: 0, agua: 0 });
+  const porClase0 = () => ({ camino: 0, huella: 0, libre: 0, restringido: 0, severo: 0, rio: 0, agua: 0 });
   // Ya está ahí: misma forma que el resto de los caminos, si no la bitácora y el
   // replay reciben campos vacíos y revientan al formatear.
   if (totalDest < 1e-4) return { lng: pos[0], lat: pos[1], detenida: false, motivo: "en destino",
@@ -1114,7 +1143,7 @@ function moverUnidad(u: any, destino: number[], terreno: any[], horas: number, p
       const tParcial = Math.min(presupuesto, kmPosibles / v);
       tUsado += tParcial; presupuesto -= tParcial;
       registrar();
-      if (clase !== "camino") kmFueraRuta += kmPosibles;
+      if (!sobreCamino(clase)) kmFueraRuta += kmPosibles;
       if (seFrenaPorTanque) { detenida = true; motivo = "sin combustible"; }
       else { presupuesto = 0; motivo = "fin del turno"; }
       break;
@@ -1124,7 +1153,7 @@ function moverUnidad(u: any, destino: number[], terreno: any[], horas: number, p
     if (aPasoDeHombre) kmSalida += pasoReal;
     registrar();
     if (tope) { pisarCampo(tope); break; }   // v2.9.440: llegó al borde y la vanguardia entró
-    if (clase !== "camino") {
+    if (!sobreCamino(clase)) {
       kmFueraRuta += pasoReal;
       if (kmFueraRuta >= topeFuera - 1e-9) {
         detenida = true;
@@ -1160,7 +1189,7 @@ function moverPorRuta(u: any, ruta: any[], terreno: any[], horas: number, turno:
   const tiemposTot: number[] = [0], consTot: number[] = [0], batTot: number[] = [0];
   const llegadas: number[] = [];
   let detenida = false, motivo = "", llego = false, seco = false;
-  const porClase: any = { camino: 0, libre: 0, restringido: 0, severo: 0, rio: 0, agua: 0 };
+  const porClase: any = { camino: 0, huella: 0, libre: 0, restringido: 0, severo: 0, rio: 0, agua: 0 };
   let consumoKm = 0, kmBatido = 0, minado: any = null, detonaciones: number[][] = [];
   let kmSalida = 0, claseSalida: any = null, sigueAdentro = false;   // v2.9.431
   let kmFueraRuta = 0, fueraDeRuta = false;
@@ -1241,7 +1270,7 @@ function textoMarcha(u: any, r: any, usadoAntes: number) {
   }
   const tot = Object.values(r.porClase || {}).reduce((s: any, v: any) => s + v, 0) as number;
   if (tot > 0.05) {
-    const NOM: any = { camino: "camino", libre: "campo abierto", restringido: "terreno restringido", severo: "terreno severo",
+    const NOM: any = { camino: "camino", huella: "camino de 3.ª/4.ª", libre: "campo abierto", restringido: "terreno restringido", severo: "terreno severo",
       rio: "vadeando ríos", agua: "agua" };
     const reparto = Object.entries(r.porClase)
       .filter(([, km]: any) => km > 0.05)
@@ -2977,48 +3006,131 @@ function ralearConTiempos(pts: number[][], tt: number[], max = 60) {
 // frena donde corresponda — como a cualquiera.
 // ============================================================
 const _grafos = new WeakMap<any, any>();
+// ============================================================
+// v2.9.458 — LA RED SE SUELDA. Medido en la carta de «azafran III»: 750 líneas y
+// 7.103 vértices quedaban en 277 pedazos, porque las capas vienen de fuentes
+// distintas y están simplificadas: un camino cruza a otro SIN compartir un vértice
+// (491 cruces) o termina a pocos metros de él (507 empalmes a 10 m o menos). Para el
+// mapa son la misma red; para el grafo, islas: el convoy no podía doblar ahí. Por
+// eso daba vueltas enormes aunque el camino estuviera a la vista.
+// Ahora un cruce entre dos tramos es un nudo de la red, y el extremo suelto a
+// SOLDAR_KM o menos de otro tramo se empalma con él.
+// ============================================================
+const SOLDAR_KM = 0.06;
 function grafoVial(terreno: any[]) {
   const arr = terreno || [];
   let g = _grafos.get(arr);
   if (g) return g;
-  const nodos: number[][] = [], ady: number[][] = [], pes: number[][] = [];
-  const porClave = new Map<string, number>();
-  const nodo = (p: number[]) => {
-    const k = Math.round(Number(p[0]) * 1e5) + "," + Math.round(Number(p[1]) * 1e5);
-    let i = porClave.get(k);
-    if (i == null) { i = nodos.length; nodos.push([Number(p[0]), Number(p[1])]); ady.push([]); pes.push([]); porClave.set(k, i); }
-    return i;
-  };
-  const unir = (i: number, j: number) => {
-    if (i === j) return;
-    const d = haversineKm(nodos[i], nodos[j]);
-    ady[i].push(j); pes[i].push(d); ady[j].push(i); pes[j].push(d);
-  };
-  const extremos: number[] = [];
+  const lineas: any[] = [];   // { pts, h } (h = 1: huella)
   for (const t of arr) {
-    if (!t || t.tipo !== "via" || claseVia(t) !== "camino") continue;
+    if (!t || t.tipo !== "via") continue;
+    const cv = claseVia(t);
+    if (cv !== "camino" && cv !== "huella") continue;
     for (const l of lineasDe(t.geojson)) {
-      let prev = -1, pAnt: any = null;
-      for (const p of l) {
-        if (!Array.isArray(p)) continue;
-        // Los tramos largos se parten cada 500 m: así cualquier punto del camino
-        // tiene un nodo cerca para entrar o salir de la red.
-        if (pAnt) {
-          const n = Math.floor(haversineKm(pAnt, p) / 0.5);
-          for (let k = 1; k <= n; k++) {
-            const f = k / (n + 1);
-            const i = nodo([pAnt[0] + (p[0] - pAnt[0]) * f, pAnt[1] + (p[1] - pAnt[1]) * f]);
-            if (prev >= 0) unir(prev, i);
-            prev = i;
-          }
-        }
-        const i = nodo(p);
-        if (prev >= 0) unir(prev, i);
-        prev = i; pAnt = p;
-      }
-      if (l.length >= 2) extremos.push(nodo(l[0]), nodo(l[l.length - 1]));
+      const pts = (l || []).filter((p: any) => Array.isArray(p)).map((p: any) => [Number(p[0]), Number(p[1])]);
+      if (pts.length >= 2) lineas.push({ pts, h: cv === "huella" ? 1 : 0 });
     }
   }
+  const clave = (p: number[]) => Math.round(p[0] * 1e5) + "," + Math.round(p[1] * 1e5);
+  // Los tramos, en una grilla: cada pregunta mira sólo los de su celda.
+  const segs: any[] = [], grilla = new Map<number, number[]>(), usos = new Map<string, number>();
+  lineas.forEach((L: any, li: number) => {
+    for (const p of L.pts) { const k = clave(p); usos.set(k, (usos.get(k) || 0) + 1); }
+    for (let i = 1; i < L.pts.length; i++) {
+      const a = L.pts[i - 1], b = L.pts[i];
+      if (clave(a) === clave(b)) continue;
+      const si = segs.length;
+      segs.push({ a, b, li, cortes: [] as any[] });
+      const x0 = Math.floor(Math.min(a[0], b[0]) / CELDA_GRADOS), x1 = Math.floor(Math.max(a[0], b[0]) / CELDA_GRADOS);
+      const y0 = Math.floor(Math.min(a[1], b[1]) / CELDA_GRADOS), y1 = Math.floor(Math.max(a[1], b[1]) / CELDA_GRADOS);
+      if ((x1 - x0 + 1) * (y1 - y0 + 1) > 4000) continue;
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+        const k = claveCelda(x, y);
+        let c = grilla.get(k);
+        if (!c) { c = []; grilla.set(k, c); }
+        c.push(si);
+      }
+    }
+  });
+  // Los cruces: los dos tramos se cortan en el mismo punto.
+  const vistos = new Set<number>();
+  for (const c of grilla.values()) {
+    for (let x = 0; x < c.length; x++) {
+      for (let y = x + 1; y < c.length; y++) {
+        const i = c[x], j = c[y], A = segs[i], B = segs[j];
+        const par = i < j ? i * segs.length + j : j * segs.length + i;
+        if (vistos.has(par)) continue;
+        vistos.add(par);
+        const k = Math.cos(rad(A.a[1]));
+        const ax = A.a[0] * k, ay = A.a[1], bx = A.b[0] * k, by = A.b[1], cx = B.a[0] * k, cy = B.a[1], dx = B.b[0] * k, dy = B.b[1];
+        const r1 = bx - ax, r2 = by - ay, s1 = dx - cx, s2 = dy - cy, den = r1 * s2 - r2 * s1;
+        if (Math.abs(den) < 1e-14) continue;
+        const t = ((cx - ax) * s2 - (cy - ay) * s1) / den, u = ((cx - ax) * r2 - (cy - ay) * r1) / den;
+        if (t <= 0 || t >= 1 || u <= 0 || u >= 1) continue;
+        const q = [A.a[0] + (A.b[0] - A.a[0]) * t, A.a[1] + (A.b[1] - A.a[1]) * t];
+        A.cortes.push({ t, q }); B.cortes.push({ t: u, q });
+      }
+    }
+  }
+  // Los extremos sueltos: se empalman con el tramo más cercano.
+  const empalmes: any[] = [];
+  const dLat = SOLDAR_KM / 110.57;
+  lineas.forEach((L: any, li: number) => {
+    for (const p of [L.pts[0], L.pts[L.pts.length - 1]]) {
+      if ((usos.get(clave(p)) || 0) > 1) continue;
+      const dLng = dLat / Math.max(1e-6, Math.cos(rad(p[1])));
+      const x0 = Math.floor((p[0] - dLng) / CELDA_GRADOS), x1 = Math.floor((p[0] + dLng) / CELDA_GRADOS);
+      const y0 = Math.floor((p[1] - dLat) / CELDA_GRADOS), y1 = Math.floor((p[1] + dLat) / CELDA_GRADOS);
+      let mejor: any = null, dm = SOLDAR_KM;
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+        for (const si of grilla.get(claveCelda(x, y)) || []) {
+          const s = segs[si];
+          if (s.li === li) continue;
+          const d = distPtSegKm(p, s.a, s.b);
+          if (d < dm) { dm = d; mejor = s; }
+        }
+      }
+      if (!mejor) continue;
+      const q = pieEnTramo(p, mejor.a, mejor.b);
+      const L2 = (mejor.b[0] - mejor.a[0]) ** 2 + (mejor.b[1] - mejor.a[1]) ** 2;
+      const t = L2 > 0 ? ((q[0] - mejor.a[0]) * (mejor.b[0] - mejor.a[0]) + (q[1] - mejor.a[1]) * (mejor.b[1] - mejor.a[1])) / L2 : 0;
+      if (t > 0 && t < 1) mejor.cortes.push({ t, q });
+      empalmes.push({ p, q: t <= 0 ? mejor.a : (t >= 1 ? mejor.b : q), h: L.h });
+    }
+  });
+  // Los nudos y las aristas.
+  const nodos: number[][] = [], ady: number[][] = [], pes: number[][] = [], hue: number[][] = [];
+  const porClave = new Map<string, number>();
+  const nodo = (p: number[]) => {
+    const k = clave(p);
+    let i = porClave.get(k);
+    if (i == null) { i = nodos.length; nodos.push([p[0], p[1]]); ady.push([]); pes.push([]); hue.push([]); porClave.set(k, i); }
+    return i;
+  };
+  const unir = (i: number, j: number, h: number) => {
+    if (i === j) return;
+    const d = haversineKm(nodos[i], nodos[j]);
+    ady[i].push(j); pes[i].push(d); hue[i].push(h);
+    ady[j].push(i); pes[j].push(d); hue[j].push(h);
+  };
+  // Los tramos largos se parten cada 500 m: así cualquier punto del camino tiene un
+  // nudo cerca para entrar o salir de la red.
+  const tramo = (a: number[], b: number[], h: number) => {
+    const n = Math.floor(haversineKm(a, b) / 0.5);
+    let prev = nodo(a);
+    for (let k = 1; k <= n; k++) {
+      const f = k / (n + 1);
+      const i = nodo([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+      unir(prev, i, h); prev = i;
+    }
+    unir(prev, nodo(b), h);
+  };
+  for (const s of segs) {
+    const h = lineas[s.li].h;
+    const pts = [s.a, ...s.cortes.slice().sort((x: any, y: any) => x.t - y.t).map((c: any) => c.q), s.b];
+    for (let i = 1; i < pts.length; i++) if (clave(pts[i - 1]) !== clave(pts[i])) tramo(pts[i - 1], pts[i], h);
+  }
+  for (const e of empalmes) if (clave(e.p) !== clave(e.q)) unir(nodo(e.p), nodo(e.q), e.h);
   const celdas = new Map<number, number[]>();
   for (let i = 0; i < nodos.length; i++) {
     const k = claveCelda(Math.floor(nodos[i][0] / CELDA_GRADOS), Math.floor(nodos[i][1] / CELDA_GRADOS));
@@ -3026,29 +3138,26 @@ function grafoVial(terreno: any[]) {
     if (!c) { c = []; celdas.set(k, c); }
     c.push(i);
   }
-  const cercano = (p: number[], maxKm: number, excepto = -1) => {
+  // Los nudos a `maxKm` o menos de `p`.
+  const cercanos = (p: number[], maxKm: number) => {
     const r = Math.ceil(maxKm) + 1;
     const cx = Math.floor(p[0] / CELDA_GRADOS), cy = Math.floor(p[1] / CELDA_GRADOS);
-    let mejor = -1, dm = maxKm;
+    const out: number[][] = [];
     for (let dx = -r; dx <= r; dx++) {
       for (let dy = -r; dy <= r; dy++) {
         const c = celdas.get(claveCelda(cx + dx, cy + dy));
         if (!c) continue;
-        for (const i of c) {
-          if (i === excepto) continue;
-          const d = haversineKm(p, nodos[i]);
-          if (d < dm) { dm = d; mejor = i; }
-        }
+        for (const i of c) { const d = haversineKm(p, nodos[i]); if (d < maxKm) out.push([i, d]); }
       }
     }
+    return out;
+  };
+  const cercano = (p: number[], maxKm: number, excepto = -1) => {
+    let mejor = -1, dm = maxKm;
+    for (const [i, d] of cercanos(p, maxKm)) if (i !== excepto && d < dm) { dm = d; mejor = i; }
     return mejor >= 0 ? mejor : null;
   };
-  for (const e of extremos) {
-    if (ady[e].length > 1) continue;
-    const c = cercano(nodos[e], 0.03, e);
-    if (c != null && !ady[e].includes(c)) unir(e, c);
-  }
-  g = { nodos, ady, pes, cercano };
+  g = { nodos, ady, pes, hue, cercano, cercanos };
   _grafos.set(arr, g);
   return g;
 }
@@ -3126,16 +3235,50 @@ function pieEnTramo(p: number[], a: number[], b: number[]) {
   const t = L2 > 0 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L2)) : 0;
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 }
-function rutaConvoy(terreno: any[], desde: number[], hasta: number[]) {
+// ============================================================
+// v2.9.458 — 🛣️ / 🛤️ LA ELECCIÓN DEL G-4. Dos maneras de ir por la misma red:
+//   · «principal» (la de siempre): por las carreteras y los caminos; la huella sólo
+//     cuando no queda otra (cuesta HUELLA_PENAL veces su largo);
+//   · «corta»: los km que menos, sea por donde sea (la huella anda más lento).
+// La salida a la red se busca entre todo lo que haya a 2 km (ACCESO_PENAL: salirse
+// del camino es caro), no en el nudo más cercano: ése puede ser un pedazo suelto
+// de 300 m, y entonces la columna no llegaba a ningún lado.
+// v2.9.462 — 📍 «marcada»: la ruta que el G-4 marcó punto por punto. Pasa por CADA punto y por
+// el camino donde lo marcó (ver `rutaConvoyPorPuntos`). Sergio (06-11-2026): «si marqué por las
+// rutas de cuarta debería mantener los puntos que he marcado y no cambiarme la ruta».
+// ============================================================
+const HUELLA_PENAL = 8;
+const ACCESO_PENAL = 6;
+// La salida al camino va campo traviesa: no sirve si cruza un río o un cerro (la columna
+// se quedaría trabada ahí, intentándolo para siempre).
+function accesoLibre(terreno: any[], a: number[], b: number[]) {
+  const n = Math.max(1, Math.ceil(haversineKm(a, b) / 0.1));
+  for (let k = 1; k <= n; k++) {
+    const c = claseTerreno([a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n], terreno, undefined, "rueda");
+    if (VEL.rueda[c] == null) return false;
+  }
+  return true;
+}
+// `fijo` (v2.9.462): { de, a } son pies de `pieEnRed`. `de`: sale de ESE tramo, sin saltar a otro
+// camino. `a`: llega a ESE tramo (el nudo más cercano al punto puede ser de otro camino).
+function rutaConvoy(terreno: any[], desde: number[], hasta: number[], via?: any, soloLimpias = false, fijo?: any) {
   const g = grafoVial(terreno);
+  const pieDe = fijo && fijo.de, pieA = fijo && fijo.a;
   const nada = (motivo: string) => ({ sinCamino: true, motivo, ruta: [] as number[][], parada: desde,
-    dParada: haversineKm(desde, hasta), km: 0, acceso: 0 });
+    dParada: haversineKm(desde, hasta), km: 0, kmHuella: 0, acceso: 0 });
   if (!g.nodos.length) return nada("la carta no tiene caminos");
-  const a = g.cercano(desde, CONVOY_FUERA_RUTA_KM);
-  if (a == null) return nada(`no hay camino a menos de ${CONVOY_FUERA_RUTA_KM} km`);
+  let fuentes = pieDe
+    ? [[pieDe.i, haversineKm(pieDe.q, g.nodos[pieDe.i])], [pieDe.j, haversineKm(pieDe.q, g.nodos[pieDe.j])]]
+    : g.cercanos(desde, CONVOY_FUERA_RUTA_KM);
+  if (!fuentes.length) return nada(`no hay camino a menos de ${CONVOY_FUERA_RUTA_KM} km`);
+  if (soloLimpias) {
+    const limpias = fuentes.filter(([i, d]: number[]) => d <= CAMINO_KM || accesoLibre(terreno, desde, g.nodos[i]));
+    if (limpias.length) fuentes = limpias;   // ninguna: la más cercana (el motor la frena y dice por qué)
+  }
+  const corta = via === "corta" || via === "marcada";
   const n = g.nodos.length;
   const dist = new Float64Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1);
-  const cerrado = new Uint8Array(n);
+  const cerrado = new Uint8Array(n), porHuella = new Uint8Array(n);
   const heap: number[][] = [];
   const push = (f: number, i: number) => {
     heap.push([f, i]);
@@ -3158,27 +3301,38 @@ function rutaConvoy(terreno: any[], desde: number[], hasta: number[]) {
     }
     return top;
   };
-  // Dijkstra entero desde la entrada: el mejor nodo es el alcanzable más cercano a
+  // Dijkstra entero desde las entradas: el mejor nodo es el alcanzable más cercano a
   // `hasta` (a igual distancia, el de camino más corto).
-  dist[a] = 0; push(0, a);
-  let mejor = a, dMejor = haversineKm(g.nodos[a], hasta), it = 0;
+  for (const [i, d] of fuentes) { dist[i] = pieDe ? d : d * ACCESO_PENAL; push(dist[i], i); }
+  let mejor = -1, dMejor = Infinity, it = 0;
   while (heap.length && ++it < 2000000) {
     const [, i] = pop();
     if (cerrado[i]) continue;
     cerrado[i] = 1;
+    if (pieA && cerrado[pieA.i] && cerrado[pieA.j]) break;   // ya tiene por dónde llegar
     const d = haversineKm(g.nodos[i], hasta);
-    if (d < dMejor - 1e-9 || (Math.abs(d - dMejor) <= 1e-9 && dist[i] < dist[mejor])) { mejor = i; dMejor = d; }
-    const ad = g.ady[i], ps = g.pes[i];
+    if (mejor < 0 || d < dMejor - 1e-9 || (Math.abs(d - dMejor) <= 1e-9 && dist[i] < dist[mejor])) { mejor = i; dMejor = d; }
+    const ad = g.ady[i], ps = g.pes[i], hu = g.hue[i];
     for (let k = 0; k < ad.length; k++) {
       const j = ad[k];
       if (cerrado[j]) continue;
-      const nd = dist[i] + ps[k];
-      if (nd < dist[j]) { dist[j] = nd; prev[j] = i; push(nd, j); }
+      const nd = dist[i] + (corta || !hu[k] ? ps[k] : ps[k] * HUELLA_PENAL);
+      if (nd < dist[j]) { dist[j] = nd; prev[j] = i; porHuella[j] = hu[k]; push(nd, j); }
     }
   }
+  let alTramo = false;
+  if (pieA) {
+    const ci = dist[pieA.i] + haversineKm(g.nodos[pieA.i], pieA.q), cj = dist[pieA.j] + haversineKm(g.nodos[pieA.j], pieA.q);
+    if (Math.min(ci, cj) < Infinity) { mejor = ci <= cj ? pieA.i : pieA.j; dMejor = haversineKm(g.nodos[mejor], hasta); alTramo = true; }
+  }
   const idx: number[] = [];
-  for (let i = mejor; i >= 0; i = prev[i]) { idx.push(i); if (i === a) break; }
+  for (let i = mejor; i >= 0; i = prev[i]) idx.push(i);
   idx.reverse();
+  const a = idx[0];
+  // Si la salida al camino no se puede hacer, se busca otra entrada.
+  if (!soloLimpias && !pieDe && haversineKm(desde, g.nodos[a]) > CAMINO_KM && !accesoLibre(terreno, desde, g.nodos[a])) {
+    return rutaConvoy(terreno, desde, hasta, via, true, fijo);
+  }
   const ruta = idx.map((i) => g.nodos[i]);
   // El punto del camino más cercano: el pie sobre los tramos que tocan al mejor nodo.
   let fin = g.nodos[mejor], dFin = dMejor;
@@ -3187,34 +3341,98 @@ function rutaConvoy(terreno: any[], desde: number[], hasta: number[]) {
     const dq = haversineKm(q, hasta);
     if (dq < dFin - 1e-6) { dFin = dq; fin = q; }
   }
+  if (alTramo) { fin = pieA.q; dFin = pieA.d; }
   if (haversineKm(fin, ruta[ruta.length - 1]) > 0.005) {
     // Si el pie cae sobre el tramo por el que llegó, se corta ahí (no va y vuelve).
     const ant = ruta.length > 1 ? ruta[ruta.length - 2] : null;
     if (ant && haversineKm(pieEnTramo(fin, ant, ruta[ruta.length - 1]), fin) < 0.005) ruta[ruta.length - 1] = fin;
     else ruta.push(fin);
   }
-  let km = 0;
-  for (let i = 1; i < ruta.length; i++) km += haversineKm(ruta[i - 1], ruta[i]);
-  return { sinCamino: false, motivo: "", ruta, parada: ruta[ruta.length - 1], dParada: dFin, km,
+  let km = 0, kmHuella = 0;
+  for (let i = 1; i < ruta.length; i++) {
+    const d = haversineKm(ruta[i - 1], ruta[i]);
+    km += d;
+    if (i < idx.length && porHuella[idx[i]]) kmHuella += d;
+  }
+  return { sinCamino: false, motivo: "", ruta, parada: ruta[ruta.length - 1], dParada: dFin, km, kmHuella,
     acceso: haversineKm(desde, g.nodos[a]) };
 }
-// La ruta del G-4 (sus puntos de paso), pasada al camino: cada punto se lleva al
-// punto de la red más cercano que se pueda alcanzar desde el anterior.
-function rutaConvoyPorPuntos(terreno: any[], desde: number[], puntos: number[][]) {
+// v2.9.462 — El punto de la red más cercano a `p`: el pie sobre el TRAMO más cercano (el nudo más
+// cercano puede ser de otro camino que pasa al lado). `h`: el tramo es de 3.ª/4.ª.
+function pieEnRed(g: any, p: number[], maxKm = CONVOY_FUERA_RUTA_KM) {
+  let m: any = null;
+  for (const [i] of g.cercanos(p, maxKm + 0.6)) {
+    const ad = g.ady[i];
+    for (let k = 0; k < ad.length; k++) {
+      const j = ad[k], q = pieEnTramo(p, g.nodos[i], g.nodos[j]), d = haversineKm(q, p), h = !!g.hue[i][k];
+      if (d > maxKm) continue;
+      // A la misma distancia (un cruce), vale el camino mejor.
+      if (!m || d < m.d - 1e-9 || (Math.abs(d - m.d) <= 1e-9 && m.h && !h)) m = { i, j, q, d, h };
+    }
+  }
+  return m;
+}
+const mismoTramo = (a: any, b: any) => (a.i === b.i && a.j === b.j) || (a.i === b.j && a.j === b.i);
+const SOBRE_CAMINO_KM = 0.1;
+// La ruta del G-4 (sus puntos de paso), pasada al camino. v2.9.462: cada punto se toca, y entre
+// uno y otro va por la red: sin saltar a otro camino que pase cerca y sin rodeos por la ruta
+// principal cuando el punto está sobre uno de 3.ª/4.ª. En «azafran III» un clic en el km 9,3 de
+// un camino de 4.ª mandaba a la columna 38 km por la principal, que venía a buscarlo por atrás.
+function rutaConvoyPorPuntos(terreno: any[], desde: number[], puntos: number[][], via?: any) {
   const pts = (puntos || []).filter((p: any) => Array.isArray(p) && p.length >= 2);
-  let cur = desde, ruta: number[][] = [], km = 0, acceso = 0, ult: any = null;
+  const g = grafoVial(terreno);
+  const hayRed = g.nodos.length > 0;
+  const sale = hayRed ? pieEnRed(g, desde, SOBRE_CAMINO_KM) : null;   // sobre qué camino está parada
+  let cur = desde, ruta: number[][] = [], kmHuella = 0, acceso = 0, ult: any = null, de: any = null;
   for (let i = 0; i < pts.length; i++) {
-    const r = rutaConvoy(terreno, cur, pts[i]);
+    const p = pts[i], pie = hayRed ? pieEnRed(g, p) : null, antes = de || sale;
+    // «marcada»: si el tramo toca un camino de 3.ª/4.ª, va por él; entre dos puntos de la
+    // principal, por la principal (un atajo no marcado tampoco es la ruta que dio).
+    const v = via === "marcada" ? (((antes && antes.h) || (pie && pie.h)) ? "corta" : null) : via;
+    let r: any;
+    if (de && pie && mismoTramo(de, pie)) {
+      const d = haversineKm(de.q, pie.q);
+      r = { sinCamino: false, motivo: "", ruta: [pie.q], parada: pie.q, dParada: pie.d, km: d, kmHuella: pie.h ? d : 0, acceso: 0 };
+    } else {
+      r = rutaConvoy(terreno, cur, p, v, false, pie ? { de, a: pie } : undefined);
+      // Por la red no se llega desde el punto anterior: se busca otra entrada, como siempre.
+      if (de && pie && haversineKm(r.parada, pie.q) > 0.005) r = rutaConvoy(terreno, cur, p, v, false, { a: pie });
+    }
     if (r.sinCamino) {
       if (i === 0) return r;
       break;
     }
     if (i === 0) acceso = r.acceso;
-    for (const p of r.ruta) if (!ruta.length || haversineKm(ruta[ruta.length - 1], p) > 1e-4) ruta.push(p);
-    km += r.km; cur = r.parada; ult = r;
+    for (const q of r.ruta) if (!ruta.length || haversineKm(ruta[ruta.length - 1], q) > 1e-4) ruta.push(q);
+    kmHuella += r.kmHuella || 0; cur = r.parada; ult = r;
+    de = pie && haversineKm(r.parada, pie.q) <= 0.005 ? pie : null;
   }
-  if (!ult) return rutaConvoy(terreno, desde, desde);
-  return { sinCamino: false, motivo: "", ruta, parada: cur, dParada: ult.dParada, km, acceso };
+  if (!ult) return rutaConvoy(terreno, desde, desde, via);
+  let km = 0;
+  for (let i = 1; i < ruta.length; i++) km += haversineKm(ruta[i - 1], ruta[i]);
+  return { sinCamino: false, motivo: "", ruta, parada: cur, dParada: ult.dParada, km, kmHuella, acceso };
+}
+// v2.9.462 — Con la columna en marcha la pantalla va un paso atrasada: el G-4 suma un punto y la
+// lista que manda puede traer uno que la columna ya pasó. Ése no se toca de nuevo (sería dar la
+// vuelta): la lista arranca en el primer punto que sigue sobre lo que le queda de ruta (`R`). Un
+// punto que cae sobre `R` DESPUÉS del que le sigue es uno que quedó atrás en una ruta de ida y
+// vuelta. El último punto vale siempre: es lo que acaba de marcar.
+function puntosPorDelante(terreno: any[], pts: number[][], R: number[][]) {
+  if (pts.length < 2) return pts;
+  const g = grafoVial(terreno);
+  const en = pts.map((p) => {
+    const pie = g.nodos.length ? pieEnRed(g, p) : null, q = pie ? pie.q : p;
+    if (R.length === 1) return haversineKm(q, R[0]) <= 0.03 ? 0 : -1;
+    for (let i = 1; i < R.length; i++) if (haversineKm(pieEnTramo(q, R[i - 1], R[i]), q) <= 0.03) return i;
+    return -1;
+  });
+  for (let i = 0; i < pts.length - 1; i++) {
+    if (en[i] < 0) continue;
+    const sig = en.slice(i + 1).find((x) => x >= 0);
+    if (sig !== undefined && sig < en[i]) continue;
+    return pts.slice(i);
+  }
+  return pts;
 }
 // v2.9.444 — LA DESCARGA LLEVA TIEMPO (horas por CARGA DE BATALLÓN, de cada clase).
 // ⚠️ Cifras de referencia propuestas el 03-11-2026, a validar con las tablas de la
@@ -3316,7 +3534,7 @@ function ordenesAutomaticas(estado: any, U: Map<any, any>, instal: any[], terren
       if (!ori) continue;
       const p = puntoInstalacion(ori) as number[];
       if (haversineKm(aqui, p) <= REABASTECER_KM - 0.5) continue;   // ya está en el puesto: recarga al final del turno
-      const r = rutaConvoy(terreno, aqui, p);
+      const r = rutaConvoy(terreno, aqui, p, carga.via);   // v2.9.458: vuelve por donde eligió el G-4
       if (r.sinCamino) { avisar(cv, `⛔ ${nombreUnidad(cv)} no puede volver: ${r.motivo}. El convoy no anda campo traviesa.`); continue; }
       if (haversineKm(aqui, r.parada) < 0.05) {
         avisar(cv, `⛔ ${nombreUnidad(cv)} no encuentra camino hasta ${INSTAL_LOG[ori.tipo].nom}: queda a ${r.dParada.toFixed(1)} km.`);
@@ -3333,7 +3551,7 @@ function ordenesAutomaticas(estado: any, U: Map<any, any>, instal: any[], terren
         avisar(cv, `↩️ ${nombreUnidad(cv)}: la unidad que iba a abastecer ya no está. Vuelve a su instalación.`);
         continue;
       }
-      const r = rutaConvoy(terreno, aqui, [Number(x.lng), Number(x.lat)]);
+      const r = rutaConvoy(terreno, aqui, [Number(x.lng), Number(x.lat)], carga.via);
       if (r.sinCamino) { avisar(cv, `⛔ ${nombreUnidad(cv)} no sale: ${r.motivo}. El convoy no anda campo traviesa.`); continue; }
       if (haversineKm(aqui, r.parada) <= 0.3) {
         // Ya está en el punto: descarga desde H+0.
@@ -3345,7 +3563,12 @@ function ordenesAutomaticas(estado: any, U: Map<any, any>, instal: any[], terren
     }
     // La marcha que el G-4 le dio y no terminó: sigue por el camino.
     if (Array.isArray(carga.destino) && carga.destino.length >= 2) {
-      const r = rutaConvoy(terreno, aqui, carga.destino);
+      // v2.9.458: por la ruta que eligió (sus puntos de paso), no por una calculada de nuevo.
+      if (Array.isArray(carga.ruta) && carga.ruta.length) {
+        marchar(cv, { ruta: carga.ruta, parada: carga.ruta[carga.ruta.length - 1] }, { auto: "camino" });
+        continue;
+      }
+      const r = rutaConvoy(terreno, aqui, carga.destino, carga.via);
       if (r.sinCamino || haversineKm(aqui, r.parada) < 0.05) { cv.carga = { ...carga, destino: null }; continue; }
       marchar(cv, r, { auto: "camino" });
     }
@@ -3592,9 +3815,44 @@ function resolverTurno(estado: any) {
       const prev = ult.get(o.unidad_id);
       if (!prev || Number(o.id || 0) >= Number(prev.id || 0)) ult.set(o.unidad_id, o);
     }
+    // v2.9.461: en el juego continuo la orden reemplazada se cierra (no queda pendiente).
+    if (estado.tic) {
+      const quedan = new Set([...ult.values()]);
+      for (const o of estado.ordenes || []) if (!quedan.has(o) && o.id != null) estado.tic.fin.add(o.id);
+    }
     estado = { ...estado, ordenes: [...ult.values()] };
   }
-  const horas = estado.duracion_turno_horas || 2;
+  // ============================================================
+  // v2.9.461 — ▶ EL JUEGO CORRE SOLO: SIN TURNOS. Sergio (05-11-2026): «creo que quitas
+  // eso de turnos, directamente debería ser play… no hay nada que esperar del otro grupo».
+  // `estado.tic` es un PASO corto del reloj (unos minutos de juego, cada pocos segundos
+  // de verdad). La marcha, el contacto, el fuego, la descarga y la evacuación andan en
+  // cada paso; lo que el juego calibró por JORNADA sigue valiendo igual:
+  //   · `horasTurno` (2 h) es la JORNADA: el turno que antes se veía, ahora por dentro.
+  //     Las obras, las raciones y la agonía de los heridos se cierran una vez por jornada,
+  //     y cada par de unidades cambia fuego a lo más una vez por jornada: el desgaste por
+  //     hora de juego es el mismo que con turnos (por eso no cambia el equilibrio).
+  //   · las órdenes quedan VIVAS hasta cumplirse: ya no se reenvían ni se pierden.
+  // Sin `estado.tic` todo funciona como siempre (y así lo prueba cada test viejo).
+  // ============================================================
+  const T: any = estado.tic || null;
+  const horasTurno = estado.duracion_turno_horas || 2;
+  const horas = T ? T.horas : horasTurno;
+  const cierraJornada = !T || !!T.cierre;
+  const hJornada = T ? (T.cierre ? horasTurno : 0) : horas;
+  const fin: Set<any> = T ? T.fin : new Set();     // las órdenes que este paso cerró
+  if (T) {
+    const quedan: any[] = [];
+    for (const o of estado.ordenes || []) {
+      // El sistema que tiró vuelve a tirar pasada la jornada: la cadencia de siempre.
+      if ((o.tipo === "atacar" || o.tipo === "fuego") && T.hora - (T.mem.disparos[o.unidad_id] ?? -1e9) < horasTurno - 1e-6) continue;
+      // Hora de arranque (H+…): cuenta en la jornada en que se dio.
+      const esp = (o.inicio != null && Number(o.turno) === Number(estado.turno)) ? Number(o.inicio) - T.hEn : 0;
+      if (esp >= horas) continue;
+      quedan.push({ ...o, inicio: esp > 0 ? esp : null });
+    }
+    estado = { ...estado, ordenes: quedan };
+  }
   const rango = estado.rango_combate_km || 3;
   const terreno = prepararTerreno(estado.terreno); // v2.9.201: cajas para el prefiltro
   const eventos: any[] = [];
@@ -3616,7 +3874,9 @@ function resolverTurno(estado: any) {
   let ordenes: any[] = [...(estado.ordenes || [])];
   for (const o of ordenes) {
     const u: any = U.get(o.unidad_id);
+    if (T && o.id != null && (!u || poderEfectivo(u) <= 0)) { fin.add(o.id); continue; }   // ya no hay quién la cumpla
     if (!u || !esConvoy(u)) continue;
+    if (T && o.id != null) fin.add(o.id);   // la orden del convoy pasa a su misión (`carga`): sigue sola
     // v2.9.443 — «🤝 APOYAR A…»: el convoy queda agregado a esa unidad.
     // v2.9.444 — «🚚 ABASTECER A…»: va por camino al punto más cercano a la unidad,
     // para, descarga el tiempo que lleva y vuelve (la misma orden `apoyar`).
@@ -3629,8 +3889,10 @@ function resolverTurno(estado: any) {
         continue;
       }
       // v2.9.451: la orden del 🤖 G-4 automático lleva el pedido que atiende (`o.g4`).
-      u.carga = { ...(u.carga || {}), apoya: x.id, fase: "ida", destino: null, resta: null, llegoH: null, entrego: 0, auto: !!o.g4 };
-      const r = rutaConvoy(terreno, [Number(u.lng), Number(u.lat)], [Number(x.lng), Number(x.lat)]);
+      // v2.9.458: la elección del G-4 viaja en `mision` («corta»: por los caminos de 3.ª/4.ª).
+      const via = o.mision === "corta" ? "corta" : null;
+      u.carga = { ...(u.carga || {}), apoya: x.id, fase: "ida", destino: null, resta: null, llegoH: null, entrego: 0, auto: !!o.g4, via };
+      const r = rutaConvoy(terreno, [Number(u.lng), Number(u.lat)], [Number(x.lng), Number(x.lat)], via);
       const bot = o.g4 ? "🤖 " : "", pedido = o.g4 ? ` (${o.g4})` : "";
       eventos.push({ tipo: "logistica", bando: u.bando, lat: u.lat, lng: u.lng,
         descripcion: r.sinCamino
@@ -3642,11 +3904,14 @@ function resolverTurno(estado: any) {
         bandos_visibles: [u.bando] });
     } else if (["mover", "replegar", "defender"].includes(o.tipo)) {
       // Una orden a mano del G-4: manda él (deja la misión y la vuelta).
-      u.carga = { ...(u.carga || {}), apoya: null, fase: null, destino: null, resta: null, auto: false };
+      const via = o.mision === "corta" || o.mision === "marcada" ? o.mision : null;   // v2.9.458 · v2.9.462
+      // Lo que le queda de la marcha en curso (tras un ⏹ ALTO la ruta vieja ya no cuenta).
+      const cg0 = u.carga || {}, resto = [[Number(u.lng), Number(u.lat)], ...(Array.isArray(cg0.destino) && Array.isArray(cg0.ruta) ? cg0.ruta : [])];
+      u.carga = { ...(u.carga || {}), apoya: null, fase: null, destino: null, resta: null, auto: false, via };
       if (o.tipo !== "defender" && o.destino_lat != null) {
         // v2.9.444 — sus puntos de paso, llevados al camino.
         const pts = Array.isArray(o.ruta) && o.ruta.length ? o.ruta : [[o.destino_lng, o.destino_lat]];
-        const r = rutaConvoyPorPuntos(terreno, [Number(u.lng), Number(u.lat)], pts);
+        const r = rutaConvoyPorPuntos(terreno, [Number(u.lng), Number(u.lat)], puntosPorDelante(terreno, pts, resto), via);
         if (r.sinCamino || !r.ruta.length) {
           o._sinCamino = true;
           eventos.push({ tipo: "logistica", bando: u.bando, lat: u.lat, lng: u.lng,
@@ -3655,6 +3920,7 @@ function resolverTurno(estado: any) {
         } else {
           o.ruta = r.ruta; o.destino_lng = r.parada[0]; o.destino_lat = r.parada[1];
           u.carga.destino = r.parada;   // si no llega en este turno, sigue solo por el camino
+          u.carga.ruta = r.ruta;        // v2.9.458: y por ESTA ruta (la que eligió el G-4), no por otra
         }
       }
     }
@@ -3683,7 +3949,11 @@ function resolverTurno(estado: any) {
     if (!u || poderEfectivo(u) <= 0 || marcha.has(u.id)) continue;
     if (o.tipo === "replegar") replegando.add(u.id);
     // v2.9.220: si la orden trae RUTA, se recorre entera con el tiempo del turno.
-    const pts = Array.isArray(o.ruta) && o.ruta.length ? o.ruta : [[o.destino_lng, o.destino_lat]];
+    let pts = Array.isArray(o.ruta) && o.ruta.length ? o.ruta : [[o.destino_lng, o.destino_lat]];
+    // v2.9.461: en el juego continuo la orden sigue viva: va por el punto al que llegó.
+    const paso = T && o.id != null && u.carga && u.carga.paso;
+    if (paso && String(paso.o) === String(o.id) && paso.t === o.creada_en) pts = pts.slice(Number(paso.n) || 0);
+    if (!pts.length) { if (T && o.id != null) fin.add(o.id); continue; }
     // v2.9.223 — SINCRONIZACIÓN: la orden puede arrancar más tarde dentro del
     // turno (H+1, H+1.5…) y entonces dispone sólo de las horas que quedan.
     const inicio = Math.max(0, Math.min(horas, Number(o.inicio) || 0));
@@ -3704,7 +3974,8 @@ function resolverTurno(estado: any) {
     (x as any)._suprimida = (x as any).suprimida_hasta != null
       && (Number(estado.turno) || 0) <= (x as any).suprimida_hasta;
   }
-  const hMas = (h: number) => { const m = Math.round(h * 60); return `H+${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`; };
+  // v2.9.461: en el juego continuo, la hora de juego (no la del paso).
+  const hMas = (h: number) => { const m = Math.round((T ? T.hora + h : h) * 60); return `H+${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`; };
   const vivo = (x: any) => !!x && poderEfectivo(x) > 0;
   const sucios = new Set<any>();
   const detener = (id: any, h: number) => {
@@ -3716,6 +3987,9 @@ function resolverTurno(estado: any) {
   // alejes 15 km. Si no, replegarse saldría gratis y sería siempre la mejor jugada.
   const paresHechos = new Set<string>();
   const claveP = (a: any, b: any) => (String(a) < String(b) ? `${a}|${b}` : `${b}|${a}`);
+  // v2.9.461: los pares que ya cambiaron fuego en esta jornada no lo repiten en cada paso.
+  if (T) for (const [k, h] of Object.entries(T.mem.pares)) if (T.hora - Number(h) < horasTurno - 1e-6) paresHechos.add(k);
+  const paresAntes = new Set(paresHechos);
   for (const id of replegando) {
     const u: any = U.get(id);
     if (!vivo(u)) continue;
@@ -3729,6 +4003,7 @@ function resolverTurno(estado: any) {
       if (d <= rango && d < dMin) { dMin = d; perseguidor = e; }
     }
     if (!perseguidor) continue; // no estaba en contacto: se fue limpio
+    if (T && paresHechos.has(claveP(u.id, perseguidor.id))) continue;   // v2.9.461: el castigo de desenganchar es uno
     procesados.add(u.id);
     paresHechos.add(claveP(u.id, perseguidor.id));
     if (replegando.has(perseguidor.id)) {
@@ -3773,9 +4048,12 @@ function resolverTurno(estado: any) {
   }
   // ---- 3) OBRAS DE INGENIERÍA (es trabajo, no combate) ----
   for (const o of ordenes) {
-    if (o.tipo !== "zapa" || !OBRAS[o.obra] || o.destino_lat == null) continue;
+    if (o.tipo !== "zapa" || !OBRAS[o.obra] || o.destino_lat == null) { if (T && o.tipo === "zapa" && o.id != null) fin.add(o.id); continue; }
+    // v2.9.461: la obra avanza por JORNADA: la orden queda viva y se mira al cerrarla.
+    if (T && !T.cierre) continue;
+    const acaba = () => { if (T && o.id != null) fin.add(o.id); };
     const u: any = U.get(o.unidad_id);
-    if (!vivo(u)) continue;
+    if (!vivo(u)) { acaba(); continue; }
     // v2.9.324: ingeniería hace todo; la infantería fortifica pero no abre
     // brechas ni excava fosos — eso pide máquinas, no pico y pala.
     const cap = puedeHacerObra(u, o.obra);
@@ -3786,6 +4064,7 @@ function resolverTurno(estado: any) {
           ? `🚫 ${nombreUnidad(u)}: «${OBRAS[o.obra].nom}» necesita MAQUINARIA DE INGENIERÍA — con pico y pala no sale.`
           : `🚫 ${nombreUnidad(u)}: esta unidad no fortifica. Las obras las hacen ingeniería e infantería.`,
         bandos_visibles: [u.bando] });
+      acaba();
       continue;
     }
     const obra: any = OBRAS[o.obra];
@@ -3800,6 +4079,7 @@ function resolverTurno(estado: any) {
         descripcion: `🚧 ${nombreUnidad(u)}: NO PUDO TRABAJAR — la obra está a ${dObra.toFixed(1)} km `
           + `y hay que estar encima. Llevá la unidad al lugar primero.`,
         bandos_visibles: [u.bando] });
+      acaba();
       continue;
     }
     if (o.obra === "puente" && claseTerreno(pt, terreno) !== "rio") {
@@ -3810,23 +4090,26 @@ function resolverTurno(estado: any) {
           : `🌉 ${nombreUnidad(u)}: ahí no hay un río que cruzar${cl === "camino" ? " (ya hay un puente de camino)" : ""}. `
             + `Marcá el punto SOBRE la traza del río.`,
         bandos_visibles: [u.bando] });
+      acaba();
       continue;
     }
     // v2.9.324: los turnos salen de las HORAS de trabajo divididas por lo que
     // dura un turno en ESTA partida.
     const horasObra = horasDeObra(u, o.obra, pt, terreno, desde || undefined);
-    const total = mismo ? t.total : turnosDeObra(u, o.obra, pt, terreno, horas, desde || undefined);
+    const total = mismo ? t.total : turnosDeObra(u, o.obra, pt, terreno, horasTurno, desde || undefined);
     const restan = (mismo ? t.restan : total) - 1;
     if (restan > 0) {
       u.trabajo = { obra: o.obra, lng: pt[0], lat: pt[1], restan, total, ...(desde ? { desde } : {}) };
       eventos.push({ tipo: "obra", bando: u.bando, lat: pt[1], lng: pt[0],
         descripcion: `${obra.icono} ${nombreUnidad(u)} TRABAJA en «${obra.nom}» `
           + `(${horasObra.toFixed(1)} h de trabajo${cap.ing ? "" : " — a pico y pala, sin maquinaria"}) — `
-          + `le faltan ${restan} de ${total} turnos. Si la mueven o la sacan de combate, se pierde el trabajo.`,
+          + (T ? `le faltan unas ${restan * horasTurno} h` : `le faltan ${restan} de ${total} turnos`)
+          + `. Si la mueven o la sacan de combate, se pierde el trabajo.`,
         bandos_visibles: [u.bando] });
       continue;
     }
     u.trabajo = null;
+    acaba();
     _obraTerminada.add(u.id);   // v2.9.325: para evaluar la tarea BLOQUEAR
     if (obra.porKm && desde) {
       // v2.9.443 — EL CORREDOR: 200 m de ancho, desde la cuadrilla hacia el punto.
@@ -3853,7 +4136,7 @@ function resolverTurno(estado: any) {
     zonas.push({ tipo: obra.tipo, centro: pt, radio: obra.ancho,
       hasta_turno: null, bando: u.bando, obra: o.obra });
     eventos.push({ tipo: "obra", bando: u.bando, lat: pt[1], lng: pt[0],
-      descripcion: `✅ ${nombreUnidad(u)} TERMINÓ «${obra.nom}» en ${total} turno${total > 1 ? "s" : ""} `
+      descripcion: `✅ ${nombreUnidad(u)} TERMINÓ «${obra.nom}»${T ? "" : ` en ${total} turno${total > 1 ? "s" : ""}`} `
         + `(${horasObra.toFixed(1)} h de trabajo). ` + obra.desc,
       // Un obstáculo terminado NO se anuncia al enemigo: se descubre cuando lo encuentra.
       bandos_visibles: [u.bando] });
@@ -4159,7 +4442,7 @@ function resolverTurno(estado: any) {
       if (f.h === undefined || sucios.has(f.o.unidad_id) || (f.o.objetivo_id != null && sucios.has(f.o.objetivo_id))) {
         f.h = horaDeFuego(f, tAhora);
       }
-      if (f.h == null) { f.hecho = true; continue; }
+      if (f.h == null) { f.hecho = true; if (T && f.o.id != null) fin.add(f.o.id); continue; }
       proponer(Math.max(f.h, tAhora), "fuego", f, 1);
     }
     for (const c of candidatos) {
@@ -4177,6 +4460,7 @@ function resolverTurno(estado: any) {
     if (prox.tipo === "mina") { prox.x.hecho = true; resolverMina(prox.x); continue; }
     if (prox.tipo === "fuego") {
       prox.x.hecho = true;
+      if (T) { T.mem.disparos[prox.x.o.unidad_id] = T.hora + prox.h; if (prox.x.o.id != null) fin.add(prox.x.o.id); }
       if (prox.x.o.tipo === "atacar") resolverAtaque(prox.x.o, prox.h); else resolverConcentracion(prox.x.o, prox.h);
       continue;
     }
@@ -4219,7 +4503,7 @@ function resolverTurno(estado: any) {
       } else if (!vivo(u)) r.motivo = "quedó FUERA DE COMBATE en la marcha";
     }
     r.usadoAntes = m.usadoAntes;
-    const _rt = ralearConTiempos(pts, tt, 60);
+    const _rt = ralearConTiempos(pts, tt, T ? 16 : 60);   // v2.9.461: cada paso viaja a todas las pantallas
     trazas.push({ id: u.id, bando: u.bando, designacion: u.designacion || null,
       ruta: _rt.ruta, tt: _rt.tt, horas: Math.max(0, tFin - m.inicio), km: Number((r.avanzadoKm || 0).toFixed(2)),
       llego: !!r.llego, detenida: !!r.detenida, destino: [m.o.destino_lng, m.o.destino_lat],
@@ -4227,7 +4511,28 @@ function resolverTurno(estado: any) {
       // v2.9.440: la frenó un campo minado — la marcha NO sigue sola el turno que viene.
       minado: !!r.minado,
       // v2.9.443: la detuvo un contacto — tampoco sigue sola.
-      contacto: !!cont, auto: m.o.auto || null });
+      contacto: !!cont, auto: m.o.auto || null,
+      // v2.9.457 — ⛽ el combustible gastado ANTES y DESPUÉS de esta marcha (km de
+      // autonomía usados): la pantalla lo va descontando en vivo mientras anima.
+      c0: Number((Number(m.usadoAntes) || 0).toFixed(2)), c1: Number(u.combustible_km) || 0 });
+    const acabo = !!r.llego || !!r.detenida;
+    // v2.9.461 — LA ORDEN SIGUE VIVA: la unidad se acuerda por qué punto de su ruta va.
+    if (T && m.o.id != null && !esConvoy(u)) {
+      const c: any = { ...(u.carga || {}) };
+      if (acabo) { fin.add(m.o.id); delete c.paso; }
+      else {
+        const ya = c.paso && String(c.paso.o) === String(m.o.id) && c.paso.t === m.o.creada_en ? Number(c.paso.n) || 0 : 0;
+        c.paso = { o: m.o.id, t: m.o.creada_en, n: ya + (Number(r.consumidos) || 0) };
+      }
+      u.carga = c;
+    }
+    // v2.9.458: lo que le queda de la ruta que eligió el G-4.
+    if (esConvoy(u) && u.carga && Array.isArray(u.carga.ruta)) {
+      if (acabo) {
+        u.carga = { ...u.carga, ruta: null };
+        if (T && r.detenida && !cont) u.carga.destino = null;   // frenada: espera otra orden del G-4
+      } else u.carga = { ...u.carga, ruta: u.carga.ruta.slice(Number(r.consumidos) || 0) };
+    }
   }
   // La bitácora de cada marcha (después del turno entero: «a la vista de» y
   // «en contacto con» dependen de dónde quedaron todos).
@@ -4251,6 +4556,18 @@ function resolverTurno(estado: any) {
         + `(${Math.round((100 * nuevo) / u.poder_max)} %).`;
     }
     castigo += textoMinas.get(id) || "";
+    // v2.9.461 — EN EL JUEGO CONTINUO LA BITÁCORA NO CUENTA CADA PASO: sólo cómo terminó.
+    if (T) {
+      const conv = esConvoy(u), frenada = !!r.detenida;
+      if (conv && frenada && u.carga && u.carga.frenada === r.motivo && !castigo) continue;   // ya lo dijo
+      if (conv && u.carga) u.carga = { ...u.carga, frenada: frenada ? r.motivo : null };
+      if (!castigo && !frenada && !(r.llego && !conv)) continue;
+      eventosMov.push({ tipo: "movimiento", lat: u.lat, lng: u.lng, bandos_visibles: [u.bando],
+        descripcion: (frenada ? `🛑 ${nombreUnidad(u)} DETENIDA: ${r.motivo || "no pudo seguir"}.`
+          : r.llego ? `✅ ${nombreUnidad(u)} LLEGÓ a destino.` : `🚚 ${nombreUnidad(u)} en marcha.`)
+          + castigo + (avisos.length ? " " + avisos.join(" · ") : "") });
+      continue;
+    }
     // v2.9.440 — PASÓ POR UNA OBRA DEL PLAN DE BARRERAS QUE ESTÁ PROYECTADA.
     const tr = TR.get(id);
     const proy = obrasProyectadasEnRuta(trHasta(tr, trFin(tr)).pts, terreno, u.bando);
@@ -4317,9 +4634,9 @@ function resolverTurno(estado: any) {
         c.muertos = num(c.muertos) + (bajas - her); c.faltan = num(c.faltan) + bajas;
       }
       const esperan = num(c.heridos);
-      if (esperan > 0) {
+      if (esperan > 0 && hJornada > 0) {
         const antesM = num(c.muertos);
-        const mueren = Math.min(esperan, esperan * MUERE_H * horas);
+        const mueren = Math.min(esperan, esperan * MUERE_H * hJornada);
         c.heridos = Math.round((esperan - mueren) * 100) / 100;
         c.muertos = Math.round((antesM + mueren) * 100) / 100;
         const n = Math.floor(c.muertos) - Math.floor(antesM);
@@ -4333,12 +4650,13 @@ function resolverTurno(estado: any) {
   // v2.9.447 — LA CLASE I SE CONSUME (un día cada 24 h); sin raciones ni agua, hambre.
   // Antes de reabastecer: lo que llega al final de la jornada ya encuentra el gasto.
   for (const u of U.values()) {
+    if (!hJornada) break;   // v2.9.461: se cierra una vez por jornada (2 h), no en cada paso
     if (!u || esConvoy(u) || u.estado === "fuera_combate") continue;
-    const r = racionDe(u) - horas / 24;
+    const r = racionDe(u) - hJornada / 24;
     const c: any = { ...(u.carga || {}), racion: Math.max(0, Math.round(r * 100) / 100) };
     if (r < 0) {
       const pm = Math.max(0, Number(u.poder_max) || 0), antes = Math.max(0, Number(u.poder_actual) || 0);
-      const nuevo = Math.max(0, antes - pm * HAMBRE_PCT_DIA * Math.min(horas, -r * 24) / 24);
+      const nuevo = Math.max(0, antes - pm * HAMBRE_PCT_DIA * Math.min(hJornada, -r * 24) / 24);
       c.hambre = Math.round(((Number(c.hambre) || 0) + antes - nuevo) * 100) / 100;
       u.poder_actual = Number(nuevo.toFixed(2));
       u.estado = nuevo <= pm * 0.2 ? "fuera_combate" : (nuevo <= pm * 0.6 ? "desgastada" : "activa");
@@ -4419,14 +4737,42 @@ function resolverTurno(estado: any) {
           : `⛔ ${nombreUnidad(cv)} paró en el camino a ${dP.toFixed(1)} km de ${nombreUnidad(x)}: lejos para descargar. `
             + `Espera ${horasATexto(cv.carga.resta)}; si la unidad no se acerca a ${REABASTECER_KM} km, vuelve.`,
         bandos_visibles: [cv.bando] });
+    } else if (!c.fase && cargaDe(cv, "EVAC") > 0 && lugarAmbulancia(cv) >= 1 && num(horasConvoy.get(cv.id)) > 1e-6) {
+      // ============================================================
+      // v2.9.456 — 🚑 LA AMBULANCIA QUE LLEGA «A MANO» TAMBIÉN CARGA HERIDOS.
+      // Sergio (04-11-2026, partida «azafran III»): «la ambulancia llegó al lugar
+      // y no se embarcaron los heridos; está parada ahí». El G-4 la había llevado
+      // con MOVER (clic en el mapa) hasta 50 m de la DIV MEC-2, que tenía 915
+      // heridos esperando: sólo «🚑 EVACUAR A…» (orden `apoyar`) la ponía a
+      // cargar, así que se quedó tres turnos parada al lado mientras morían.
+      // Ahora la ambulancia SIN misión que pasa parte del turno quieta a 3 km o
+      // menos de una unidad propia con heridos empieza a cargar como si la
+      // hubieran mandado a evacuarla (la que tiene más heridos primero). Llena o
+      // sin nadie más que cargar, vuelve sola a su puesto por camino.
+      // ============================================================
+      const x: any = [...U.values()]
+        .filter((u: any) => u && !esConvoy(u) && u.bando === cv.bando && herDe(u) >= 1)
+        .map((u: any) => ({ u, d: haversineKm([cv.lng, cv.lat], [u.lng, u.lat]) }))
+        .filter((o: any) => o.d <= REABASTECER_KM)
+        .sort((a: any, b: any) => (herDe(b.u) - herDe(a.u)) || (a.d - b.d))[0];
+      if (x) {
+        cv.carga = { ...c, apoya: x.u.id, fase: "descarga", llegoH: quietoDesde, resta: horasDescarga(cv, x.u),
+          dParada: x.d, entrego: 0, destino: null };
+        eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
+          descripcion: `🚑 ${nombreUnidad(cv)} está a ${x.d.toFixed(1)} km de ${nombreUnidad(x.u)} (${Math.round(herDe(x.u))} heridos) `
+            + `desde ${hMas(quietoDesde)}: carga heridos ~${horasATexto(cv.carga.resta)} y después los lleva a su puesto.`,
+          bandos_visibles: [cv.bando] });
+      }
     }
   }
   // v2.9.351 — LA DESCARGA SE VE. v2.9.443 — y alcanza para todos los que estén cerca.
   const entregas: any[] = [];
-  const { reg, porFuente } = repartirAbastecimiento([...U.values()], _instal, horasConvoy);
+  // v2.9.461: las instalaciones reparten al cerrar la jornada, como siempre; el convoy
+  // descarga en cada paso (y la bitácora lo cuenta una vez, cuando termina).
+  const { reg, porFuente } = repartirAbastecimiento([...U.values()], cierraJornada ? _instal : [], horasConvoy);
   for (const e of reg.values()) {
     const u = e.u;
-    eventos.push({ tipo: "logistica", bando: u.bando, lat: u.lat, lng: u.lng,
+    if (!T || !e.aDomicilio) eventos.push({ tipo: "logistica", bando: u.bando, lat: u.lat, lng: u.lng,
       descripcion: textoAbastecido(e), bandos_visibles: [u.bando] });
     entregas.push({ uid: u.id, bando: u.bando, designacion: u.designacion || null, lng: u.lng, lat: u.lat,
       clases: [...e.clases], aDomicilio: !!e.aDomicilio, de: e.de.join(" + ") });
@@ -4437,7 +4783,7 @@ function resolverTurno(estado: any) {
     if (f.convoy) {
       const cv = f.convoy, queda = cargaTotal(cv);
       if (cv.carga) cv.carga.entrego = r3((Number(cv.carga.entrego) || 0) + hf.cargas);
-      eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
+      if (!T) eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
         descripcion: `🚚 ${nombreUnidad(cv)} descargó ${hf.cargas.toFixed(1)} carga(s) en ${horasATexto(hf.horas)} a ${quienes}`
           + `${hf.parcial ? " (no alcanzó para todo)" : (hf.sigue ? " (sigue descargando)" : "")} · `
           + (queda > 1e-6 ? `le quedan ${queda.toFixed(1)}.` : `quedó VACÍO.`),
@@ -4471,7 +4817,7 @@ function resolverTurno(estado: any) {
     }
     if (cargo > 0) {
       cv.carga = { ...c, aBordo: Math.round((num(c.aBordo) + cargo) * 100) / 100 };
-      eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
+      if (!T) eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
         descripcion: `🚑 ${nombreUnidad(cv)} cargó ${Math.round(cargo)} herido(s) (${de.join(", ")}) · lleva ${Math.round(num(cv.carga.aBordo))} de ${cargaDe(cv, "EVAC") * HERIDOS_POR_CARGA}.`,
         bandos_visibles: [cv.bando] });
     }
@@ -4506,9 +4852,18 @@ function resolverTurno(estado: any) {
   // Y el convoy que volvió a la instalación completa sus cargas de la estiba.
   if (_instal.length) {
     for (const cv of _convoyes) {
+      // v2.9.461: la columna que va pasando por el puesto no recarga en cada paso: recarga parada.
+      if (T && marcha.has(cv.id)) continue;
       const rec = recargarConvoy(cv, _instal);
+      // v2.9.456 — la ambulancia con heridos a bordo que el G-4 trajo A MANO hasta
+      // un puesto de socorro (o el ASDI) propio también los entrega: la orden de
+      // mover le borra la fase «vuelta», y sin esto los llevaba a bordo para siempre.
+      const aMano = !!cv.carga && cv.estado !== "fuera_combate" && num(cv.carga.aBordo) >= 0.5
+        && cv.carga.fase !== "descarga" && cv.carga.fase !== "vuelta"
+        && _instal.some((x: any) => x && x.bando === cv.bando && INSTAL_LOG[x.tipo] && INSTAL_LOG[x.tipo].sanidad
+          && haversineKm([cv.lng, cv.lat], puntoInstalacion(x) as number[]) <= REABASTECER_KM);
       // v2.9.444: el que volvía y llegó queda listo, esperando orden del G-4.
-      if (cv.carga && cv.carga.fase === "vuelta" && (rec || cercaDeSuInstalacion(cv, _instal))) {
+      if (cv.carga && ((cv.carga.fase === "vuelta" && (rec || cercaDeSuInstalacion(cv, _instal))) || aMano)) {
         // v2.9.448 — la ambulancia entrega sus heridos en el puesto.
         const lleva = num(cv.carga.aBordo);
         if (lleva >= 0.5) {
@@ -4528,13 +4883,29 @@ function resolverTurno(estado: any) {
   }
   // v2.9.445 — 📻 LOS COMANDANTES PIDEN (al cerrar la jornada, ya abastecido lo que llegó).
   eventos.push(...pedidosDelTurno(_antes, U));
-  for (const o of ordenes) {
+  // v2.9.461 — LA TAREA SE JUZGA AL CERRAR LA JORNADA, contra cómo la empezó: un paso de
+  // cinco minutos no dice si se defendió o se desbordó.
+  let aJuzgar: any[] = ordenes, antesTarea: Map<any, any> = _antes as any;
+  let pelearon = new Set<any>([...disparadoras, ...procesados]);
+  if (T) {
+    for (const o of ordenes) if (o && o.tarea && TAREAS[o.tarea]) {
+      T.mem.tareas[o.unidad_id] = { unidad_id: o.unidad_id, tarea: o.tarea, proposito: o.proposito || null, tipo: o.tipo,
+        objetivo_id: o.objetivo_id ?? null, destino_lng: o.destino_lng ?? null, destino_lat: o.destino_lat ?? null };
+    }
+    for (const id of pelearon) T.mem.pelearon[id] = 1;
+    aJuzgar = T.cierre ? Object.values(T.mem.tareas) : [];
+    if (T.cierre) {
+      pelearon = new Set<any>(Object.keys(T.mem.pelearon).map((k) => (U.has(Number(k)) ? Number(k) : k)));
+      if (Array.isArray(T.mem.foto) && T.mem.foto.length) antesTarea = new Map(T.mem.foto.map((x: any) => [x.id, x]));
+    }
+  }
+  for (const o of aJuzgar) {
     if (!o || !o.tarea || !TAREAS[o.tarea]) continue;
     const u: any = U.get(o.unidad_id);
     if (!u) continue;
     const ev = evaluarTarea(o, {
-      antes: _antes, despues: U, turno: estado.turno, rango,
-      pelearon: new Set([...disparadoras, ...procesados]),
+      antes: antesTarea, despues: U, turno: estado.turno, rango,
+      pelearon,
       detectadas: (det as any)[u.bando] || new Set(),
       obraTerminada: _obraTerminada, obraBatida: _obraBatida,
       enArea: (pt: number[], tipo: string) => enArea(pt, terreno, tipo),
@@ -4554,6 +4925,17 @@ function resolverTurno(estado: any) {
     .map((x: any) => ({ id: x.id, geojson: x.geojson }));
   // Las órdenes NUEVAS que quedan guardadas (la marcha que siguió sola): así la
   // cadena sigue el turno siguiente aunque nadie la vuelva a mandar.
+  if (T) {
+    for (const k of paresHechos) if (!paresAntes.has(k)) T.mem.pares[k] = T.hora;
+    // La jornada que empieza se juzga contra cómo está todo ahora (la primera, contra
+    // cómo estaba antes de este paso).
+    if (T.cierre || !Array.isArray(T.mem.foto) || !T.mem.foto.length) {
+      const base: any[] = T.cierre ? [...U.values()] : [..._antes.values()];
+      T.mem.foto = base.map((x: any) => ({ id: x.id, bando: x.bando, lng: x.lng, lat: x.lat,
+        poder_actual: x.poder_actual, poder_max: x.poder_max, estado: x.estado, suprimida_hasta: x.suprimida_hasta ?? null }));
+      if (T.cierre) { T.mem.tareas = {}; T.mem.pelearon = {}; }
+    }
+  }
   const ordenesGuardar = ordenesNuevas.map((o: any) => ({ unidad_id: o.unidad_id, bando: o.bando, tipo: o.tipo,
     destino_lng: o.destino_lng, destino_lat: o.destino_lat, ruta: (o.ruta || []).slice(0, 60),
     tarea: o.tarea || null, proposito: o.proposito || null }));
@@ -4686,6 +5068,48 @@ async function bandoPorClave(partidaId: any, clave: string) {
 //   · El ALTO cierra la partida («finalizada»): ya no hay órdenes y se levanta la
 //     niebla para que todos vean los resultados. El árbitro puede reanudarla.
 // ============================================================
+// ============================================================
+// v2.9.461 — ▶ EL RELOJ CONTINUO. `velocidad` = segundos de juego por segundo real (60: una
+// hora de juego por minuto). La pantalla del árbitro (o del JEM, o la que quede) pide un
+// paso cada ~5 s: `tic` calcula los minutos de juego que pasaron desde el último y le
+// responde con lo que hay que mostrar, que esa pantalla reparte por el canal. Sin nadie
+// conectado el tiempo se detiene: no salta al volver (TIC_TOPE_MS).
+// ============================================================
+const VEL_DEFECTO = 60;
+const VELOCIDADES = [120, 60, 30, 12];
+const TIC_MS = 5000;        // cada cuánto se pide un paso
+const TIC_MIN_MS = 1500;    // dos pasos nunca más seguidos que esto
+const TIC_TOPE_MS = 15000;  // un paso nunca vale más que esto
+function velocidadDe(g: any) { const v = Number(g && g.velocidad); return v > 0 ? v : VEL_DEFECTO; }
+// La carta del motor, guardada entre pasos: pesa MB y no cambia. Se vuelve a leer sólo si
+// cambió su firma; las obras (filas con bando) sí se miran en cada paso, son pocas.
+const _cartasMotor = new Map<any, any>();
+async function cartaDelMotor(pid: any) {
+  const tipos = [...TIPOS_MOTOR, "obstaculo", "hidro"];
+  const [rC, rL, rO] = await Promise.all([
+    sb.from("wg_terreno").select("id", { count: "exact", head: true }).eq("partida_id", pid).is("bando", null).in("tipo", tipos),
+    sb.from("wg_terreno").select("id").eq("partida_id", pid).is("bando", null).in("tipo", tipos).order("id", { ascending: false }).limit(1),
+    sb.from("wg_terreno").select("id, tipo, geojson, hasta_turno, bando").eq("partida_id", pid).not("bando", "is", null)
+      .in("tipo", tipos).order("id", { ascending: true }).limit(2000),
+  ]);
+  const firma = `${(rC as any).count ?? 0}:${((((rL as any).data || [])[0]) || {}).id ?? 0}`;
+  const obras = (rO as any).data || [];
+  const firmaObras = obras.map((o: any) => o.id).join(",");
+  let c = _cartasMotor.get(pid);
+  if (!c || c.firma !== firma) {
+    const base = await todasLasFilas(() => sb.from("wg_terreno").select("id, tipo, geojson, hasta_turno, bando")
+      .eq("partida_id", pid).is("bando", null).in("tipo", tipos).order("id", { ascending: true }));
+    c = { firma, base: base.data || [], firmaObras: null, terreno: null };
+    if (_cartasMotor.size >= 3) _cartasMotor.clear();
+    _cartasMotor.set(pid, c);
+  }
+  // Mientras no cambien las obras, es EL MISMO arreglo: el índice y el grafo no se rehacen.
+  if (c.firmaObras !== firmaObras || !c.terreno) {
+    c.terreno = prepararTerreno([...c.base, ...obras]);
+    c.firmaObras = firmaObras;
+  }
+  return c.terreno;
+}
 async function relojDe(pid: any) {
   const { data } = await sb.from("wg_terreno").select("id, geojson").eq("partida_id", pid).eq("tipo", "reloj").limit(1);
   return (data && data[0]) || null;
@@ -4782,7 +5206,7 @@ function g4AutoDe(g: any) {
 // las unidades a las que no les llega nada: eso no lo ve el otro bando).
 function relojPublico(g: any) {
   if (!g) return null;
-  const { g4firma: _f, ...resto } = g;
+  const { g4firma: _f, mem: _m, detFirma: _d, ...resto } = g;
   return { ...resto, g4auto: g4AutoDe(g) };
 }
 async function g4Automatico(pid: any, unidades: any[], terreno: any[], instalLog: any[], ordenes: any[], eventos: any[]) {
@@ -4901,7 +5325,11 @@ async function manejar(req: Request): Promise<Response> {
     // v2.9.335: el convoy lo forma el G-4, que muchas veces entra por enlace.
     "formar_convoy",
     // v2.9.449: el JEM (por enlace) maneja el reloj y da el ALTO.
-    "reloj", "alto"];
+    "reloj", "alto",
+    // v2.9.455: el que dio una orden por enlace también la puede anular.
+    "anular_orden",
+    // v2.9.461: el JEM (por enlace) lleva el reloj; y si se cae, cualquiera del bando.
+    "tic"];
   let ses: any = token ? await validarSesion(token) : null;
   let invitado: any = null;
   if (!ses) {
@@ -4954,7 +5382,11 @@ async function manejar(req: Request): Promise<Response> {
        // v2.9.440: del árbitro, nunca de un invitado (no va en la otra lista).
        "plan_barreras",
        // v2.9.443: del árbitro.
-       "actualizar_medios", "actualizar_carta", "reponer_instalacion"].includes(accion)) {
+       "actualizar_medios", "actualizar_carta", "reponer_instalacion",
+       // v2.9.455: anular una orden (la del bando, o cualquiera el árbitro).
+       "anular_orden",
+       // v2.9.461: el paso del reloj continuo.
+       "tic"].includes(accion)) {
     if (!partida) return err("Partida no encontrada", 404);
   }
   const arbitro = partida ? esArbitro(partida, ses) : false;
@@ -5230,8 +5662,9 @@ async function manejar(req: Request): Promise<Response> {
       // v2.9.234: qué obra pidió la orden de zapa (validada contra el catálogo).
       obra: typeof o.obra === "string" && OBRAS[o.obra] ? o.obra : null,
       ruta: ruta && ruta.length ? ruta : null,
-      // v2.9.226: misión del fuego de artillería.
-      mision: ["destruccion", "interdiccion", "neutralizacion"].includes(o.mision) ? o.mision : null,
+      // v2.9.226: misión del fuego de artillería. v2.9.458: en un convoy, «corta» es la ruta que eligió
+      // el G-4; v2.9.462: «marcada», la que marcó él punto por punto.
+      mision: ["destruccion", "interdiccion", "neutralizacion", "corta", "marcada"].includes(o.mision) ? o.mision : null,
       // v2.9.325 — LA TAREA TÁCTICA Y SU PROPÓSITO. La tarea se valida contra el
       // catálogo (una inventada entra como null y el motor no la evalúa); el
       // propósito es texto libre del cursante —es SU intención, no un menú— y se
@@ -5242,6 +5675,8 @@ async function manejar(req: Request): Promise<Response> {
       // v2.9.223: hora de arranque dentro del turno (matriz de sincronización).
       inicio: Number.isFinite(Number(o.inicio)) ? Math.max(0, Number(o.inicio)) : null,
       estado: "pendiente",
+      // v2.9.461: fecha nueva aunque pise la fila: el paso del reloj en curso no la cierra.
+      creada_en: new Date().toISOString(),
     }, { onConflict: "partida_id,turno,unidad_id" });
     if (error) {
       // Si la clave única todavía no está creada (falta correr el SQL 001), se
@@ -5252,7 +5687,7 @@ async function manejar(req: Request): Promise<Response> {
         tipo, destino_lat: o.destino_lat ?? null, destino_lng: o.destino_lng ?? null, objetivo_id: o.objetivo_id ?? null,
         arma, obra: typeof o.obra === "string" && OBRAS[o.obra] ? o.obra : null,
         ruta: ruta && ruta.length ? ruta : null,
-        mision: ["destruccion", "interdiccion", "neutralizacion"].includes(o.mision) ? o.mision : null,
+        mision: ["destruccion", "interdiccion", "neutralizacion", "corta", "marcada"].includes(o.mision) ? o.mision : null,
         tarea: typeof o.tarea === "string" && TAREAS[o.tarea] ? o.tarea : null,
         proposito: typeof o.proposito === "string" && o.proposito.trim() ? o.proposito.trim().slice(0, 300) : null,
         inicio: Number.isFinite(Number(o.inicio)) ? Math.max(0, Number(o.inicio)) : null,
@@ -5265,14 +5700,71 @@ async function manejar(req: Request): Promise<Response> {
     return ok();
   }
 
+  // ============================================================
+  // v2.9.455 — 🗑️ ANULAR LA ORDEN DE UNA UNIDAD (la de este turno).
+  // Sergio (04-11-2026): «toqué sin querer, se quedó ahí y no puedo borrar».
+  // Una orden enviada sólo se podía PISAR con otra. Ahora se borra: la unidad
+  // vuelve a como estaba antes del clic (si seguía una marcha del turno
+  // anterior, la sigue; si estaba quieta, se queda). La puede anular quien
+  // podía dársela: su bando o el árbitro.
+  // ============================================================
+  if (accion === "anular_orden") {
+    if (partida.estado !== "en_curso") return err("La partida no está en curso");
+    if (!arbitro && !miBando) return err("Clave de bando inválida", 403);
+    const uid = body.unidad_id;
+    const { data: us } = await sb.from("wg_unidades").select("id, bando, arma, carga").eq("id", uid).eq("partida_id", partida.id).limit(1);
+    const u = us && us[0];
+    if (!u) return err("Unidad no encontrada", 404);
+    if (!arbitro && u.bando !== miBando.bando) return err("Esa unidad no es de tu bando", 403);
+    const { error } = await sb.from("wg_ordenes").delete().eq("partida_id", partida.id)
+      .eq("estado", "pendiente").eq("unidad_id", uid);
+    if (error) return err(error.message, 500);
+    const _relA = await relojDe(partida.id);
+    const continuo = !!(_relA && _relA.geojson && _relA.geojson.continuo);   // v2.9.461: sin orden viva, ya está quieta
+    // Lo que se ve es lo que pasa: si sin orden la unidad SEGUIRÍA SOLA (la marcha
+    // del turno anterior que no terminó, o el convoy con su misión), anular la
+    // deja QUIETA — si no, seguiría marchando sin línea en el mapa.
+    let seguiria = false;
+    const c = u.carga || {};
+    if (u.arma === CONVOY_ARMA) seguiria = c.apoya != null || (Array.isArray(c.destino) && c.destino.length >= 2) || c.fase === "ida" || c.fase === "vuelta";
+    else if (!continuo) {
+      const [{ data: op }, { data: rp }] = await Promise.all([
+        sb.from("wg_ordenes").select("tipo").eq("partida_id", partida.id).eq("turno", partida.turno_actual - 1).eq("unidad_id", uid).limit(1),
+        sb.from("wg_replays").select("trazas").eq("partida_id", partida.id).eq("turno", partida.turno_actual - 1).limit(1),
+      ]);
+      const o0 = op && op[0];
+      const t0 = (((rp && rp[0] && rp[0].trazas) || []) as any[]).find((t: any) => String(t && t.id) === String(uid));
+      seguiria = !!(o0 && (o0.tipo === "mover" || o0.tipo === "replegar") && t0 && !t0.llego && !t0.detenida && !t0.minado && !t0.contacto);
+    }
+    if (seguiria) {
+      const { error: eA } = await sb.from("wg_ordenes").upsert({ partida_id: partida.id, turno: partida.turno_actual, bando: u.bando,
+        unidad_id: uid, tipo: "defender", estado: "pendiente", destino_lat: null, destino_lng: null, objetivo_id: null, ruta: null,
+        creada_en: new Date().toISOString() }, { onConflict: "partida_id,turno,unidad_id" });
+      if (eA) return err(eA.message, 500);
+    }
+    return ok({ anulada: true, alto: seguiria });
+  }
+
   // ---------- v2.9.449 — ⏱️ reloj · ⏹️ alto · ▶️ reanudar ----------
   if (accion === "reloj") {
     if (!puedeVer) return err("Sin acceso", 403);
     if (partida.estado !== "en_curso") return err("La partida no está en curso");
     const fila = await relojDe(partida.id);
+    // v2.9.461 — ▶ EL TIEMPO CORRE (lo que manda la página nueva: la velocidad).
+    if (body.velocidad != null) {
+      const previo: any = (fila && fila.geojson) || {};
+      const velocidad = VELOCIDADES.includes(Number(body.velocidad)) ? Number(body.velocidad) : velocidadDe(previo);
+      const activo = !!body.activo;
+      const g: any = { ...previo, activo, continuo: true, velocidad, ticEn: activo ? Date.now() : null, proximo: null };
+      const { error } = await guardarReloj(partida.id, fila, g);
+      if (error) return err(`No se pudo guardar el reloj: ${error.message}`, 500);
+      if (activo !== !!previo.activo) await sb.from("wg_eventos").insert({ partida_id: partida.id, turno: partida.turno_actual, tipo: "aviso",
+        descripcion: activo ? `▶️ EL TIEMPO CORRE.` : `⏸️ PAUSA.`, bandos_visibles: ["azul", "rojo"] });
+      return ok({ reloj: relojPublico(g) });
+    }
     const cadaMin = Math.max(1, Math.min(30, Number(body.cada_min) || Number(fila && fila.geojson && fila.geojson.cadaMin) || 3));
     const activo = !!body.activo;
-    const g: any = { ...((fila && fila.geojson) || {}), activo, cadaMin,
+    const g: any = { ...((fila && fila.geojson) || {}), activo, cadaMin, continuo: false,
       proximo: activo ? Date.now() + cadaMin * 60000 : null, turnoEn: partida.turno_actual };
     const { error } = await guardarReloj(partida.id, fila, g);
     if (error) return err(`No se pudo guardar el reloj: ${error.message}`, 500);
@@ -5280,6 +5772,160 @@ async function manejar(req: Request): Promise<Response> {
       descripcion: activo ? `⏱️ RELOJ: el turno corre solo cada ${cadaMin} min. ¡A dar órdenes!` : `⏸️ RELOJ en pausa.`,
       bandos_visibles: ["azul", "rojo"] });
     return ok({ reloj: relojPublico(g) });   // v2.9.451: sin la memoria del G-4
+  }
+  // ============================================================
+  // v2.9.461 — ▶ UN PASO DEL RELOJ. Lo pide la pantalla que lleva el tiempo. Calcula lo
+  // que pasó desde el último paso y lo guarda; la respuesta es lo que esa pantalla
+  // reparte por el canal, así las demás NO le piden nada al servidor (con 100 alumnos,
+  // «cada paso todas piden el tablero» sería la avalancha del 05-11).
+  // ============================================================
+  if (accion === "tic") {
+    if (partida.estado !== "en_curso") return ok({ pausado: true });
+    if (!arbitro && !miBando) return err("No sos parte de esta partida", 403);
+    const t0 = Date.now();
+    // Antes de reservar nada (es una escritura): ¿hace falta un paso?
+    const _pre = await relojDe(partida.id);
+    const _gp: any = (_pre && _pre.geojson) || {};
+    if (!_gp.activo || !_gp.continuo) return ok({ pausado: true, reloj: relojPublico(_gp) });
+    if (_gp.ticEn && t0 - Number(_gp.ticEn) < TIC_MIN_MS) return ok({ temprano: true });
+    const { data: _claim, error: eClaim } = await sb.from("wg_partidas")
+      .update({ resolviendo_desde: new Date(t0).toISOString() }).eq("id", partida.id)
+      .or(`resolviendo_desde.is.null,resolviendo_desde.lt.${new Date(t0 - 30000).toISOString()}`)
+      .select("id, turno_actual");
+    if (eClaim) return err(`No se pudo reservar el paso: ${eClaim.message}`, 500);
+    if (!_claim || !_claim.length) return ok({ ocupado: true });
+    const turno = Number(_claim[0].turno_actual);
+    let listo = false;
+    try {
+      const fila = await relojDe(partida.id);
+      const g: any = (fila && fila.geojson) || {};
+      if (!g.activo || !g.continuo) return ok({ pausado: true, reloj: relojPublico(g) });
+      const dt = g.ticEn ? t0 - Number(g.ticEn) : TIC_MS;
+      if (dt < TIC_MIN_MS) return ok({ temprano: true, reloj: relojPublico(g) });
+      const vel = velocidadDe(g);
+      const horas = (Math.min(dt, TIC_TOPE_MS) / 1000) * vel / 3600;
+      const hDur = Number(partida.duracion_turno_horas) || 2;
+      const hEn0 = Number(g.hEn) || 0;
+      const cierre = hEn0 + horas >= hDur - 1e-9;
+      const hora = (turno - 1) * hDur + hEn0;
+      const m0: any = g.mem || {};
+      const T: any = { horas, cierre, hEn: hEn0, hora, fin: new Set<any>(),
+        mem: { pares: { ...(m0.pares || {}) }, disparos: { ...(m0.disparos || {}) }, foto: m0.foto || null,
+          tareas: { ...(m0.tareas || {}) }, pelearon: { ...(m0.pelearon || {}) }, vis: m0.vis || null } };
+      const [rU, rI, rO] = await Promise.all([
+        sb.from("wg_unidades").select("*").eq("partida_id", partida.id),
+        sb.from("wg_terreno").select("id, tipo, geojson, bando").eq("partida_id", partida.id).like("tipo", "log\\_%").limit(400),
+        sb.from("wg_ordenes").select("*").eq("partida_id", partida.id).eq("estado", "pendiente"),
+      ]);
+      const terreno = await cartaDelMotor(partida.id);
+      const unidades = (rU as any).data || [];
+      const instalLog = (rI as any).data || [];
+      const ordenes = (rO as any).data || [];
+      const corteOrden = ordenes.reduce((a: string, o: any) => (String(o.creada_en) > a ? String(o.creada_en) : a), "");
+      const sello = (u: any) => JSON.stringify([u.lng, u.lat, u.poder_actual, u.estado, u.combustible_km, u.municion, u.carga, u.trabajo, u.suprimida_hasta]);
+      const antes = new Map<any, string>(unidades.map((u: any) => [u.id, sello(u)]));
+      // 🤖 El G-4 automático mira una vez por jornada: forma y manda lo que falte.
+      const g4ev: any[] = [];
+      if (cierre) { try { await g4Automatico(partida.id, unidades, terreno, instalLog, ordenes, g4ev); } catch (e) { console.error("G-4 automático:", e); } }
+      let res: any;
+      try {
+        res = resolverTurno({ duracion_turno_horas: hDur, rango_combate_km: body.rango_combate_km || 3, turno,
+          terreno, unidades, ordenes, instalaciones: instalLog, tic: T });
+      } catch (e) {
+        return err(`Error en el paso del reloj: ${(e as any)?.message || e}`, 500);
+      }
+      const cambiadas = res.unidades.filter((u: any) => antes.get(u.id) !== sello(u));
+      if (cambiadas.length) {
+        const filasU = cambiadas.map((u: any) => ({ id: u.id, partida_id: partida.id, bando: u.bando,
+          lat: u.lat, lng: u.lng, poder_max: u.poder_max, poder_actual: u.poder_actual, estado: u.estado || "activa",
+          combustible_km: u.combustible_km ?? 0, municion: u.municion ?? null, carga: u.carga ?? null,
+          trabajo: u.trabajo ?? null, suprimida_hasta: u.suprimida_hasta ?? null }));
+        const { error: eUp } = await sb.from("wg_unidades").upsert(filasU, { onConflict: "id" });
+        if (eUp) return err(`No se pudieron guardar las unidades: ${eUp.message}`, 500);
+      }
+      const eventos = [...g4ev, ...res.eventos];
+      const escrituras: Promise<any>[] = [];
+      const escribir = (p: any) => escrituras.push(Promise.resolve(p));
+      if (eventos.length) escribir(sb.from("wg_eventos").insert(eventos.map((e: any) => ({
+        partida_id: partida.id, turno, tipo: e.tipo, descripcion: e.descripcion,
+        lat: e.lat ?? null, lng: e.lng ?? null, bandos_visibles: e.bandos_visibles || [] }))));
+      if ((res.zonas || []).length) escribir(sb.from("wg_terreno").insert(res.zonas.map((z: any) => ({
+        partida_id: partida.id, tipo: z.tipo || "interdiccion",
+        geojson: z.geojson || { type: "Polygon", coordinates: [anilloKm(z.centro[0], z.centro[1], z.radio)], ...(z.obra ? { obra: z.obra } : {}) },
+        hasta_turno: z.hasta_turno, bando: z.bando }))));
+      if ((res.zonasBorrar || []).length) escribir(sb.from("wg_terreno").delete().eq("partida_id", partida.id).in("id", res.zonasBorrar));
+      if ((res.instalBorrar || []).length) {
+        escribir(sb.from("wg_terreno").delete().eq("partida_id", partida.id).like("tipo", "log\\_%").in("id", res.instalBorrar));
+        escribir(sb.from("wg_inteligencia").delete().eq("partida_id", partida.id).in("unidad_id", res.instalBorrar.map(idIntelInstal)));
+      }
+      for (const it of (res.instalActualizar || [])) {
+        escribir(sb.from("wg_terreno").update({ geojson: it.geojson }).eq("id", it.id).eq("partida_id", partida.id));
+      }
+      // La niebla: lo que cada bando ve AHORA reemplaza a lo de antes.
+      const turnoNuevo = cierre ? turno + 1 : turno, tDet = Math.max(0, turnoNuevo - 1);
+      const detFirma = JSON.stringify([tDet, [...res.detecciones.rojo].sort(), [...res.detecciones.azul].sort()]);
+      if (detFirma !== g.detFirma) {
+        const filasD: any[] = [];
+        for (const id of res.detecciones.rojo) filasD.push({ partida_id: partida.id, turno: tDet, bando_observador: "rojo", unidad_id: id });
+        for (const id of res.detecciones.azul) filasD.push({ partida_id: partida.id, turno: tDet, bando_observador: "azul", unidad_id: id });
+        escribir((async () => {
+          await sb.from("wg_detecciones").delete().eq("partida_id", partida.id).eq("turno", tDet);
+          return filasD.length ? await sb.from("wg_detecciones").upsert(filasD, { onConflict: "partida_id,turno,bando_observador,unidad_id" }) : { error: null };
+        })());
+      }
+      // Sólo se cierra lo que este paso leyó: la orden que entró recién queda para el que viene.
+      const cerradas = [...T.fin];
+      if (cerradas.length) escribir(sb.from("wg_ordenes").update({ estado: "resuelta" })
+        .eq("partida_id", partida.id).in("id", cerradas).lte("creada_en", corteOrden));
+      const hechas = await Promise.all(escrituras);
+      for (const r of hechas) if (r && r.error) return err(`No se pudo guardar el paso: ${r.error.message}`, 500);
+      // v2.9.461 — LA NIEBLA VIAJA EN EL PASO: qué ve cada bando ahora (la tropa, el dron que
+      // vuela) y la ficha entera del enemigo que recién apareció. Así, cuando alguien
+      // descubre algo, cien pantallas no le piden el tablero al servidor al mismo tiempo.
+      const vis: any = {}, aparecen: any = {};
+      for (const b of ["azul", "rojo"]) {
+        vis[b] = [...new Set<any>([...(res.detecciones[b] || []), ...idsVisiblesEnVivo(b, res.unidades)])];
+        const ya = new Set<any>((m0.vis && m0.vis[b]) || []);
+        aparecen[b] = res.unidades.filter((u: any) => u.bando !== b && vis[b].includes(u.id) && !ya.has(u.id))
+          .map((u: any) => (u.carga && u.carga.ruta ? { ...u, carga: (() => { const { ruta: _r, ...k } = u.carga; return k; })() } : u));
+      }
+      T.mem.vis = vis;
+      // La memoria de la jornada, sin lo vencido.
+      const hAhora = hora + horas;
+      for (const k of Object.keys(T.mem.pares)) if (hAhora - Number(T.mem.pares[k]) >= hDur) delete T.mem.pares[k];
+      for (const k of Object.keys(T.mem.disparos)) if (hAhora - Number(T.mem.disparos[k]) >= hDur) delete T.mem.disparos[k];
+      const hEn = cierre ? Math.max(0, hEn0 + horas - hDur) : hEn0 + horas;
+      const n = (Number(g.n) || 0) + 1;
+      const fr = cierre ? await relojDe(partida.id) : fila;   // el 🤖 G-4 escribe su memoria en la misma fila
+      const g2: any = { ...((fr && fr.geojson) || g), ticEn: t0, hEn, n, mem: T.mem, detFirma };
+      const { error: eR } = await guardarReloj(partida.id, fr || fila, g2);
+      if (eR) return err(`No se pudo guardar el reloj: ${eR.message}`, 500);
+      const { error: eP } = await sb.from("wg_partidas").update({ turno_actual: turnoNuevo, resolviendo_desde: null }).eq("id", partida.id);
+      if (eP) return err(`No se pudo cerrar el paso: ${eP.message}`, 500);
+      listo = true;
+      const r5 = (x: any) => Math.round(Number(x) * 1e5) / 1e5;
+      return ok({ tic: n, ticEn: t0, turno: turnoNuevo, hEn, hora: hAhora, horas, velocidad: vel, cierre,
+        trazas: (res.trazas || []).map((t: any) => ({ id: t.id, bando: t.bando, ruta: (t.ruta || []).map((p: number[]) => [r5(p[0]), r5(p[1])]),
+          km: t.km, llego: t.llego, detenida: t.detenida, contacto: t.contacto, minado: t.minado, consumidos: t.consumidos, c1: t.c1 })),
+        impactos: res.impactos || [], entregas: res.entregas || [],
+        // Lo que cambió de cada ficha.
+        cambios: cambiadas.map((u: any) => {
+          // La ruta del convoy viaja una vez, cuando sale; después cada pantalla la va recortando.
+          const sale = ordenes.some((o: any) => o.unidad_id === u.id && T.fin.has(o.id));
+          const c = u.carga && !sale ? (() => { const { ruta: _r, ...k } = u.carga; return k; })() : u.carga;
+          return { id: u.id, bando: u.bando, lng: r5(u.lng), lat: r5(u.lat), poder_actual: u.poder_actual, estado: u.estado,
+            combustible_km: u.combustible_km, municion: u.municion, carga: c, trabajo: u.trabajo ?? null, suprimida_hasta: u.suprimida_hasta ?? null };
+        }),
+        cerradas: ordenes.filter((o: any) => T.fin.has(o.id)).map((o: any) => o.unidad_id),
+        eventos: eventos.map((e: any) => ({ turno, tipo: e.tipo, descripcion: e.descripcion, lat: e.lat ?? null, lng: e.lng ?? null,
+          bandos_visibles: e.bandos_visibles || [] })),
+        vis, aparecen, obras: !!((res.zonas || []).length || (res.zonasBorrar || []).length),
+        instal: !!((res.instalBorrar || []).length || (res.instalActualizar || []).length) });
+    } finally {
+      if (!listo) {
+        try { await sb.from("wg_partidas").update({ resolviendo_desde: null }).eq("id", partida.id); } catch (_e) { /* nada */ }
+      }
+    }
   }
   if (accion === "alto") {
     if (!puedeVer) return err("Sin acceso", 403);
@@ -5333,7 +5979,8 @@ async function manejar(req: Request): Promise<Response> {
     // sólo si cambió su FIRMA (cantidad de filas + la última).
     // ============================================================
     const turnoDet = Math.max(0, (partida.turno_actual || 1) - 1);
-    const qOrd = sb.from("wg_ordenes").select("*").eq("partida_id", partida.id).eq("turno", partida.turno_actual);
+    // v2.9.461: las órdenes VIVAS (en el juego continuo duran hasta cumplirse).
+    const qOrd = sb.from("wg_ordenes").select("*").eq("partida_id", partida.id).eq("estado", "pendiente");
     const qDet = sb.from("wg_detecciones").select("unidad_id, bando_observador").eq("partida_id", partida.id).eq("turno", turnoDet);
     const [rUni, rBan, rTer, rCnt, rUlt, rIns, rDet, rOrd, rInt, rObr, rRel] = await Promise.all([
       sb.from("wg_unidades").select("*").eq("partida_id", partida.id).limit(2000),
