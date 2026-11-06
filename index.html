@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.461</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.462</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7609,6 +7609,8 @@ body.wg-jugando{overflow:hidden}
   background:rgba(90,14,14,.9);color:#ffd6d6;font:700 10px/15px system-ui,sans-serif;cursor:pointer;vertical-align:middle;
   pointer-events:auto}
 .wg-x-orden:hover{background:#c62828;color:#fff;border-color:#fff}
+.wg-x-orden.wg-marca-undo{border-color:rgba(140,210,255,.75);background:rgba(14,52,84,.92);color:#d6eeff}
+.wg-x-orden.wg-marca-undo:hover{background:#1e7fc2;color:#fff;border-color:#fff}
 .leaflet-tooltip.wg-tip-orden.leaflet-interactive{pointer-events:auto!important;cursor:default}
 /* v2.9.205: la unidad que NO pudo moverse TIEMBLA — se entiende sin leer nada. */
 @keyframes wgTemblor{
@@ -32747,8 +32749,8 @@ function _wgDespachar(uid){
   const clase=WG_CLASES_ORDEN.find(k=>_wgCargaDe(u,k)>0);
   _wgAviso(`🚚 <b>${_rgEsc(u.designacion||('Cnv'+u.id))}</b> despachado`
     +(clase?` con ${_rgEsc(WG_CONVOY_CLASES[clase].nom)}`:' (va VACÍO)')
-    +`.<br>Tocá en el mapa <b>la unidad a la que tiene que llegar</b> — con <b>Shift+clic</b> le vas marcando `
-    +`el itinerario por el eje: la orden sale sola.`, 8000);
+    +`.<br>Tocá en el mapa <b>la unidad a la que tiene que llegar</b>, o marcale el itinerario: `
+    +`<b>cada clic suma un punto</b> y el convoy pasa por todos. La orden sale sola.`, 8000);
 }
 function _wgMoverInstal(id){
   _wgCerrarPanelInstal();
@@ -34914,8 +34916,8 @@ function wgAlivioToggle(btn){
 // ============================================================
 function _wgCintaRotulos(lista){
   const el=document.getElementById('wg-cinta-rot'); if(!el) return;
-  const filas=(lista||[]).map(s=>({ t:s.txt, x:_wgPuedeAnular(s.uid)?String(s.uid).replace(/[^0-9a-zA-Z_-]/g,''):null }));
-  const firma=filas.map(f=>f.t+'#'+(f.x||'')).join('|');
+  const filas=(lista||[]).map(s=>({ t:s.txt, x:_wgPuedeAnular(s.uid)?String(s.uid).replace(/[^0-9a-zA-Z_-]/g,''):null, u:!!s.und }));
+  const firma=filas.map(f=>f.t+'#'+(f.x||'')+(f.u?'u':'')).join('|');
   if(firma===WG._cintaFirma) return;
   WG._cintaFirma=firma;
   if(!filas.length){ el.style.display='none'; el.innerHTML=''; return; }
@@ -34926,6 +34928,7 @@ function _wgCintaRotulos(lista){
     +filas.map(f=>'<div style="margin:3px 0;padding-left:7px;border-left:2px solid rgba(255,255,255,.22);display:flex;align-items:flex-start;gap:4px'
       +(f.x?';pointer-events:auto" oncontextmenu="wgAnularOrden(\''+f.x+'\',event)"':'"')+'>'
       +'<span style="flex:1">'+_rgEsc(f.t)+'</span>'
+      +(f.x&&f.u?`<button class="wg-x-orden wg-marca-undo" style="pointer-events:auto" title="Quitar el último punto (también: tecla ⌫)" onclick="wgQuitarMarca('${f.x}',event)">↶</button>`:'')
       +(f.x?`<button class="wg-x-orden" style="pointer-events:auto" title="Anular esta orden" onclick="wgAnularOrden('${f.x}',event)">✖</button>`:'')
       +'</div>').join('');
 }
@@ -36044,7 +36047,7 @@ async function wgEstado(silencioso){
     ? (esArb?'⏸️ La partida <b>todavía no empezó</b> — por eso las fichas no se mueven.<br>Tocá <b>🚀 Iniciar partida</b> (abajo a la derecha) y ahí sí podés dar órdenes.'
            :'Esperá a que el árbitro inicie la partida.')
     : miRol ? _wgAyudaRol(miRol)
-    : ('Tocá una unidad. <b>Sin arma elegida:</b> clic en el mapa = <b>mover</b> · <b>Shift+clic</b> = agregar punto de paso para rodear obstáculos.<br>'
+    : ('Tocá una unidad. <b>Sin arma elegida:</b> clic en el mapa = <b>mover</b> · <b>Shift+clic</b> = agregar punto de paso para rodear obstáculos. En un <b>convoy</b>, cada clic suma un punto (<b>⌫</b> quita el último).<br>'
        + '<b>Con un arma elegida en 🎯 ARMAMENTO:</b> clic en el mapa = <b>pedir fuego ahí</b> · clic en un enemigo = <b>empeñarlo</b>. Tocá el arma otra vez para volver a mover.<br>'
        + (esArb ? 'Las órdenes salen solas: con <b>▶️ PLAY</b> corre el tiempo.' : 'Las órdenes salen solas.')
        // v2.9.317: desde acá se reparten los puestos del Estado Mayor.
@@ -36627,17 +36630,19 @@ function _wgAccesoLibre(terreno,a,b){
   }
   return true;
 }
-function _wgRutaConvoy(desde,hasta,terreno,via,soloLimpias){
+// `fijo` (v2.9.462): { de, a } son pies de `_wgPieEnRed` (ver `rutaConvoy` del motor).
+function _wgRutaConvoy(desde,hasta,terreno,via,soloLimpias,fijo){
   const g=_wgGrafoVial(terreno||WG.terreno||[]);
+  const pieDe=fijo&&fijo.de, pieA=fijo&&fijo.a;
   const nada=(motivo)=>({ sinCamino:true, motivo, ruta:[], parada:desde, dParada:_wgHav(desde,hasta), km:0, kmHuella:0, acceso:0 });
   if(!g.nodos.length) return nada('la carta no tiene caminos');
-  let fuentes=g.cercanos(desde,WG_CONVOY_FUERA_RUTA_KM);
+  let fuentes=pieDe?[[pieDe.i,_wgHav(pieDe.q,g.nodos[pieDe.i])],[pieDe.j,_wgHav(pieDe.q,g.nodos[pieDe.j])]]:g.cercanos(desde,WG_CONVOY_FUERA_RUTA_KM);
   if(!fuentes.length) return nada(`no hay camino a menos de ${WG_CONVOY_FUERA_RUTA_KM} km`);
   if(soloLimpias){
     const limpias=fuentes.filter(([i,d])=>d<=WG_CAMINO_KM || _wgAccesoLibre(terreno||WG.terreno||[],desde,g.nodos[i]));
     if(limpias.length) fuentes=limpias;
   }
-  const corta=via==='corta';
+  const corta=via==='corta'||via==='marcada';
   const n=g.nodos.length;
   const dist=new Float64Array(n).fill(Infinity), prev=new Int32Array(n).fill(-1), cerrado=new Uint8Array(n), porHuella=new Uint8Array(n);
   const heap=[];
@@ -36662,12 +36667,13 @@ function _wgRutaConvoy(desde,hasta,terreno,via,soloLimpias){
     }
     return top;
   };
-  for(const [i,d] of fuentes){ dist[i]=d*WG_ACCESO_PENAL; push(dist[i],i); }
+  for(const [i,d] of fuentes){ dist[i]=pieDe?d:d*WG_ACCESO_PENAL; push(dist[i],i); }
   let mejor=-1, dMejor=Infinity, it=0;
   while(heap.length && ++it<2000000){
     const [,i]=pop();
     if(cerrado[i]) continue;
     cerrado[i]=1;
+    if(pieA && cerrado[pieA.i] && cerrado[pieA.j]) break;   // ya tiene por dónde llegar
     const d=_wgHav(g.nodos[i],hasta);
     if(mejor<0 || d<dMejor-1e-9 || (Math.abs(d-dMejor)<=1e-9 && dist[i]<dist[mejor])){ mejor=i; dMejor=d; }
     const ad=g.ady[i], ps=g.pes[i], hu=g.hue[i];
@@ -36678,11 +36684,16 @@ function _wgRutaConvoy(desde,hasta,terreno,via,soloLimpias){
       if(nd<dist[j]){ dist[j]=nd; prev[j]=i; porHuella[j]=hu[k]; push(nd,j); }
     }
   }
+  let alTramo=false;
+  if(pieA){
+    const ci=dist[pieA.i]+_wgHav(g.nodos[pieA.i],pieA.q), cj=dist[pieA.j]+_wgHav(g.nodos[pieA.j],pieA.q);
+    if(Math.min(ci,cj)<Infinity){ mejor=ci<=cj?pieA.i:pieA.j; dMejor=_wgHav(g.nodos[mejor],hasta); alTramo=true; }
+  }
   const idx=[];
   for(let i=mejor;i>=0;i=prev[i]) idx.push(i);
   idx.reverse();
   const a=idx[0];
-  if(!soloLimpias && _wgHav(desde,g.nodos[a])>WG_CAMINO_KM && !_wgAccesoLibre(terreno||WG.terreno||[],desde,g.nodos[a])) return _wgRutaConvoy(desde,hasta,terreno,via,true);
+  if(!soloLimpias && !pieDe && _wgHav(desde,g.nodos[a])>WG_CAMINO_KM && !_wgAccesoLibre(terreno||WG.terreno||[],desde,g.nodos[a])) return _wgRutaConvoy(desde,hasta,terreno,via,true,fijo);
   const ruta=idx.map(i=>g.nodos[i]);
   let fin=g.nodos[mejor], dFin=dMejor;
   for(const j of g.ady[mejor]){
@@ -36690,6 +36701,7 @@ function _wgRutaConvoy(desde,hasta,terreno,via,soloLimpias){
     const dq=_wgHav(q,hasta);
     if(dq<dFin-1e-6){ dFin=dq; fin=q; }
   }
+  if(alTramo){ fin=pieA.q; dFin=pieA.d; }
   if(_wgHav(fin,ruta[ruta.length-1])>0.005){
     const ant=ruta.length>1?ruta[ruta.length-2]:null;
     if(ant && _wgHav(_wgPieEnTramo(fin,ant,ruta[ruta.length-1]),fin)<0.005) ruta[ruta.length-1]=fin;
@@ -36703,18 +36715,109 @@ function _wgRutaConvoy(desde,hasta,terreno,via,soloLimpias){
   }
   return { sinCamino:false, motivo:'', ruta, parada:ruta[ruta.length-1], dParada:dFin, km, kmHuella, acceso:_wgHav(desde,g.nodos[a]) };
 }
+// ============================================================
+// v2.9.462 — 📍 LA RUTA QUE MARCA EL G-4. Sergio (06-11-2026), con «azafran III»: «si marqué por las
+// rutas de cuarta debería mantener los puntos que he marcado y no cambiarme la ruta… sólo llega
+// hasta un lugarcito y se cambia». Eran tres cosas juntas:
+//  1) cada clic BORRABA la ruta anterior: de sus 14 clics, en la base quedó uno;
+//  2) la ruta automática esquiva las huellas: un clic en el km 9,3 de un camino de 4.ª daba 38 km
+//     por la principal, que venía a buscar ese punto por atrás;
+//  3) en 3D el cartel y la opción USAR se quedaban con los datos del primer clic.
+// Ahora, en un convoy, cada clic SUMA un punto, se pega al camino que tocó y la ruta pasa por todos.
+// Un clic suelto sobre la principal (o en el campo) sigue siendo la ruta automática de siempre.
+// ============================================================
+const WG_MARCAS_MAX=60;        // lo que guarda el motor por orden
+const WG_CLIC_PX=14;           // un clic a 14 px de un camino es un clic SOBRE ese camino
+const WG_SOBRE_CAMINO_KM=0.1;
+function _wgViaOrden(o){ const m=o&&o.mision; return (m==='corta'||m==='marcada')?m:null; }
+function _wgIcoVia(v){ return v==='corta'?'🛤️':(v==='marcada'?'📍':'🛣️'); }
+// Gemelo de `pieEnRed` del motor: el pie sobre el TRAMO más cercano. `h`: es de 3.ª/4.ª.
+function _wgPieEnRed(g,p,maxKm){
+  const tope=maxKm==null?WG_CONVOY_FUERA_RUTA_KM:maxKm;
+  let m=null;
+  for(const [i] of g.cercanos(p,tope+0.6)){
+    const ad=g.ady[i];
+    for(let k=0;k<ad.length;k++){
+      const j=ad[k], q=_wgPieEnTramo(p,g.nodos[i],g.nodos[j]), d=_wgHav(q,p), h=!!g.hue[i][k];
+      if(d>tope) continue;
+      if(!m || d<m.d-1e-9 || (Math.abs(d-m.d)<=1e-9 && m.h && !h)) m={ i, j, q, d, h };
+    }
+  }
+  return m;
+}
+function _wgMismoTramo(a,b){ return (a.i===b.i&&a.j===b.j)||(a.i===b.j&&a.j===b.i); }
 function _wgRutaConvoyPuntos(desde,puntos,terreno,via){
   const pts=(puntos||[]).filter(p=>Array.isArray(p)&&p.length>=2);
-  let cur=desde, ruta=[], km=0, kmHuella=0, acceso=0, ult=null;
+  const g=_wgGrafoVial(terreno||WG.terreno||[]);
+  const hayRed=g.nodos.length>0;
+  const sale=hayRed?_wgPieEnRed(g,desde,WG_SOBRE_CAMINO_KM):null;
+  let cur=desde, ruta=[], kmHuella=0, acceso=0, ult=null, de=null;
   for(let i=0;i<pts.length;i++){
-    const r=_wgRutaConvoy(cur,pts[i],terreno,via);
+    const p=pts[i], pie=hayRed?_wgPieEnRed(g,p):null, antes=de||sale;
+    const v=via==='marcada'?(((antes&&antes.h)||(pie&&pie.h))?'corta':null):via;
+    let r;
+    if(de && pie && _wgMismoTramo(de,pie)){
+      const d=_wgHav(de.q,pie.q);
+      r={ sinCamino:false, motivo:'', ruta:[pie.q], parada:pie.q, dParada:pie.d, km:d, kmHuella:pie.h?d:0, acceso:0 };
+    }else{
+      r=_wgRutaConvoy(cur,p,terreno,v,false,pie?{de,a:pie}:undefined);
+      if(de && pie && _wgHav(r.parada,pie.q)>0.005) r=_wgRutaConvoy(cur,p,terreno,v,false,{a:pie});
+    }
     if(r.sinCamino){ if(i===0) return r; break; }
     if(i===0) acceso=r.acceso;
-    for(const p of r.ruta) if(!ruta.length || _wgHav(ruta[ruta.length-1],p)>1e-4) ruta.push(p);
-    km+=r.km; kmHuella+=r.kmHuella||0; cur=r.parada; ult=r;
+    for(const q of r.ruta) if(!ruta.length || _wgHav(ruta[ruta.length-1],q)>1e-4) ruta.push(q);
+    kmHuella+=r.kmHuella||0; cur=r.parada; ult=r;
+    de=(pie && _wgHav(r.parada,pie.q)<=0.005)?pie:null;
   }
   if(!ult) return _wgRutaConvoy(desde,desde,terreno,via);
+  let km=0;
+  for(let i=1;i<ruta.length;i++) km+=_wgHav(ruta[i-1],ruta[i]);
   return { sinCamino:false, motivo:'', ruta, parada:cur, dParada:ult.dParada, km, kmHuella, acceso };
+}
+// Cuántos km son WG_CLIC_PX píxeles ahí donde tocó (el 3D lo trae medido en `tolKm`).
+function _wgTolClicKm(ev){
+  let km=Number(ev&&ev.tolKm)||0;
+  try{
+    if(!km && ev && ev.containerPoint && WG.map){
+      const a=WG.map.containerPointToLatLng(ev.containerPoint), b=WG.map.containerPointToLatLng(ev.containerPoint.add([WG_CLIC_PX,0]));
+      km=_wgHav([a.lng,a.lat],[b.lng,b.lat]);
+    }
+  }catch(_e){}
+  return Math.min(0.6,Math.max(0.06,km||0.15));
+}
+// El clic que cae sobre un camino queda sobre ese camino. En el campo se queda donde está.
+function _wgClicAlCamino(p,ev){
+  const g=_wgGrafoVial(WG.terreno||[]);
+  if(!g.nodos.length) return p;
+  const pie=_wgPieEnRed(g,p,_wgTolClicKm(ev));
+  return pie?[pie.q[0],pie.q[1]]:p;
+}
+function _wgSobreHuella(p){
+  const g=_wgGrafoVial(WG.terreno||[]);
+  if(!g.nodos.length) return false;
+  const pie=_wgPieEnRed(g,p,0.03);
+  return !!(pie&&pie.h);
+}
+// Los puntos de la ruta que el G-4 viene marcando. Con la columna ya en marcha, los que le quedan
+// por delante: uno que ya pasó no se toca de nuevo (sería volver para atrás).
+function _wgMarcasDe(u){
+  if(!u) return [];
+  const id=String(u.id), o=WG.ordenes&&WG.ordenes[id];
+  if(o) return (o.tipo==='mover'&&Array.isArray(o.ruta))?o.ruta:[];
+  const c=u.carga||{}, r=(WG.rutas&&WG.rutas[id])||[];
+  if(!r.length || !Array.isArray(c.destino) || !Array.isArray(c.ruta) || !c.ruta.length) return [];
+  const aqui=[u.lng,u.lat];
+  let i0=0, dm=Infinity;
+  c.ruta.forEach((q,i)=>{ const d=_wgHav(aqui,q); if(d<dm){ dm=d; i0=i; } });
+  const resto=[aqui,...c.ruta.slice(i0)], g=_wgGrafoVial(WG.terreno||[]);
+  const adelante=(m)=>{
+    const pie=g.nodos.length?_wgPieEnRed(g,m):null, tope=(pie?pie.d:0)+0.03;
+    for(let i=1;i<resto.length;i++) if(_wgHav(_wgPieEnTramo(m,resto[i-1],resto[i]),m)<=tope) return true;
+    return false;
+  };
+  let k=r.length;
+  while(k>0 && adelante(r[k-1])) k--;
+  return r.slice(k);
 }
 function _wgPreverMovimiento(u,destino,horas){
   const _md=_wgMedioDe(u);
@@ -38013,7 +38116,10 @@ async function wgVista3D(){
     // v2.9.455: durante la película del turno no se ordena (las fichas todavía no
     // llegaron a su lugar nuevo), pero se DICE — el silencio parecía un cuelgue.
     if(WG.replayando){ _wgAvisoPelicula(); return; }
-    _wgMapClick({ latlng:{lat:e.lngLat.lat, lng:e.lngLat.lng}, originalEvent:e.originalEvent });
+    // v2.9.462: cuántos km son los píxeles de tolerancia ahí (para pegar el clic al camino).
+    let tolKm=0;
+    try{ const a=map.unproject([e.point.x,e.point.y]), b=map.unproject([e.point.x+WG_CLIC_PX,e.point.y]); tolKm=_wgHav([a.lng,a.lat],[b.lng,b.lat]); }catch(_e){}
+    _wgMapClick({ latlng:{lat:e.lngLat.lat, lng:e.lngLat.lng}, originalEvent:e.originalEvent, tolKm });
   });
 
   map.on('load',()=>{
@@ -38224,7 +38330,14 @@ function _wg3dControlesGoogleEarth(map){
 // Vuelca en el mapa 3D el terreno, las órdenes y las fichas del estado actual.
 // v2.9.461 — LOS RÓTULOS, APARTE DE LAS FICHAS. Con el tiempo corriendo los km y la hora de
 // llegada cambian en cada paso: se rehacen sólo los globos, no las fichas (eso destella).
+// v2.9.462: qué dicen y dónde están los carteles. Sin esto, con el reloj parado, el cartel y la opción
+// USAR se quedaban con los datos del primer clic: la firma de abajo sólo mira QUÉ unidades tienen orden.
+function _wgFirmaRotulos(){
+  return (WG._accion||WG.replayando?'x':'')+(WG._dib||[]).filter(s=>s.k==='txt'||s.k==='via')
+    .map(s=>[s.k,s.uid,s.via||'',s.und?1:0,s.txt,s.lng,s.lat].join('~')).join('|');
+}
 function _wg3dRotulos(map){
+  WG._firmaRot=_wgFirmaRotulos();
   const viejos=(WG.marc3d||[]).filter(m=>m.__rot);
   if(viejos.length){ for(const m of viejos){ try{ m.remove(); }catch(_e){} } WG.marc3d=WG.marc3d.filter(m=>!m.__rot); }
   const ALTO=30, ANCHO=210, TOPE=6;   // alto/ancho estimados del globo
@@ -38291,6 +38404,13 @@ function _wg3dRotulos(map){
       bx.title='Anular esta orden (también: clic derecho sobre la ruta)';
       bx.addEventListener('mousedown',(ev)=>ev.stopPropagation());
       bx.addEventListener('click',(ev)=>wgAnularOrden(id, ev));
+      if(r.s.und){   // v2.9.462
+        const bu=document.createElement('button'); bu.className='wg-x-orden wg-marca-undo'; bu.textContent='↶';
+        bu.title='Quitar el último punto (también: tecla ⌫)';
+        bu.addEventListener('mousedown',(ev)=>ev.stopPropagation());
+        bu.addEventListener('click',(ev)=>wgQuitarMarca(id, ev));
+        g.appendChild(bu);
+      }
       g.appendChild(bx);
     }
     try{
@@ -38343,7 +38463,7 @@ function _wg3dDatos(){
     _wgInstalaciones().map(it=>[it.id,it.tipo,((it.geojson||{}).coordinates||[]).join(',')]),
     _wgInstalacionesAjenas().map(it=>[it.id,it.tipo,it._nivel]),   // v2.9.453
     (WG.incendios||[]).length]);
-  if(firma===WG._firma3d){ if(_wgCorre()) _wg3dRotulos(map); return; }
+  if(firma===WG._firma3d){ if(_wgCorre() || _wgFirmaRotulos()!==WG._firmaRot) _wg3dRotulos(map); return; }
   WG._firma3d=firma;
   // ============================================================
   // v2.9.261 — EL DESTELLE MIENTRAS SE MUEVEN LAS UNIDADES.
@@ -43032,10 +43152,12 @@ function _wgDibujo(){
       // v2.9.444 — el convoy, por el camino: se dibuja la ruta que de verdad va a hacer.
       let destOrden=[o.destino_lng,o.destino_lat];
       let _alterna=null;   // v2.9.458: la otra ruta que puede elegir el G-4
+      let _marcas=[];      // v2.9.462: los puntos que marcó (con dos o más, la ruta es suya: no hay otra que ofrecer)
       if(_wgEsConvoy(u)){
-        const _pts=rutaOrden, _via=o.mision==='corta'?'corta':null;
+        const _pts=rutaOrden, _via=_wgViaOrden(o);
         const rc=_wgRutaConvoyPuntos([u.lng,u.lat], _pts, null, _via);
-        _alterna=()=>_wgViaAlterna(D,u,uid,_via,rc,(v)=>_wgRutaConvoyPuntos([u.lng,u.lat],_pts,null,v));
+        if(_pts.length>1) _marcas=_pts;
+        else _alterna=()=>_wgViaAlterna(D,u,uid,_via,rc,(v)=>_wgRutaConvoyPuntos([u.lng,u.lat],_pts,null,v));
         if(rc.sinCamino || !rc.ruta.length){
           D.push(_wgD.txt(u.lng,u.lat,`⛔ ${rc.motivo||'sin camino'} — el convoy no anda campo traviesa: no se mueve`, uid));
           continue;
@@ -43053,7 +43175,9 @@ function _wgDibujo(){
       // Los tramos que quedan por delante, en celeste punteado. v2.9.218: esto
       // antes NO se veía en 3D, así que la ruta por tramos parecía no existir.
       const rutaPend=(WG.rutas&&WG.rutas[uid])||[];
-      if(rutaPend.length>1){
+      // v2.9.462: el convoy va por el camino: sus puntos se ven sobre la ruta, sin la recta que los une.
+      if(_wgEsConvoy(u)) _marcas.slice(0,-1).forEach((c2)=>{ D.push(_wgD.pt(c2[0],c2[1],5,'#00e5ff',2)); });
+      else if(rutaPend.length>1){
         D.push(_wgD.lin(rutaPend,'#00e5ff',2,'3 6',.85));
         // v2.9.228: los puntos de paso se marcan con su bolita y nada más. Los
         // carteles «punto 2 · punto 3» tapaban el terreno y no decían nada que
@@ -43086,8 +43210,9 @@ function _wgDibujo(){
       }
       D.push(_wgD.txt(pv.lng,pv.lat, pv.detenida
         ? `${marca}🛑 ${pv.avanzadoKm.toFixed(1)} km · ${pv.motivo}`
-        : (pv.llego ? `${marca}${_wgEsConvoy(u)?(o.mision==='corta'?'🛤️ ':'🛣️ '):''}✅ llega (${pv.avanzadoKm.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)})${_amb}`
+        : (pv.llego ? `${marca}${_wgEsConvoy(u)?_wgIcoVia(_wgViaOrden(o))+' ':''}${_marcas.length?_marcas.length+' puntos · ':''}✅ llega (${pv.avanzadoKm.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)})${_amb}`
                     : `${marca}⏱️ ${pv.avanzadoKm.toFixed(1)} de ${pv.totalKm.toFixed(1)} km${_amb}`), uid));
+      if(_marcas.length) D[D.length-1].und=1;   // v2.9.462: el cartel trae ↶ (quitar el último punto)
       if(_alterna) _alterna();
     }else if(o.tipo==='atacar' && o.objetivo_id && uById[o.objetivo_id]){
       const t=uById[o.objetivo_id];
@@ -43179,14 +43304,14 @@ function _wgDibujo(){
     if(!_wgEsConvoy(u) || WG.ordenes[u.id] || u.estado==='fuera_combate') continue;
     const lente=_wgBandoLente();
     if(lente ? u.bando!==lente : !(WG.soy==='arbitro'||u.bando===WG.soy)) continue;
-    const c=u.carga||{}, uid=String(u.id), via=c.via==='corta'?'corta':null, aqui=[u.lng,u.lat];
+    const c=u.carga||{}, uid=String(u.id), via=_wgViaOrden({mision:c.via}), aqui=[u.lng,u.lat];
     const ini=D.length;
     if(c.apoya!=null && c.fase==='ida' && uById[c.apoya]){
       const t=uById[c.apoya], rc=_wgRutaConvoy(aqui,[t.lng,t.lat],null,via);
       if(!rc.sinCamino && rc.ruta.length){
         const pv=_wgPreverRuta(u, rc.ruta, horasTurno);
         D.push(_wgD.lin(pv.ruta,pv.detenida?'#e08a2c':'#2ecc71',4));
-        D.push(_wgD.txt(rc.parada[0],rc.parada[1],`${via?'🛤️':'🛣️'} 🚚 a ${t.designacion||'la unidad'} · ${rc.km.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)}`,uid));
+        D.push(_wgD.txt(rc.parada[0],rc.parada[1],`${_wgIcoVia(via)} 🚚 a ${t.designacion||'la unidad'} · ${rc.km.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)}`,uid));
         _wgViaAlterna(D,u,uid,via,rc,(v)=>_wgRutaConvoy(aqui,[t.lng,t.lat],null,v));
       }
     }else if(Array.isArray(c.destino) && c.destino.length>=2){
@@ -43201,8 +43326,12 @@ function _wgDibujo(){
       if(!rc.sinCamino && rc.ruta.length){
         const pv=_wgPreverRuta(u, rc.ruta, horasTurno);
         D.push(_wgD.lin(pv.ruta,pv.detenida?'#e08a2c':'#2ecc71',4));
-        D.push(_wgD.txt(rc.parada[0],rc.parada[1],`${via?'🛤️':'🛣️'} ✅ llega (${rc.km.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)})`,uid));
-        _wgViaAlterna(D,u,uid,via,rc,(v)=>_wgRutaConvoy(aqui,c.destino,null,v));
+        // v2.9.462: los puntos que le quedan por tocar; a ésos se les pueden seguir sumando.
+        const _mv=_wgMarcasDe(u);
+        _mv.slice(0,-1).forEach((q)=>{ D.push(_wgD.pt(q[0],q[1],5,'#00e5ff',2)); });
+        D.push(_wgD.txt(rc.parada[0],rc.parada[1],`${_wgIcoVia(via)} ${_mv.length>1?_mv.length+' puntos · ':''}✅ llega (${rc.km.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)})`,uid));
+        if(_mv.length>1) D[D.length-1].und=1;
+        else _wgViaAlterna(D,u,uid,via,rc,(v)=>_wgRutaConvoy(aqui,c.destino,null,v));
       }
     }else if(c.fase==='vuelta'){
       D.push(_wgD.txt(u.lng,u.lat,'↩️ vuelve a su puesto',uid));
@@ -44653,7 +44782,7 @@ function _wgPuedeAnular(uid){
 function _wgViaAlterna(D,u,uid,via,rc,calcular){
   if(String(WG.sel)!==String(uid)) return;
   try{ if(!_wgHudPuedeOrdenar(u)) return; }catch(_e){ return; }
-  const otra = via==='corta' ? null : 'corta';
+  const otra = via ? null : 'corta';   // v2.9.462: a la «marcada» (un clic sobre una huella) se le ofrece la principal
   const ra=calcular(otra);
   if(!ra || ra.sinCamino || !ra.ruta.length) return;
   const clave=(p)=>Math.round(p[0]*2000)+','+Math.round(p[1]*2000);   // ~50 m
@@ -44663,7 +44792,7 @@ function _wgViaAlterna(D,u,uid,via,rc,calcular){
   const pa=_wgPreverRuta(u, ra.ruta, 10000);
   D.push(_wgD.lin(ra.ruta,'#ffcf5a',3,'7 6',.95));
   const m=distinta[Math.floor(distinta.length/2)]||ra.parada;
-  D.push(_wgD.via(m[0],m[1], `${otra==='corta'?'🛤️ Por caminos de 3.ª/4.ª':'🛣️ Por la ruta principal'} · ${ra.km.toFixed(1)} km · ${_wgHoras(pa.horasUsadas)}`, uid, otra||'principal'));
+  D.push(_wgD.via(m[0],m[1], `${otra==='corta'?'🛤️ Por caminos de 3.ª/4.ª':'🛣️ Por la ruta principal'} · ${pa.avanzadoKm.toFixed(1)} km · ${_wgHoras(pa.horasUsadas)}`, uid, otra||'principal'));
 }
 function _wgViaChip(s){
   const id=String(s.uid).replace(/[^0-9a-zA-Z_-]/g,''), v=s.via==='corta'?'corta':'principal';
@@ -44682,18 +44811,31 @@ function wgElegirVia(uid, via, ev){
   _wgAviso(via==='corta' ? `🛤️ <b>${_rgEsc(u.designacion||'El convoy')}</b> va por los caminos de 3.ª/4.ª.`
     : `🛣️ <b>${_rgEsc(u.designacion||'El convoy')}</b> va por la ruta principal.`, 2600);
 }
+// v2.9.462 — ↶ quita el último punto de la ruta marcada (si era el único, anula la orden).
+function wgQuitarMarca(uid, ev){
+  if(ev){ try{ ev.preventDefault(); ev.stopPropagation(); }catch(_e){} }
+  const u=_wgUnidadPorId(uid), id=String(uid);
+  if(!u || !_wgHudPuedeOrdenar(u)) return;
+  const m=_wgMarcasDe(u);
+  if(m.length<2){ wgAnularOrden(id); return; }
+  if(!WG.rutas) WG.rutas={};
+  WG.rutas[id]=m.slice(0,-1).map(q=>[q[0],q[1]]);
+  _wgOrdenDesdeRuta(id);
+  _wgActualizarContadorOrdenes(); _wgRender(); if(WG.map3d) _wg3dDatos();
+}
 // La orden que representa lo que el convoy ya está haciendo (su `carga`), para poder
 // cambiarle la ruta sin que el G-4 tenga que volver a mandarlo.
 function _wgOrdenDeMision(u){
   const c=(u&&u.carga)||{};
   if(c.apoya!=null && c.fase==='ida') return { tipo:'apoyar', objetivo_id:c.apoya, mision:c.via==='corta'?'corta':null };
-  if(Array.isArray(c.destino) && c.destino.length>=2) return { tipo:'mover', destino_lng:c.destino[0], destino_lat:c.destino[1], mision:c.via==='corta'?'corta':null };
+  if(Array.isArray(c.destino) && c.destino.length>=2) return { tipo:'mover', destino_lng:c.destino[0], destino_lat:c.destino[1], mision:_wgViaOrden({mision:c.via}) };
   return null;
 }
 // El texto del cartel con su ✖. El clic derecho sobre el texto también anula.
-function _wgTxtConX(txt, uid){
+function _wgTxtConX(txt, uid, und){
   const id=String(uid).replace(/[^0-9a-zA-Z_-]/g,'');
   return `<span oncontextmenu="wgAnularOrden('${id}',event)">${txt}</span>`
+    +(und?`<button class="wg-x-orden wg-marca-undo" title="Quitar el último punto (también: tecla ⌫)" onmousedown="event.stopPropagation()" onclick="wgQuitarMarca('${id}',event)">↶</button>`:'')
     +`<button class="wg-x-orden" title="Anular esta orden (también: clic derecho sobre la ruta)" `
     +`onmousedown="event.stopPropagation()" onclick="wgAnularOrden('${id}',event)">✖</button>`;
 }
@@ -44714,7 +44856,7 @@ function _wgPintar2D(D){
       // v2.9.455: el cartel de una orden lleva su ✖ (y el clic derecho encima la anula).
       const conX=_wgPuedeAnular(s.uid);
       L.circleMarker([s.lat,s.lng],{radius:0.1,opacity:0,fillOpacity:0,interactive:false})
-        .addTo(WG.capa).bindTooltip(conX ? _wgTxtConX(s.txt, s.uid) : s.txt,
+        .addTo(WG.capa).bindTooltip(conX ? _wgTxtConX(s.txt, s.uid, s.und) : s.txt,
           {permanent:true,direction:'right',className:'wg-tip-orden',interactive:conX});
     }else if(s.k==='via'){
       // v2.9.458: el cartel de la otra ruta: se toca y el convoy va por ahí.
@@ -45186,7 +45328,23 @@ function _wgMapClick(ev){
   // terreno restringido en vez de mandar a la unidad de frente contra el
   // obstáculo. Sin shift, se empieza una ruta nueva.
   if(!WG.rutas) WG.rutas={};
-  if(ev.originalEvent && ev.originalEvent.shiftKey && WG.rutas[WG.sel] && WG.rutas[WG.sel].length){
+  const _cvM=_wgUnidadPorId(WG.sel);
+  if(_wgEsConvoy(_cvM)){
+    // v2.9.462 — EN UN CONVOY, CADA CLIC SUMA UN PUNTO (con o sin Shift) y queda sobre el camino
+    // que tocó. Para empezar otra ruta: ✖, o ⌫ hasta borrarla.
+    const base=_wgMarcasDe(_cvM), q=_wgClicAlCamino(p,ev);
+    if(base.length && _wgHav(base[base.length-1],q)<0.005) return;   // el segundo clic de un doble clic
+    if(base.length>=WG_MARCAS_MAX){
+      _wgAviso(`📍 <b>Hasta ${WG_MARCAS_MAX} puntos por ruta.</b> Marcá sólo donde el convoy tiene que doblar.`, 4500);
+      return;
+    }
+    WG.rutas[WG.sel]=[...base.map(c=>[c[0],c[1]]), q];
+    if(base.length && !WG._avisoMarcas){
+      WG._avisoMarcas=1;
+      _wgAviso(`📍 <b>Cada clic suma un punto</b> y el convoy pasa por todos, por el camino donde los marcaste.<br>`
+        +`<b>↶</b> o la tecla <b>⌫</b> quita el último · <b>✖</b> borra la ruta.`, 7000);
+    }
+  } else if(ev.originalEvent && ev.originalEvent.shiftKey && WG.rutas[WG.sel] && WG.rutas[WG.sel].length){
     WG.rutas[WG.sel].push(p);
   } else {
     WG.rutas[WG.sel]=[p];
@@ -45323,7 +45481,12 @@ function _wgOrdenDesdeRuta(id){
   // v2.9.223: se conserva la hora de arranque elegida en la matriz — si no, al
   // agregar un punto de paso se perdía la sincronización que ya habías puesto.
   const inicio=(WG.ordenes[id]||{}).inicio;
-  const _mis=(WG.ordenes[id]||{}).mision==='corta'?'corta':null;   // v2.9.458: la ruta que eligió el G-4 sigue valiendo
+  // v2.9.458: la ruta que eligió el G-4 sigue valiendo. v2.9.462: en el convoy, dos o más puntos, o
+  // uno sobre un camino de 3.ª/4.ª, son la ruta que él marcó («marcada»).
+  const _uO=_wgUnidadPorId(id), _esCv=_wgEsConvoy(_uO);
+  const _antes=(WG.ordenes[id]||{}).mision||(_esCv?(_uO.carga||{}).via:null);
+  let _mis=_antes==='corta'?'corta':null;
+  if(_esCv && !_mis && (r.length>1 || _wgSobreHuella(r[0]))) _mis='marcada';
   WG.ordenes[id]={ tipo:'mover', destino_lng:fin[0], destino_lat:fin[1], ruta:r.map(p=>[p[0],p[1]]), _local:1, mision:_mis };
   // v2.9.353: apenas se marca la ruta, la ficha ya se orienta hacia el primer
   // tramo — se ve para dónde va a salir ANTES de jugar el turno.
@@ -46670,7 +46833,8 @@ function _wgTicRecibido(r){
   }
   for(const uid of (r.cerradas||[])){
     const k=String(uid), o=WG.ordenes[k];
-    if(o && !o._local){ delete WG.ordenes[k]; if(WG.rutas) delete WG.rutas[k]; duro=true; }
+    // v2.9.462: la orden del convoy pasa a su misión, y sus puntos siguen: se le pueden sumar más.
+    if(o && !o._local){ delete WG.ordenes[k]; if(WG.rutas && !_wgEsConvoy(porId.get(k))) delete WG.rutas[k]; duro=true; }
     if(WG.estado.ordenes) WG.estado.ordenes=WG.estado.ordenes.filter(x=>String(x.unidad_id)!==k);
   }
   // Lo que le pasó a cada una, sobre su ficha.
@@ -47864,8 +48028,11 @@ function _wgHudTeclas(e){
   }
   if(WG_TECLAS_DRON[e.key] && typeof _wgDronMando==='function' && _wgDronMando()) return;   // es del dron
   // v2.9.455 — Supr (o ⌫) anula la orden de la unidad elegida.
-  if((e.key==='Delete'||e.key==='Backspace') && WG.sel!=null && WG.ordenes && WG.ordenes[WG.sel]){
-    e.preventDefault(); wgAnularOrden(WG.sel); return;
+  // v2.9.462 — en la ruta marcada del convoy, ⌫ quita el último punto (Supr, toda la orden).
+  if((e.key==='Delete'||e.key==='Backspace') && WG.sel!=null){
+    const _uK=_wgUnidadPorId(WG.sel), _nM=_wgEsConvoy(_uK)?_wgMarcasDe(_uK).length:0;
+    if(e.key==='Backspace' && _nM>1){ e.preventDefault(); wgQuitarMarca(WG.sel); return; }
+    if(WG.ordenes && WG.ordenes[WG.sel]){ e.preventDefault(); wgAnularOrden(WG.sel); return; }
   }
   const k=String(e.key||'').toLowerCase();
   const b=document.querySelector(`#wg-hud-grilla .wg-cb[data-k="${CSS.escape(k)}"]`);
