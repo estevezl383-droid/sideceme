@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.457</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.461</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7598,6 +7598,13 @@ body.wg-jugando{overflow:hidden}
   box-shadow:0 2px 10px rgba(0,0,0,.5)!important}
 .wg-tip-orden::before{display:none!important}
 /* v2.9.455: la ✖ que anula una orden, en su cartel (2D, 3D y la cinta de la derecha). */
+.wg-tip-via{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important}
+.wg-tip-via::before{display:none!important}
+.wg-via{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:999px;cursor:pointer;margin:0;width:auto;
+  background:rgba(40,28,4,.94);border:1.5px solid #ffcf5a;color:#ffe9b0;font:800 12px/1.2 system-ui,sans-serif;white-space:nowrap;
+  box-shadow:0 3px 12px rgba(0,0,0,.55),0 0 10px rgba(255,207,90,.35);pointer-events:auto}
+.wg-via b{background:#ffcf5a;color:#2a1c00;border-radius:999px;padding:2px 8px;font:900 10.5px/1.2 system-ui;letter-spacing:.6px}
+.wg-via:hover{background:rgba(70,48,8,.97);color:#fff}
 .wg-x-orden{margin-left:6px;width:17px;height:17px;padding:0;border-radius:50%;border:1px solid rgba(255,120,120,.75);
   background:rgba(90,14,14,.9);color:#ffd6d6;font:700 10px/15px system-ui,sans-serif;cursor:pointer;vertical-align:middle;
   pointer-events:auto}
@@ -8223,7 +8230,7 @@ body.wg-jugando{overflow:hidden}
      ============================================================ -->
 <style>
 #wg-hud,#wg-tabs,#wg-hud-pop,#wg-hud-tip,#wg-hud-marco,#wg-hud-splash{display:none}
-#screen-wargame.wg-full #wg-game.wg-hud-on{--top-h:46px;--hud-sit:36px;--hud-h:clamp(140px,20.5vh,230px);
+#screen-wargame.wg-full #wg-game.wg-hud-on{--top-h:46px;--hud-sit:42px;--hud-h:clamp(166px,22vh,244px);
   --hud-total:calc(var(--hud-sit) + var(--hud-h));--acc:#e8c33a;--acc-rgb:232,195,58}
 #screen-wargame.wg-full #wg-game.wg-hud-on.hud-azul{--acc:#4b93ff;--acc-rgb:75,147,255}
 #screen-wargame.wg-full #wg-game.wg-hud-on.hud-rojo{--acc:#ff5252;--acc-rgb:255,82,82}
@@ -8242,7 +8249,7 @@ body.wg-maqueta #wg-hud,body.wg-maqueta #wg-tabs,body.wg-maqueta #wg-hud-marco{d
 #screen-wargame.wg-full #wg-game.wg-hud-on #wg-tl .wg-rd{width:32px;height:32px;border-radius:9px;font-size:15px;flex:0 0 auto}
 #screen-wargame.wg-full #wg-game.wg-hud-on #wg-tl .wg-chip{padding:4px 10px;font-size:11.5px;flex:0 0 auto}
 #screen-wargame.wg-full #wg-game.wg-hud-on #wg-tl .wg-pill{padding:5px 12px;font-size:12px;box-shadow:none}
-#screen-wargame.wg-full #wg-game.wg-hud-on #wg-tl select{height:30px}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-tl select{height:30px;padding:2px 6px!important;font-size:12px!important;font-weight:700;width:auto;min-width:96px;box-shadow:none!important;border:1px solid rgba(255,255,255,.18)!important}
 #screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail{position:static;flex-direction:row;gap:3px;margin-left:auto;
   flex:0 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none;padding:2px 0}
 #screen-wargame.wg-full #wg-game.wg-hud-on #wg-rail::-webkit-scrollbar{display:none}
@@ -8270,6 +8277,11 @@ body.wg-maqueta #wg-hud,body.wg-maqueta #wg-tabs,body.wg-maqueta #wg-hud-marco{d
   transition:background .15s,color .15s,border-color .15s;width:auto;min-width:0}
 .wg-tab:hover{background:rgba(255,255,255,.07);color:#e9f1f9}
 .wg-tab .pt{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.wg-hora{font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.3px;font-size:13px}
+.wg-hora.corre{color:#9ff0c0;border-color:rgba(57,211,122,.6)!important}
+.wg-play{font-weight:900!important;letter-spacing:.6px}
+.wg-play.pausa{background:rgba(232,195,58,.16)!important;border-color:#e8c33a!important;color:#ffe9a6!important}
+.wg-tab .ic{font-style:normal;font-size:14px;line-height:1;flex:0 0 auto}
 .wg-tab.t-azul .pt{background:#4b93ff;box-shadow:0 0 8px #4b93ff}
 .wg-tab.t-rojo .pt{background:#ff5252;box-shadow:0 0 8px #ff5252}
 .wg-tab.t-todo.on{background:linear-gradient(180deg,rgba(232,195,58,.34),rgba(232,195,58,.10));border-color:#e8c33a;color:#ffeaa6}
@@ -8330,27 +8342,29 @@ body.wg-maqueta #wg-hud,body.wg-maqueta #wg-tabs,body.wg-maqueta #wg-hud-marco{d
 #wg-hud-sit{flex:0 0 var(--hud-sit);height:var(--hud-sit);display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:0 8px 0 12px;
   border-bottom:1px solid rgba(255,255,255,.07);cursor:ns-resize;user-select:none;-webkit-user-select:none;touch-action:none;
   overflow:hidden;white-space:nowrap;background:linear-gradient(180deg,rgba(var(--acc-rgb),.10),rgba(var(--acc-rgb),0))}
-.wg-sit-tit{font:900 10px/1 system-ui,sans-serif;letter-spacing:2px;color:rgba(var(--acc-rgb),1);flex:0 0 auto}
+.wg-sit-tit{font:900 11px/1 system-ui,sans-serif;letter-spacing:2px;color:rgba(var(--acc-rgb),1);flex:0 0 auto}
 #wg-hud-sit.dos{grid-template-columns:auto minmax(0,1fr) auto minmax(0,1fr) auto}
 .wg-sit-g{display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden}
-.wg-sit-b{display:flex;align-items:center;gap:6px;font:900 11px/1 system-ui,sans-serif;letter-spacing:1.4px;color:var(--bc);flex:0 0 auto}
+.wg-sit-b{display:flex;align-items:center;gap:6px;font:900 13px/1 system-ui,sans-serif;letter-spacing:1.4px;color:var(--bc);flex:0 0 auto}
 .wg-sit-b .pt{width:10px;height:10px;border-radius:50%;background:var(--bc);box-shadow:0 0 10px var(--bc)}
-.wg-fc-n{font:800 9.5px/1 system-ui;color:#ff8f8f;background:rgba(255,77,77,.14);border:1px solid rgba(255,77,77,.5);border-radius:5px;padding:2px 4px;letter-spacing:.3px}
-.wg-met{display:flex;align-items:center;gap:5px;font:700 10.5px/1 system-ui,sans-serif;color:#b9c9da;flex:1 1 0;min-width:0;cursor:help}
+.wg-fc-n{font:800 12px/1 system-ui;color:#ff8f8f;background:rgba(255,77,77,.14);border:1px solid rgba(255,77,77,.5);border-radius:5px;padding:2px 4px;letter-spacing:.3px}
+.wg-met{display:flex;align-items:center;gap:6px;font:700 11.5px/1 system-ui,sans-serif;color:#b9c9da;flex:1 1 auto;min-width:0;cursor:help}
 .wg-met svg{opacity:.85;flex:0 0 auto}
 .wg-met .lb{opacity:.8}
-.wg-met b{min-width:34px;font:800 11.5px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.wg-met b{min-width:50px;font:900 16px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
 .wg-met .wg-segs{flex:1 1 auto;width:auto;min-width:12px;max-width:64px}
-.wg-her{display:inline-flex;align-items:center;gap:2px;font:800 10px/1 system-ui;color:#ffb4b4;background:rgba(255,77,77,.16);
+.wg-her{display:inline-flex;align-items:center;gap:2px;font:800 12.5px/1 system-ui;color:#ffb4b4;background:rgba(255,77,77,.16);
   border:1px solid rgba(255,77,77,.45);border-radius:6px;padding:2px 4px;cursor:help}
 .wg-prc{display:flex;align-items:center;gap:6px;flex:0 0 auto;padding:4px 10px;border-radius:8px;cursor:help;
-  background:rgba(232,195,58,.12);border:1px solid rgba(232,195,58,.55);color:#ffe69c;font:800 10px/1 system-ui;letter-spacing:1px}
-.wg-prc b{font:900 13px/1 system-ui;letter-spacing:.5px;color:#fff3c4;font-variant-numeric:tabular-nums}
+  background:rgba(232,195,58,.12);border:1px solid rgba(232,195,58,.55);color:#ffe69c;font:800 11.5px/1 system-ui;letter-spacing:1px}
+.wg-prc b{font:900 18px/1 system-ui;letter-spacing:.5px;color:#fff3c4;font-variant-numeric:tabular-nums}
 .wg-sit-btn{width:28px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin:0;padding:0;
   background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#dbe7f2;flex:0 0 auto}
 .wg-sit-btn:hover{border-color:rgba(var(--acc-rgb),.9);color:#fff}
 #wg-hud-sit.dos .wg-met .lb{display:none}
-@media (max-width:1400px){ #wg-hud-sit.dos .wg-met .wg-segs{display:none} }
+@media (max-width:1640px){ #wg-hud-sit.dos .wg-met .wg-segs{display:none} }
+@media (max-width:1400px){ #wg-hud-sit.dos .wg-met b{min-width:42px;font-size:14.5px} #wg-hud-sit.dos .wg-sit-g{gap:6px} }
+@media (max-height:800px){ .wg-fila{height:17px} .wg-fila b{font-size:14px} }
 /* El árbitro con las dos bitácoras: en pantallas de notebook la lista de unidades cede su lugar (está en 🪖 y en el mapa). */
 @media (max-width:1366px){ #wg-game.hud-dos #wg-hud-lista{display:none}
   #wg-game.hud-dos #wg-hud-cuerpo{grid-template-columns:minmax(210px,250px) minmax(250px,300px) minmax(0,1fr) 150px} }
@@ -8401,9 +8415,9 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
 .wg-fc-der{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .wg-fc-nom{font:900 13px/1.15 system-ui;color:#fff;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:24px}
 .wg-fc-sub{font:800 9px/1.2 system-ui;color:rgba(var(--acc-rgb),1);letter-spacing:1px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
-.wg-fila{display:flex;align-items:center;gap:6px;height:14px;font:700 10px/1 system-ui;color:#dbe7f2;cursor:help}
+.wg-fila{display:flex;align-items:center;gap:6px;height:19px;font:700 11px/1 system-ui;color:#dbe7f2;cursor:help}
 .wg-fila svg{flex:0 0 auto;opacity:.85}
-.wg-fila b{min-width:42px;text-align:right;font:800 10.5px/1 system-ui;font-variant-numeric:tabular-nums}
+.wg-fila b{min-width:62px;text-align:right;font:900 15.5px/1 system-ui;font-variant-numeric:tabular-nums;white-space:nowrap}
 .wg-chips{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px;overflow:hidden;max-height:34px}
 .wg-chips span{font:800 8.5px/1 system-ui;padding:3px 5px;border-radius:5px;letter-spacing:.4px;background:rgba(255,255,255,.07);color:#cfe0f0}
 .wg-chips span.v{background:rgba(57,211,122,.15);color:#9ff0c0}
@@ -8506,7 +8520,7 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
   <div class="app-header">
     <button class="back-btn" onclick="wgVolver()">←</button>
     <div class="header-crest"><svg><use href="#crest"/></svg></div>
-    <div class="header-text"><div class="header-title">🎲 Juego de Guerra</div><div class="header-sub" id="wg-sub">PMTD · turnos</div></div>
+    <div class="header-text"><div class="header-title">🎲 Juego de Guerra</div><div class="header-sub" id="wg-sub">PMTD · simultáneo</div></div>
   </div>
   <div class="menu-container">
     <!-- LOBBY: crear (árbitro) o unirse (Estado Mayor) -->
@@ -8514,7 +8528,7 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
       <div id="wg-arbitro-crear" style="display:none">
         <div class="section-label">🎖️ Crear partida (árbitro)</div>
         <div class="field" style="margin-bottom:8px"><label>Nombre de la partida</label><input type="text" id="wg-nom" placeholder="Ej: VENCER O MORIR - Juego 1" autocomplete="off"></div>
-        <div class="field" style="margin-bottom:8px"><label>Duración de cada turno (horas de operación)</label><input type="number" id="wg-dur" value="2" min="1" max="24" step="1"></div>
+        <div class="field" style="margin-bottom:8px"><label>Jornada de cálculo (horas de operación)</label><input type="number" id="wg-dur" value="2" min="1" max="24" step="1"></div>
         <button class="btn-primary" onclick="wgCrearPartida(this)" style="margin-bottom:14px">➕ Crear partida</button>
         <div class="section-label">🗂️ Mis partidas</div>
         <div id="wg-mis-partidas"><div class="efm-no-data" style="color:var(--text-muted)">⏳…</div></div>
@@ -8537,7 +8551,7 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
            flota encima, chico y semitransparente, y se llama cuando hace falta. -->
       <div id="wg-tl">
         <button class="wg-rd" onclick="wgVolver()" title="Salir del juego">←</button>
-        <span id="wg-turno-chip" class="wg-chip">Turno —</span>
+        <span id="wg-turno-chip" class="wg-chip">H+—</span>
         <!-- v2.9.449 — ⏱️ la cuenta regresiva del turno y los mandos del JEM. -->
         <span id="wg-reloj-chip" class="wg-chip" style="display:none;font-weight:800;font-variant-numeric:tabular-nums"
           title="El turno corre solo: en 0 se resuelve con las órdenes que estén dadas"></span>
@@ -8916,7 +8930,7 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
           <input id="wg-u-poder" class="wg-mini" type="number" value="12" min="1" style="width:70px" title="Poder de combate">
         </div>
         <label style="font-size:12px"><input type="checkbox" id="wg-modo-colocar" onchange="wgModoColocar()"> ✋ Modo colocar (clic en el mapa pone la unidad)</label>
-        <div style="margin-top:8px"><button class="btn-primary" onclick="wgIniciar(this)">🚀 Iniciar partida (turno 1)</button></div>
+        <div style="margin-top:8px"><button class="btn-primary" onclick="wgIniciar(this)">🚀 Iniciar partida</button></div>
           </div></div>
         </div>
       </div>
@@ -29938,7 +29952,7 @@ function _wgEsInstructor(){ const ses=getSession(); return !!(ses && ses.tipo===
 // ============================================================
 const WG_ROLES={
   cmte:{nom:'Comandante',            ico:'🎖️', ordena:true,  desc:'Decide y ordena.'},
-  jem: {nom:'Jefe de Estado Mayor',  ico:'📋', ordena:true,  desc:'Coordina al Estado Mayor y hace correr el turno.'},
+  jem: {nom:'Jefe de Estado Mayor',  ico:'📋', ordena:true,  desc:'Coordina al Estado Mayor y lleva el reloj del juego.'},
   g1:  {nom:'G-1 · Personal',        ico:'👥', ordena:false, desc:'Bajas, reemplazos y moral.'},
   g2:  {nom:'G-2 · Inteligencia',    ico:'🔎', ordena:false, desc:'Vuela el dron y arma el cuadro del enemigo.'},
   g3:  {nom:'G-3 · Operaciones',     ico:'⚔️', ordena:true,  desc:'Redacta y transmite la maniobra.'},
@@ -29982,6 +29996,13 @@ const WG_MAQ_BASES={
   carta: {nom:'🗺️ Carta',    url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'},
   negro: {nom:'⬛ Negro',     url:null},
 };
+// v2.9.460 — la ventana de la maqueta ocupa todo el proyector.
+function wgMaquetaPantalla(){
+  try{
+    if(document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen();
+  }catch(_e){}
+}
 function wgMaquetaBase(id){
   if(!WG_MAQ_BASES[id] || !WG.map) return;
   WG.maqBase=id;
@@ -30107,6 +30128,9 @@ function _wgMaquetaMontar(){
     </div>
     <!-- CALIBRACIÓN: lo único tocable -->
     <div class="cj" style="right:18px;top:16px;display:flex;gap:6px">
+      <button onclick="wgMaquetaPantalla()" style="font-size:11px;padding:4px 9px;border-radius:6px;
+        background:rgba(255,255,255,.10);border:1px solid #ffffff55;color:#fff;cursor:pointer"
+        title="Ocupa toda la pantalla del proyector (Esc para salir)">🖥️ Pantalla completa</button>
       <button onclick="wgMaquetaEncuadrar()" style="font-size:11px;padding:4px 9px;border-radius:6px;
         background:rgba(255,255,255,.10);border:1px solid #ffffff55;color:#fff;cursor:pointer">⛶ Encuadrar</button>
       ${Object.keys(WG_MAQ_BASES).map(k=>
@@ -30123,7 +30147,7 @@ function _wgMaquetaMontar(){
     <!-- v2.9.326 — LATIDO. Si la proyección se congela hay que poder verlo SIN
          mirar el reloj: el punto parpadea con cada refresco y el número dice
          hace cuánto llegó el último dato. En verde late, en rojo se quedó. -->
-    <div class="cj" style="left:18px;top:44px;display:flex;align-items:center;gap:6px;
+    <div class="cj" style="left:18px;top:62px;display:flex;align-items:center;gap:6px;
          font-size:10px;letter-spacing:1.5px;opacity:.9">
       <span id="maq-late" style="width:8px;height:8px;border-radius:50%;background:#2ecc71;
         box-shadow:0 0 8px #2ecc71;transition:background .2s,box-shadow .2s"></span>
@@ -30239,7 +30263,7 @@ function _wgMaquetaEscala(){
     if(t) t.textContent=bonito+' km';
     const s=document.getElementById('maq-sub');
     if(s&&WG.estado&&WG.estado.partida)
-      s.textContent=`TURNO ${WG.estado.partida.turno_actual} · ${c.lat.toFixed(3)}, ${c.lng.toFixed(3)}`;
+      s.textContent=`${_wgHoraTxt(_wgHoraJuego())} · ${c.lat.toFixed(3)}, ${c.lng.toFixed(3)}`;
   }catch(_e){}
 }
 // Marca en el recuadro dónde cae el área dentro de Bolivia.
@@ -30423,7 +30447,7 @@ function _wgAyudaRol(rol){
   if(rol==='g2') return cab
     +'Volá el <b>CW 40</b> con las flechas y subí a la carta lo que reconozcas: ésa es tu '
     +'contribución al cuadro de situación.<br>Tus fuerzas van <b>apagadas</b>, de referencia — '
-    +'acá el protagonista es el enemigo.<br>Ojo con lo viejo: un dato pierde un nivel por turno '
+    +'acá el protagonista es el enemigo.<br>Ojo con lo viejo: un dato pierde un nivel cada 2 h de juego '
     +'si no lo volvés a batir.';
   if(rol==='g4') return cab
     +'Acá se ve el <b>estado logístico</b> de la fuerza: combustible, munición, bajas de material '
@@ -30442,7 +30466,7 @@ function _wgAyudaRol(rol){
     +'Sos el que redacta y transmite la maniobra: <b>ordenás igual que el Comandante</b>. '
     +'Tocá una unidad y marcá su destino, o elegí un arma en 🎯 ARMAMENTO para empeñar.';
   if(rol==='cmte'||rol==='jem') return cab
-    +'Tenés el puesto de mando completo: ordenás y hacés correr el turno. '
+    +'Tenés el puesto de mando completo: ordenás y manejás ▶ el tiempo. '
     +'Los demás puestos te ponen los elementos de juicio en la carta.';
   return cab+_rgEsc(R.desc)
     +'<br>Desde acá se <b>asesora</b>: la orden la dan el Comandante, el JEM o el G-3.';
@@ -31767,8 +31791,8 @@ function _wgPanelG2HTML(mias){
     const nv=u._nivel, viejo=u._antig>0;
     const col = nv>=WG_INT_CONF?'#7fe3a0' : nv>=WG_INT_IDENT?'#e8c33a' : '#c98b8b';
     const etq = nv>=WG_INT_CONF?'CONFIRMADA' : nv>=WG_INT_IDENT?'IDENTIFICADA' : 'CONTACTO';
-    const edad = u._antig===0 ? `<span style="color:#7fe3a0">de este turno</span>`
-      : `<span style="color:${u._antig>=3?'#ff8f8f':'#e8c33a'}">hace ${u._antig} ${u._antig===1?'turno':'turnos'}</span>`;
+    const edad = u._antig===0 ? `<span style="color:#7fe3a0">reciente</span>`
+      : `<span style="color:${u._antig>=3?'#ff8f8f':'#e8c33a'}">hace ${u._antig*_wgHorasTurno()} h</span>`;
     const bajo = (u._nivelOrig>nv)
       ? `<div style="font-size:8px;opacity:.75;margin-top:1px">⬇️ era `
         + `${_wgIntTxt(u._nivelOrig).replace(/^[^ ]+ /,'').split(' · ')[0]}`
@@ -31778,7 +31802,7 @@ function _wgPanelG2HTML(mias){
       +`<div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline">`
       +`<b style="font-size:10.5px">${_rgEsc(u.designacion||'CONTACTO')}</b>`
       +`<span style="font-size:8px;color:${col};letter-spacing:.6px">${etq}</span></div>`
-      +`<div style="font-size:8.5px;opacity:.85;margin-top:1px">🕰️ turno ${u._turno} · ${edad}</div>`
+      +`<div style="font-size:8.5px;opacity:.85;margin-top:1px">🕰️ H+${Math.max(0,(Number(u._turno)||1)-1)*_wgHorasTurno()} · ${edad}</div>`
       +bajo
       +`<button class="wg-pill" style="font-size:8px;padding:1px 6px;margin-top:3px"`
       +` onclick="event.stopPropagation();wgBorrarContacto(${u.id})">🗑️ descartar</button></div>`;
@@ -31786,7 +31810,7 @@ function _wgPanelG2HTML(mias){
   const viejas=marcas.filter(m=>m._antig>=3).length;
   const aviso = viejas
     ? `<div class="rg-meta" style="font-size:8.5px;margin:4px 0 6px;color:#ffb27a">`
-      +`⚠️ <b>${viejas}</b> ${viejas===1?'marca lleva':'marcas llevan'} 3 turnos o más sin confirmar. `
+      +`⚠️ <b>${viejas}</b> ${viejas===1?'marca lleva':'marcas llevan'} ${3*_wgHorasTurno()} h o más sin confirmar. `
       +`Sobre eso no se maniobra: volvé a batir el sector.</div>` : '';
   return cabecera+aviso+filas+_wgG2Propias(mias);
 }
@@ -31861,7 +31885,7 @@ function _wgPanelG1HTML(mias){
     else{
       if(pct<=40) est.push('⛔ muy desgastada: replegar o reforzar');
       else if(pct<=70) est.push('⚠️ necesita reemplazos');
-      if(supr) est.push('😰 suprimida — no rinde este turno');
+      if(supr) est.push('😰 suprimida — no rinde por ahora');
     }
     return `<div class="rg-card" style="padding:5px 7px;margin-bottom:3px;border-left:3px solid ${col};cursor:pointer"`
       +` onclick="_wgIrUnidad(${u.id})">`
@@ -32312,7 +32336,7 @@ function _wgCoberturaLogHTML(uds){
     +`<div style="font-size:9px;letter-spacing:1.2px;opacity:.7">📡 COBERTURA LOGÍSTICA `
     +`<span style="opacity:.7">· radio ${WG_REABASTECER_KM} km</span></div>`
     +`<div style="font-size:11px;margin-top:3px"><b style="color:${col}">${dentro.length} de ${conD.length}</b> `
-    +`unidades quedan al alcance de un puesto propio y se reabastecen al cierre del turno.</div>`
+    +`unidades quedan al alcance de un puesto propio y se reabastecen cada ${_wgHorasTurno()} h de juego.</div>`
     +(peor?`<div style="font-size:9.5px;opacity:.85;margin-top:3px">La más desamparada es `
       +`<b>${_rgEsc(peor.u.designacion||('U'+peor.u.id))}</b>, a ${peor.d.toFixed(1)} km del puesto más cercano`
       +(fuera.length>1?` (y ${fuera.length-1} más fuera de alcance)`:'')+`.</div>`:'')
@@ -32724,7 +32748,7 @@ function _wgDespachar(uid){
   _wgAviso(`🚚 <b>${_rgEsc(u.designacion||('Cnv'+u.id))}</b> despachado`
     +(clase?` con ${_rgEsc(WG_CONVOY_CLASES[clase].nom)}`:' (va VACÍO)')
     +`.<br>Tocá en el mapa <b>la unidad a la que tiene que llegar</b> — con <b>Shift+clic</b> le vas marcando `
-    +`el itinerario por el eje — y después <b>✔️ Órdenes listas</b>.`, 8000);
+    +`el itinerario por el eje: la orden sale sola.`, 8000);
 }
 function _wgMoverInstal(id){
   _wgCerrarPanelInstal();
@@ -33264,7 +33288,7 @@ function _wgPanelObrasHTML(u){
       +`<div style="height:7px;border-radius:4px;margin:6px 0 4px;background:rgba(255,255,255,.13);overflow:hidden">`
       +`<div style="height:100%;width:${avance}%;background:${col}"></div></div>`
       +`<div class="rg-meta" style="font-size:10.5px;line-height:1.45">`
-      +`Faltan <b>${res}</b> de ${tot} turnos ≈ <b>${hFalta.toFixed(1)} h</b> de trabajo.`
+      +`Faltan ≈ <b>${hFalta.toFixed(1)} h</b> de trabajo.`
       +`<br>⚠️ Si movés la unidad o la sacan de combate, <b>se pierde todo el avance</b>.</div></div>`
       // La regla de capacidad, dicha donde se la necesita: una cuadrilla hace
       // UNA obra por vez. Sergio: «no se les puede dar 8 trabajos al mismo
@@ -33307,7 +33331,7 @@ function _wgPanelObrasHTML(u){
       +`<b style="flex:1;font-size:12px">${o.nom}</b>`
       +(puede
         ? `<span style="font-size:10.5px;color:#ffd9a8;white-space:nowrap">`
-          +`${horas.toFixed(1)} h · ${turnos} turno${turnos>1?'s':''}</span>`
+          +`${horas.toFixed(1)} h</span>`
         : `<span style="font-size:10px;color:#e08a2c;white-space:nowrap">🚫 necesita maquinaria</span>`)
       +`</div>`
       +`<div class="rg-meta" style="font-size:10.5px;margin-top:3px;line-height:1.4">${o.desc}`
@@ -33333,8 +33357,7 @@ function _wgPanelObrasHTML(u){
     +enCurso
     +`<div class="rg-meta" style="font-size:11px;margin-bottom:6px;line-height:1.45">`
     +`El costo va en <b>HORAS DE TRABAJO</b>: salen del terreno donde se hace, del escalón `
-    +`y de si la hace ingeniería o tropa a pico y pala. Los turnos se calculan con la `
-    +`duración del turno de esta partida (<b>${_wgHorasTurno()} h</b>).`
+    +`y de si la hace ingeniería o tropa a pico y pala. El avance se anota cada <b>${_wgHorasTurno()} h</b> de juego.`
     +(cap&&!cap.ing?`<br>🪖 <b>Esta unidad fortifica a mano</b> — tarda casi el doble que ingeniería, `
       +`y no abre brechas ni excava fosos.`:'')
     +(refuerza?`<br>🪨 <b style="color:#8ef0b4">Estás en terreno ${claseAqui}</b> — acá la contramovilidad `
@@ -33627,7 +33650,7 @@ function _wgObraHTML(u){
       +`<span class="disco">${O.icono}</span>`
       +`<span class="obrero"></span><span class="obrero"></span><span class="obrero"></span>`
       +`<span class="rot">${_rgEsc(O.nom.toUpperCase())} · <span class="q">${avance} %</span>`
-      +` · ${restan===1?'falta':'faltan'} ${restan} turno${restan===1?'':'s'}</span></div>` };
+      +` · faltan ~${restan*_wgHorasTurno()} h</span></div>` };
 }
 function _wgObras2D(){
   if(!WG.map || !WG.capa || typeof L==='undefined') return;
@@ -33638,7 +33661,7 @@ function _wgObras2D(){
       const mk=L.marker([h.lat,h.lng],{ interactive:true, zIndexOffset:1200,
         icon:L.divIcon({className:'',html:h.html,iconSize:[0,0],iconAnchor:[0,0]}) }).addTo(WG.capa);
       mk.bindTooltip(`${h.O.icono} <b>${_rgEsc(h.O.nom)}</b> — ${_rgEsc(u.designacion||u.bando)}<br>`
-        +`Avance ${h.avance} % · faltan <b>${h.restan}</b> de ${h.total} turnos<br>`
+        +`Avance ${h.avance} % · faltan ~<b>${h.restan*_wgHorasTurno()} h</b><br>`
         +`<span style="opacity:.8">${_rgEsc(h.O.desc)}</span><br>`
         +`<span style="opacity:.7">Si mueven la unidad o la sacan de combate, se pierde el trabajo.</span>`,
         {direction:'top'});
@@ -34899,7 +34922,7 @@ function _wgCintaRotulos(lista){
   el.style.display='';
   // v2.9.455: cada renglón de una orden lleva su ✖ para anularla.
   el.innerHTML='<div style="opacity:.55;font-size:9px;letter-spacing:.1em;margin-bottom:5px">'
-      +'📋 ESTE TURNO — '+filas.length+'</div>'
+      +'📋 ÓRDENES — '+filas.length+'</div>'
     +filas.map(f=>'<div style="margin:3px 0;padding-left:7px;border-left:2px solid rgba(255,255,255,.22);display:flex;align-items:flex-start;gap:4px'
       +(f.x?';pointer-events:auto" oncontextmenu="wgAnularOrden(\''+f.x+'\',event)"':'"')+'>'
       +'<span style="flex:1">'+_rgEsc(f.t)+'</span>'
@@ -35184,6 +35207,9 @@ function _wgCanalIniciar(){
   try{
     WG._canal = sb.channel('wg-'+WG.partidaId, { config:{ broadcast:{ self:false } } })
       .on('broadcast', { event:'turno' }, (m)=>{ _wgCanalTurno(m && m.payload); })
+      // v2.9.461: cada paso del reloj, y ▶ / ⏸ / velocidad.
+      .on('broadcast', { event:'tic' }, (m)=>{ try{ _wgTicRecibido(m && m.payload); }catch(e){ console.warn('tic:', e); } })
+      .on('broadcast', { event:'reloj' }, (m)=>{ const q=m&&m.payload; if(q&&q.reloj){ WG.relojJuego=q.reloj; WG._ticVisto=Date.now(); _wgRelojTic(); } })
       // v2.9.332: cuando el G-5 declara un área restringida, el resto del Estado
       // Mayor la ve en su carta EN EL ACTO. Es exactamente para lo que se armó
       // el canal en la 329: lo que tiene que verse a la vez, se avisa.
@@ -35263,7 +35289,7 @@ function _wgCanalOrden(enviadas, anuladas){
 }
 function _wgCanalOrdenRecibida(p){
   if(!WG.partidaId || !p || !WG.estado) return;
-  if(p.turno!=null && Number(p.turno)!==Number(_wgTurnoActual())) return;   // de otro turno: no va
+  WG._ticPronto=true;   // v2.9.461: una orden nueva adelanta el paso del reloj
   let cambio=false;
   for(const o of (p.ordenes||[])){
     const id=String(o && o.unidad_id); if(!o || !_wgUnidadPorId(id)) continue;
@@ -35297,12 +35323,13 @@ function _wgAutoEnvioTic(){
   if(!WG.partidaId || !WG.estado) return;
   const p=WG.estado.partida||{};
   if(p.estado!=='en_curso' || _wgEsMaqueta() || !_wgRolEnvia()) return;
-  if(WG._enviando || WG._jugando || WG._accion || WG.replayando) return;
-  const loc=Object.entries(WG.ordenes||{}).filter(([_k,o])=>o && o._local);
+  if(WG._enviando || WG._jugando) return;   // v2.9.461: el fuego en pantalla ya no frena el envío
+  // v2.9.461: la orden que el servidor rechazó no se reintenta sola (salía una por segundo).
+  const loc=Object.entries(WG.ordenes||{}).filter(([k,o])=>o && o._local && (WG._autoMal||{})[k]!==JSON.stringify(o));
   if(!loc.length){ WG._autoFirma=null; return; }
   const firma=JSON.stringify(loc), ahora=Date.now();
   if(firma!==WG._autoFirma){ WG._autoFirma=firma; WG._autoDesde=ahora; return; }
-  if(ahora-(WG._autoDesde||0) < 1500) return;
+  if(ahora-(WG._autoDesde||0) < 600) return;   // v2.9.461: la orden vale ya
   const ae=document.activeElement;
   if(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName||'')) return;   // está escribiendo
   WG._enviando=true;
@@ -35324,7 +35351,7 @@ setInterval(()=>{ try{ _wgAutoEnvioTic(); }catch(_e){} }, 500);
 async function wgAnularOrden(uid, ev){
   if(ev){ try{ ev.preventDefault(); ev.stopPropagation(); }catch(_e){} }
   const id=String(uid);
-  const o=WG.ordenes[id], u=_wgUnidadPorId(id);
+  const o=WG.ordenes[id]||_wgOrdenDeMision(_wgUnidadPorId(id)), u=_wgUnidadPorId(id);   // v2.9.461
   if(!o || !u) return;
   if(!_wgHudPuedeOrdenar(u)){
     _wgAviso('🚫 <b>Esa orden no se anula desde tu puesto</b>: la anula quien puede darla.', 3200); return;
@@ -35427,7 +35454,7 @@ function _wgEnviadoChip(n){
     acc.insertBefore(el, acc.firstChild);
   }
   el.textContent=`📨 ${n===1?'orden enviada':n+' órdenes enviadas'} ✓`;
-  el.title='Ya está en el servidor: la ven tus compañeros y el árbitro, y entra en el próximo turno.';
+  el.title='Ya está en el servidor: la ven tus compañeros y el árbitro, y se cumple enseguida.';
   el.style.opacity='1';
   clearTimeout(WG._enviadoT);
   WG._enviadoT=setTimeout(()=>{ try{ el.style.opacity='0'; }catch(_e){} }, 2200);
@@ -35511,6 +35538,7 @@ function _wgSyncRitmo(ms){
   }
 }
 function _wgSyncIniciar(){
+  WG._ticN=null; WG._ticVisto=0; WG._vivo={}; WG._ticPeriodo=null;   // v2.9.461: otra partida, otro reloj
   _wgSyncParar();
   _wgCanalIniciar();
   // Arranca apretado; el canal lo afloja a 4 s apenas confirma que está.
@@ -35615,6 +35643,8 @@ async function _wgSyncTick(){
     if(!p.ok){ console.warn('pulso:', p.error); return; }   // silencioso: es un sondeo
     // v2.9.449 — ⏱️ el reloj de todos, y el ⏹️ ALTO llega a todas las pantallas.
     if(p.reloj!==undefined) WG.relojJuego=p.reloj||null;
+    // v2.9.461: si los pasos no están llegando por el canal, se pide el tablero (las fichas se deslizan).
+    if(p.reloj && p.reloj.continuo && Number(p.reloj.n)>(Number(WG._ticN)||0)+2) WG._syncRepasoYa=true;
     if(p.estado_partida==='finalizada' && WG.estado && WG.estado.partida && WG.estado.partida.estado!=='finalizada'){ await wgEstado(true); return; }
     if(WG.maqueta) _wgLatido(true);   // v2.9.326: llegó dato, la proyección late
     // v2.9.430: mientras el pulso viajaba pudo llegar el aviso del canal y
@@ -35662,6 +35692,9 @@ async function _wgSyncTick(){
       return;
     }
     WG._syncVueltas = 0;   // el turno nuevo ya trae el tablero entero
+    // v2.9.461 — sin turnos no hay película: si esta pantalla se quedó atrás, se pone al
+    // día (las fichas se deslizan hasta su lugar, ver `_wgVivoFusion`).
+    if(p.reloj && p.reloj.continuo){ await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos(); return; }
     // v2.9.309 — GUARDIA DE IDEMPOTENCIA. Si el turno que está por reproducirse
     // ya se vio en ESTA pantalla (lo animó wgResolver o un tick anterior), no se
     // reproduce de nuevo: quien lo anotó ya se encarga de poner el tablero al día.
@@ -35884,7 +35917,11 @@ async function wgEstado(silencioso){
     const f=r.obras.map(o=>o.id).join(',');
     if(WG._obrasFirma!==f){ WG._obrasFirma=f; WG.capaTerrenoFirma=null; }
   }
+  try{ _wgVivoFusion(r); }catch(e){ console.warn('fusión:', e); }   // v2.9.461: nadie salta
+  // v2.9.461: el tablero ya trae hasta este paso; el aviso que llegue tarde no se repite.
+  if(r.reloj && Number(r.reloj.n)>=0 && (WG._ticN==null || Number(r.reloj.n)>WG._ticN)) WG._ticN=Number(r.reloj.n);
   WG.estado=r; WG.soy=r.soy;
+  try{ _wgVivoFusionFin(); _wgTicArrancar(); }catch(_e){}
   try{ if(WG._canal) _wgCanalBandosIniciar(); }catch(_e){}   // v2.9.455: el canal del bando, ya sabiendo cuál es
   try{ _wgBitRender(); }catch(_e){}   // v2.9.445: los 📻 pedidos pendientes, al día con las fichas
   WG.relojJuego=r.reloj||null;          // v2.9.449
@@ -35894,7 +35931,6 @@ async function wgEstado(silencioso){
   }
   const esArb = r.soy==='arbitro';
   const p=r.partida||{};
-  document.getElementById('wg-turno-chip').textContent = 'Turno '+(p.turno_actual||'—')+' · '+(p.estado||'');
   const rol=document.getElementById('wg-rol-chip');
   const g2=_wgEsG2();   // v2.9.316
   const miRol=_wgRol(), ordena=_wgRolOrdena();   // v2.9.317
@@ -35959,7 +35995,8 @@ async function wgEstado(silencioso){
   const enJuego = p.estado==='en_curso';
   document.getElementById('wg-btn-resolver').style.display = 'none';
   // v2.9.316: el G-2 no manda órdenes ni hace correr el turno. Informa.
-  document.getElementById('wg-btn-enviar').style.display = (enJuego && !esArb && _wgRolEnvia())?'':'none';
+  // v2.9.461: las órdenes salen solas; ya no hay «Órdenes listas» ni «Jugar turno».
+  document.getElementById('wg-btn-enviar').style.display = 'none';
   // v2.9.207: mientras la partida NO empezó, las órdenes están bloqueadas. El
   // botón de arrancar tiene que estar A LA VISTA, no enterrado en ⚙️ Configurar:
   // Sergio no podía mover nada y el clic no le decía por qué.
@@ -35973,7 +36010,7 @@ async function wgEstado(silencioso){
   // correr el turno NO es maniobrar. El turno es SIMULTÁNEO — resuelve las
   // órdenes de los dos bandos a la vez — así que quien lo dispara no gana
   // ninguna ventaja. Lo que sigue prohibido al G-4 es ordenarle a un batallón.
-  document.getElementById('wg-btn-jugar').style.display = (enJuego && _wgRolEnvia())?'':'none';
+  document.getElementById('wg-btn-jugar').style.display = 'none';
   // ============================================================
   // v2.9.351 — ⚠️ EL SONDEO BORRABA LA ORDEN QUE ESTABAS ARMANDO.
   // Éste es el «marco la ruta, aprieto y no pasa nada» que venía desde hace
@@ -35990,8 +36027,14 @@ async function wgEstado(silencioso){
   const _pend={};
   for(const [k,v] of Object.entries(WG.ordenes||{})) if(v && v._local) _pend[k]=v;
   WG.ordenes={};
+  // v2.9.461: la orden viva trae toda su ruta; se muestra desde el punto al que llegó.
+  const _rutaViva=(o)=>{
+    if(!Array.isArray(o.ruta)) return o.ruta||null;
+    const u=(r.unidades||[]).find(x=>String(x.id)===String(o.unidad_id)), pa=u&&u.carga&&u.carga.paso;
+    return (pa && String(pa.o)===String(o.id) && pa.t===o.creada_en) ? o.ruta.slice(Number(pa.n)||0) : o.ruta;
+  };
   for(const o of (r.ordenes||[])) WG.ordenes[o.unidad_id]={ tipo:o.tipo, destino_lat:o.destino_lat, destino_lng:o.destino_lng,
-    objetivo_id:o.objetivo_id, arma:o.arma||null, ruta:o.ruta||null, inicio:o.inicio||0, // v2.9.223
+    objetivo_id:o.objetivo_id, arma:o.arma||null, ruta:_rutaViva(o), inicio:o.inicio||0, // v2.9.223
     // v2.9.455: la orden entera (antes se perdían la obra, la misión y la tarea del compañero).
     obra:o.obra||null, mision:o.mision||null, tarea:o.tarea||null, proposito:o.proposito||null };
   for(const [k,v] of Object.entries(_pend)) WG.ordenes[k]=v;
@@ -36003,7 +36046,7 @@ async function wgEstado(silencioso){
     : miRol ? _wgAyudaRol(miRol)
     : ('Tocá una unidad. <b>Sin arma elegida:</b> clic en el mapa = <b>mover</b> · <b>Shift+clic</b> = agregar punto de paso para rodear obstáculos.<br>'
        + '<b>Con un arma elegida en 🎯 ARMAMENTO:</b> clic en el mapa = <b>pedir fuego ahí</b> · clic en un enemigo = <b>empeñarlo</b>. Tocá el arma otra vez para volver a mover.<br>'
-       + (esArb ? 'Después <b>▶️ Jugar turno</b>.' : 'Cuando termines, <b>✔️ Órdenes listas</b>.')
+       + (esArb ? 'Las órdenes salen solas: con <b>▶️ PLAY</b> corre el tiempo.' : 'Las órdenes salen solas.')
        // v2.9.317: desde acá se reparten los puestos del Estado Mayor.
        + `<br><span style="font-size:9px;opacity:.7;letter-spacing:1px">PUESTOS:</span> `
        + Object.keys(WG_ROLES).map(k=>
@@ -36157,11 +36200,12 @@ function _wgClaseVia(t){
   }
   const k=g.e&&g.e.k;
   if(k==='comunicaciones_ffcc'||k==='comunicaciones_aero') return null;
-  if(k==='comunicaciones_huellas') return 'senda';
+  if(k==='comunicaciones_huellas') return g.e.t==='path' ? 'senda' : 'huella';   // v2.9.458: la Vía 3/4 es del convoy
   if(k) return 'camino';
   const nom=String(g.nom||'');
   if(/ferrocarril|v[ií]a f[eé]rrea|l[ií]nea f[eé]rrea/i.test(nom)) return null;
-  if(/\b(senda|sendero|huella|trocha|camino de herradura)\b/i.test(nom)) return 'senda';
+  if(/\b(senda|sendero|camino de herradura)\b/i.test(nom)) return 'senda';
+  if(/\b(huella|trocha)\b/i.test(nom)) return 'huella';
   return 'camino';
 }
 // Gemelo de `claseAgua` del motor: "rio" · "agua" · "humedal" · null.
@@ -36230,11 +36274,15 @@ function _wgTramoLibre(idx,a,b){
   }
   return true;
 }
-function _wgSueloEn(pt,c,aPie){
-  let dCamino=Infinity, poli=null, agua=null, rio=false;
+function _wgSueloEn(pt,c,aPie,rueda){
+  let dCamino=Infinity, dHuella=Infinity, poli=null, agua=null, rio=false;
   for(const s of c.segs){
     if(s.c==='rio'){ if(!rio && _wgDistPtSeg(pt,s.a,s.b)<=WG_RIO_BANDA_KM) rio=true; continue; }
     if(s.c==='senda' && !aPie) continue;
+    if(s.c==='huella' && !aPie){   // v2.9.458
+      if(rueda){ const dh=_wgDistPtSeg(pt,s.a,s.b); if(dh<dHuella) dHuella=dh; }
+      continue;
+    }
     const d=_wgDistPtSeg(pt,s.a,s.b);
     if(d<dCamino) dCamino=d;
   }
@@ -36245,7 +36293,7 @@ function _wgSueloEn(pt,c,aPie){
     if(t._agua==='agua') agua='agua'; else if(!agua) agua='humedal';
   }
   if(rio && agua!=='agua') agua='rio';
-  return { dCamino, poli, agua };
+  return { dCamino, dHuella, poli, agua };
 }
 function _wgBrechaEn(pt,terreno){
   const c=_wgIndiceDe(terreno).celdaDe(pt);
@@ -36342,14 +36390,17 @@ function _wgClaseTerreno(pt,terreno,bando,medio){
   const c=_wgIndiceDe(terreno).celdaDe(pt);
   if(!c) return 'libre';
   const obs=bando?_wgObstaculoEnCelda(pt,c,bando):null;
-  const s=_wgSueloEn(pt,c,medio==='pie');
+  const rueda=medio==='rueda';   // v2.9.458: el convoy también anda la huella
+  const s=_wgSueloEn(pt,c,medio==='pie',rueda);
   if(s.agua==='agua' || s.agua==='rio'){
     if(s.poli==='puente' || s.dCamino<=WG_PUENTE_KM) return obs==='severo' ? 'severo' : (obs||'camino');
+    if(rueda && s.dHuella<=WG_PUENTE_KM) return obs==='severo' ? 'severo' : (obs||'huella');
     return s.agua;
   }
   if(s.poli) return 'camino';
   if(obs==='severo') return 'severo';
   if(s.dCamino<=WG_CAMINO_KM) return obs||'camino';
+  if(rueda && s.dHuella<=WG_CAMINO_KM) return obs||'huella';
   let restr = obs==='restringido' || s.agua==='humedal';
   for(const t of c.polis){
     if(t._via || t._agua) continue;
@@ -36376,9 +36427,9 @@ function _wgClaseTerreno(pt,terreno,bando,medio){
 // puente (a pie se vadea a 0,5 km/h); laguna, nadie.
 const WG_VEL={motor:{camino:50,libre:40,restringido:null,severo:null,rio:null,agua:null},
               oruga:{camino:32,libre:28,restringido:null,severo:null,rio:null,agua:null},
-              rueda:{camino:35,libre:12,restringido:null,severo:null,rio:null,agua:null},
+              rueda:{camino:35,huella:20,libre:12,restringido:null,severo:null,rio:null,agua:null},
               pie:{camino:6,libre:5,restringido:1.5,severo:null,rio:0.5,agua:null}};
-const WG_NOM_CLASE={ camino:'camino', libre:'campo abierto', restringido:'terreno restringido',
+const WG_NOM_CLASE={ camino:'camino', huella:'camino de 3.ª/4.ª', libre:'campo abierto', restringido:'terreno restringido',
   severo:'terreno severamente restringido', rio:'un río sin puente', agua:'una laguna' };
 // El convoy rueda sobre llantas aunque su columna `medio` diga «motor».
 function _wgMedioDe(u){ return _wgEsConvoy(u) ? 'rueda' : ((u&&u.medio)||'pie'); }
@@ -36395,12 +36446,13 @@ function _wgHav(a,b){
   return 2*R*Math.asin(Math.min(1,Math.sqrt(h)));
 }
 // v2.9.334 — mismas cifras que CONSUMO_TERRENO del motor.
-const WG_CONSUMO={ camino:0.9, libre:1.0, restringido:1.6, severo:2.2, rio:2.2, agua:2.2 };
+const WG_CONSUMO={ camino:0.9, huella:1.1, libre:1.0, restringido:1.6, severo:2.2, rio:2.2, agua:2.2 };
 // v2.9.443 — gemelo de `gastoPorKm`: el camión cargado fuera de camino gasta la mitad más.
 function _wgGastoPorKm(u,clase){
   const g=WG_CONSUMO[clase]!=null?WG_CONSUMO[clase]:1;
-  return (_wgEsConvoy(u) && clase!=='camino') ? g*1.5 : g;
+  return (_wgEsConvoy(u) && !_wgSobreCamino(clase)) ? g*1.5 : g;
 }
+function _wgSobreCamino(clase){ return clase==='camino' || clase==='huella'; }   // v2.9.458
 // v2.9.444: 2 km — sólo la salida de su instalación hasta el camino (ver `_wgRutaConvoy`).
 const WG_CONVOY_FUERA_RUTA_KM=2;   // espejo de CONVOY_FUERA_RUTA_KM del motor
 // ============================================================
@@ -36412,76 +36464,150 @@ const WG_CONVOY_FUERA_RUTA_KM=2;   // espejo de CONVOY_FUERA_RUTA_KM del motor
 // en el camino».
 // ============================================================
 const _wgGrafos=new WeakMap();
-function _wgGrafoVial(terreno){
-  const arr=terreno||[];
-  let g=_wgGrafos.get(arr);
-  if(g) return g;
-  const nodos=[], ady=[], pes=[], porClave=new Map();
-  const nodo=(p)=>{
-    const k=Math.round(Number(p[0])*1e5)+','+Math.round(Number(p[1])*1e5);
-    let i=porClave.get(k);
-    if(i==null){ i=nodos.length; nodos.push([Number(p[0]),Number(p[1])]); ady.push([]); pes.push([]); porClave.set(k,i); }
+// v2.9.458 — la red se suelda: gemelo exacto de `grafoVial` del motor (ver allá el porqué).
+const WG_SOLDAR_KM = 0.06;
+function _wgGrafoVial(terreno) {
+  const arr = terreno || [];
+  let g = _wgGrafos.get(arr);
+  if (g) return g;
+  const lineas = [];   // { pts, h } (h = 1: huella)
+  for (const t of arr) {
+    if (!t || t.tipo !== "via") continue;
+    const cv = _wgClaseVia(t);
+    if (cv !== "camino" && cv !== "huella") continue;
+    for (const l of _wgLineasDe(t.geojson)) {
+      const pts = (l || []).filter((p) => Array.isArray(p)).map((p) => [Number(p[0]), Number(p[1])]);
+      if (pts.length >= 2) lineas.push({ pts, h: cv === "huella" ? 1 : 0 });
+    }
+  }
+  const clave = (p) => Math.round(p[0] * 1e5) + "," + Math.round(p[1] * 1e5);
+  // Los tramos, en una grilla: cada pregunta mira sólo los de su celda.
+  const segs = [], grilla = new Map(), usos = new Map();
+  lineas.forEach((L, li) => {
+    for (const p of L.pts) { const k = clave(p); usos.set(k, (usos.get(k) || 0) + 1); }
+    for (let i = 1; i < L.pts.length; i++) {
+      const a = L.pts[i - 1], b = L.pts[i];
+      if (clave(a) === clave(b)) continue;
+      const si = segs.length;
+      segs.push({ a, b, li, cortes: [] });
+      const x0 = Math.floor(Math.min(a[0], b[0]) / WG_CELDA), x1 = Math.floor(Math.max(a[0], b[0]) / WG_CELDA);
+      const y0 = Math.floor(Math.min(a[1], b[1]) / WG_CELDA), y1 = Math.floor(Math.max(a[1], b[1]) / WG_CELDA);
+      if ((x1 - x0 + 1) * (y1 - y0 + 1) > 4000) continue;
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+        const k = _wgClaveCelda(x, y);
+        let c = grilla.get(k);
+        if (!c) { c = []; grilla.set(k, c); }
+        c.push(si);
+      }
+    }
+  });
+  // Los cruces: los dos tramos se cortan en el mismo punto.
+  const vistos = new Set();
+  for (const c of grilla.values()) {
+    for (let x = 0; x < c.length; x++) {
+      for (let y = x + 1; y < c.length; y++) {
+        const i = c[x], j = c[y], A = segs[i], B = segs[j];
+        const par = i < j ? i * segs.length + j : j * segs.length + i;
+        if (vistos.has(par)) continue;
+        vistos.add(par);
+        const k = Math.cos((A.a[1]*Math.PI/180));
+        const ax = A.a[0] * k, ay = A.a[1], bx = A.b[0] * k, by = A.b[1], cx = B.a[0] * k, cy = B.a[1], dx = B.b[0] * k, dy = B.b[1];
+        const r1 = bx - ax, r2 = by - ay, s1 = dx - cx, s2 = dy - cy, den = r1 * s2 - r2 * s1;
+        if (Math.abs(den) < 1e-14) continue;
+        const t = ((cx - ax) * s2 - (cy - ay) * s1) / den, u = ((cx - ax) * r2 - (cy - ay) * r1) / den;
+        if (t <= 0 || t >= 1 || u <= 0 || u >= 1) continue;
+        const q = [A.a[0] + (A.b[0] - A.a[0]) * t, A.a[1] + (A.b[1] - A.a[1]) * t];
+        A.cortes.push({ t, q }); B.cortes.push({ t: u, q });
+      }
+    }
+  }
+  // Los extremos sueltos: se empalman con el tramo más cercano.
+  const empalmes = [];
+  const dLat = WG_SOLDAR_KM / 110.57;
+  lineas.forEach((L, li) => {
+    for (const p of [L.pts[0], L.pts[L.pts.length - 1]]) {
+      if ((usos.get(clave(p)) || 0) > 1) continue;
+      const dLng = dLat / Math.max(1e-6, Math.cos((p[1]*Math.PI/180)));
+      const x0 = Math.floor((p[0] - dLng) / WG_CELDA), x1 = Math.floor((p[0] + dLng) / WG_CELDA);
+      const y0 = Math.floor((p[1] - dLat) / WG_CELDA), y1 = Math.floor((p[1] + dLat) / WG_CELDA);
+      let mejor = null, dm = WG_SOLDAR_KM;
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+        for (const si of grilla.get(_wgClaveCelda(x, y)) || []) {
+          const s = segs[si];
+          if (s.li === li) continue;
+          const d = _wgDistPtSeg(p, s.a, s.b);
+          if (d < dm) { dm = d; mejor = s; }
+        }
+      }
+      if (!mejor) continue;
+      const q = _wgPieEnTramo(p, mejor.a, mejor.b);
+      const L2 = (mejor.b[0] - mejor.a[0]) ** 2 + (mejor.b[1] - mejor.a[1]) ** 2;
+      const t = L2 > 0 ? ((q[0] - mejor.a[0]) * (mejor.b[0] - mejor.a[0]) + (q[1] - mejor.a[1]) * (mejor.b[1] - mejor.a[1])) / L2 : 0;
+      if (t > 0 && t < 1) mejor.cortes.push({ t, q });
+      empalmes.push({ p, q: t <= 0 ? mejor.a : (t >= 1 ? mejor.b : q), h: L.h });
+    }
+  });
+  // Los nudos y las aristas.
+  const nodos = [], ady = [], pes = [], hue = [];
+  const porClave = new Map();
+  const nodo = (p) => {
+    const k = clave(p);
+    let i = porClave.get(k);
+    if (i == null) { i = nodos.length; nodos.push([p[0], p[1]]); ady.push([]); pes.push([]); hue.push([]); porClave.set(k, i); }
     return i;
   };
-  const unir=(i,j)=>{
-    if(i===j) return;
-    const d=_wgHav(nodos[i],nodos[j]);
-    ady[i].push(j); pes[i].push(d); ady[j].push(i); pes[j].push(d);
+  const unir = (i, j, h) => {
+    if (i === j) return;
+    const d = _wgHav(nodos[i], nodos[j]);
+    ady[i].push(j); pes[i].push(d); hue[i].push(h);
+    ady[j].push(i); pes[j].push(d); hue[j].push(h);
   };
-  const extremos=[];
-  for(const t of arr){
-    if(!t||t.tipo!=='via'||_wgClaseVia(t)!=='camino') continue;
-    for(const l of _wgLineasDe(t.geojson)){
-      let prev=-1, pAnt=null;
-      for(const p of l){
-        if(!Array.isArray(p)) continue;
-        if(pAnt){
-          const n=Math.floor(_wgHav(pAnt,p)/0.5);
-          for(let k=1;k<=n;k++){
-            const f=k/(n+1);
-            const i=nodo([pAnt[0]+(p[0]-pAnt[0])*f, pAnt[1]+(p[1]-pAnt[1])*f]);
-            if(prev>=0) unir(prev,i);
-            prev=i;
-          }
-        }
-        const i=nodo(p);
-        if(prev>=0) unir(prev,i);
-        prev=i; pAnt=p;
-      }
-      if(l.length>=2) extremos.push(nodo(l[0]), nodo(l[l.length-1]));
+  // Los tramos largos se parten cada 500 m: así cualquier punto del camino tiene un
+  // nudo cerca para entrar o salir de la red.
+  const tramo = (a, b, h) => {
+    const n = Math.floor(_wgHav(a, b) / 0.5);
+    let prev = nodo(a);
+    for (let k = 1; k <= n; k++) {
+      const f = k / (n + 1);
+      const i = nodo([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+      unir(prev, i, h); prev = i;
     }
+    unir(prev, nodo(b), h);
+  };
+  for (const s of segs) {
+    const h = lineas[s.li].h;
+    const pts = [s.a, ...s.cortes.slice().sort((x, y) => x.t - y.t).map((c) => c.q), s.b];
+    for (let i = 1; i < pts.length; i++) if (clave(pts[i - 1]) !== clave(pts[i])) tramo(pts[i - 1], pts[i], h);
   }
-  const celdas=new Map();
-  for(let i=0;i<nodos.length;i++){
-    const k=_wgClaveCelda(Math.floor(nodos[i][0]/WG_CELDA), Math.floor(nodos[i][1]/WG_CELDA));
-    let c=celdas.get(k);
-    if(!c){ c=[]; celdas.set(k,c); }
+  for (const e of empalmes) if (clave(e.p) !== clave(e.q)) unir(nodo(e.p), nodo(e.q), e.h);
+  const celdas = new Map();
+  for (let i = 0; i < nodos.length; i++) {
+    const k = _wgClaveCelda(Math.floor(nodos[i][0] / WG_CELDA), Math.floor(nodos[i][1] / WG_CELDA));
+    let c = celdas.get(k);
+    if (!c) { c = []; celdas.set(k, c); }
     c.push(i);
   }
-  const cercano=(p,maxKm,excepto=-1)=>{
-    const r=Math.ceil(maxKm)+1;
-    const cx=Math.floor(p[0]/WG_CELDA), cy=Math.floor(p[1]/WG_CELDA);
-    let mejor=-1, dm=maxKm;
-    for(let dx=-r;dx<=r;dx++){
-      for(let dy=-r;dy<=r;dy++){
-        const c=celdas.get(_wgClaveCelda(cx+dx,cy+dy));
-        if(!c) continue;
-        for(const i of c){
-          if(i===excepto) continue;
-          const d=_wgHav(p,nodos[i]);
-          if(d<dm){ dm=d; mejor=i; }
-        }
+  // Los nudos a `maxKm` o menos de `p`.
+  const cercanos = (p, maxKm) => {
+    const r = Math.ceil(maxKm) + 1;
+    const cx = Math.floor(p[0] / WG_CELDA), cy = Math.floor(p[1] / WG_CELDA);
+    const out = [];
+    for (let dx = -r; dx <= r; dx++) {
+      for (let dy = -r; dy <= r; dy++) {
+        const c = celdas.get(_wgClaveCelda(cx + dx, cy + dy));
+        if (!c) continue;
+        for (const i of c) { const d = _wgHav(p, nodos[i]); if (d < maxKm) out.push([i, d]); }
       }
     }
-    return mejor>=0?mejor:null;
+    return out;
   };
-  for(const e of extremos){
-    if(ady[e].length>1) continue;
-    const c=cercano(nodos[e],0.03,e);
-    if(c!=null && !ady[e].includes(c)) unir(e,c);
-  }
-  g={ nodos, ady, pes, cercano };
-  _wgGrafos.set(arr,g);
+  const cercano = (p, maxKm, excepto = -1) => {
+    let mejor = -1, dm = maxKm;
+    for (const [i, d] of cercanos(p, maxKm)) if (i !== excepto && d < dm) { dm = d; mejor = i; }
+    return mejor >= 0 ? mejor : null;
+  };
+  g = { nodos, ady, pes, hue, cercano, cercanos };
+  _wgGrafos.set(arr, g);
   return g;
 }
 function _wgPieEnTramo(p,a,b){
@@ -36491,14 +36617,29 @@ function _wgPieEnTramo(p,a,b){
   const t=L2>0?Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/L2)):0;
   return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t];
 }
-function _wgRutaConvoy(desde,hasta,terreno){
+// v2.9.458 — gemelo de `rutaConvoy` del motor. `via`: null = 🛣️ principal, 'corta' = 🛤️ los km que menos.
+const WG_HUELLA_PENAL=8, WG_ACCESO_PENAL=6;
+function _wgAccesoLibre(terreno,a,b){
+  const n=Math.max(1,Math.ceil(_wgHav(a,b)/0.1));
+  for(let k=1;k<=n;k++){
+    const c=_wgClaseTerreno([a[0]+(b[0]-a[0])*k/n, a[1]+(b[1]-a[1])*k/n],terreno,undefined,'rueda');
+    if(WG_VEL.rueda[c]==null) return false;
+  }
+  return true;
+}
+function _wgRutaConvoy(desde,hasta,terreno,via,soloLimpias){
   const g=_wgGrafoVial(terreno||WG.terreno||[]);
-  const nada=(motivo)=>({ sinCamino:true, motivo, ruta:[], parada:desde, dParada:_wgHav(desde,hasta), km:0, acceso:0 });
+  const nada=(motivo)=>({ sinCamino:true, motivo, ruta:[], parada:desde, dParada:_wgHav(desde,hasta), km:0, kmHuella:0, acceso:0 });
   if(!g.nodos.length) return nada('la carta no tiene caminos');
-  const a=g.cercano(desde,WG_CONVOY_FUERA_RUTA_KM);
-  if(a==null) return nada(`no hay camino a menos de ${WG_CONVOY_FUERA_RUTA_KM} km`);
+  let fuentes=g.cercanos(desde,WG_CONVOY_FUERA_RUTA_KM);
+  if(!fuentes.length) return nada(`no hay camino a menos de ${WG_CONVOY_FUERA_RUTA_KM} km`);
+  if(soloLimpias){
+    const limpias=fuentes.filter(([i,d])=>d<=WG_CAMINO_KM || _wgAccesoLibre(terreno||WG.terreno||[],desde,g.nodos[i]));
+    if(limpias.length) fuentes=limpias;
+  }
+  const corta=via==='corta';
   const n=g.nodos.length;
-  const dist=new Float64Array(n).fill(Infinity), prev=new Int32Array(n).fill(-1), cerrado=new Uint8Array(n);
+  const dist=new Float64Array(n).fill(Infinity), prev=new Int32Array(n).fill(-1), cerrado=new Uint8Array(n), porHuella=new Uint8Array(n);
   const heap=[];
   const push=(f,i)=>{
     heap.push([f,i]);
@@ -36521,25 +36662,27 @@ function _wgRutaConvoy(desde,hasta,terreno){
     }
     return top;
   };
-  dist[a]=0; push(0,a);
-  let mejor=a, dMejor=_wgHav(g.nodos[a],hasta), it=0;
+  for(const [i,d] of fuentes){ dist[i]=d*WG_ACCESO_PENAL; push(dist[i],i); }
+  let mejor=-1, dMejor=Infinity, it=0;
   while(heap.length && ++it<2000000){
     const [,i]=pop();
     if(cerrado[i]) continue;
     cerrado[i]=1;
     const d=_wgHav(g.nodos[i],hasta);
-    if(d<dMejor-1e-9 || (Math.abs(d-dMejor)<=1e-9 && dist[i]<dist[mejor])){ mejor=i; dMejor=d; }
-    const ad=g.ady[i], ps=g.pes[i];
+    if(mejor<0 || d<dMejor-1e-9 || (Math.abs(d-dMejor)<=1e-9 && dist[i]<dist[mejor])){ mejor=i; dMejor=d; }
+    const ad=g.ady[i], ps=g.pes[i], hu=g.hue[i];
     for(let k=0;k<ad.length;k++){
       const j=ad[k];
       if(cerrado[j]) continue;
-      const nd=dist[i]+ps[k];
-      if(nd<dist[j]){ dist[j]=nd; prev[j]=i; push(nd,j); }
+      const nd=dist[i]+((corta||!hu[k])?ps[k]:ps[k]*WG_HUELLA_PENAL);
+      if(nd<dist[j]){ dist[j]=nd; prev[j]=i; porHuella[j]=hu[k]; push(nd,j); }
     }
   }
   const idx=[];
-  for(let i=mejor;i>=0;i=prev[i]){ idx.push(i); if(i===a) break; }
+  for(let i=mejor;i>=0;i=prev[i]) idx.push(i);
   idx.reverse();
+  const a=idx[0];
+  if(!soloLimpias && _wgHav(desde,g.nodos[a])>WG_CAMINO_KM && !_wgAccesoLibre(terreno||WG.terreno||[],desde,g.nodos[a])) return _wgRutaConvoy(desde,hasta,terreno,via,true);
   const ruta=idx.map(i=>g.nodos[i]);
   let fin=g.nodos[mejor], dFin=dMejor;
   for(const j of g.ady[mejor]){
@@ -36552,22 +36695,26 @@ function _wgRutaConvoy(desde,hasta,terreno){
     if(ant && _wgHav(_wgPieEnTramo(fin,ant,ruta[ruta.length-1]),fin)<0.005) ruta[ruta.length-1]=fin;
     else ruta.push(fin);
   }
-  let km=0;
-  for(let i=1;i<ruta.length;i++) km+=_wgHav(ruta[i-1],ruta[i]);
-  return { sinCamino:false, motivo:'', ruta, parada:ruta[ruta.length-1], dParada:dFin, km, acceso:_wgHav(desde,g.nodos[a]) };
+  let km=0, kmHuella=0;
+  for(let i=1;i<ruta.length;i++){
+    const d=_wgHav(ruta[i-1],ruta[i]);
+    km+=d;
+    if(i<idx.length && porHuella[idx[i]]) kmHuella+=d;
+  }
+  return { sinCamino:false, motivo:'', ruta, parada:ruta[ruta.length-1], dParada:dFin, km, kmHuella, acceso:_wgHav(desde,g.nodos[a]) };
 }
-function _wgRutaConvoyPuntos(desde,puntos,terreno){
+function _wgRutaConvoyPuntos(desde,puntos,terreno,via){
   const pts=(puntos||[]).filter(p=>Array.isArray(p)&&p.length>=2);
-  let cur=desde, ruta=[], km=0, acceso=0, ult=null;
+  let cur=desde, ruta=[], km=0, kmHuella=0, acceso=0, ult=null;
   for(let i=0;i<pts.length;i++){
-    const r=_wgRutaConvoy(cur,pts[i],terreno);
+    const r=_wgRutaConvoy(cur,pts[i],terreno,via);
     if(r.sinCamino){ if(i===0) return r; break; }
     if(i===0) acceso=r.acceso;
     for(const p of r.ruta) if(!ruta.length || _wgHav(ruta[ruta.length-1],p)>1e-4) ruta.push(p);
-    km+=r.km; cur=r.parada; ult=r;
+    km+=r.km; kmHuella+=r.kmHuella||0; cur=r.parada; ult=r;
   }
-  if(!ult) return _wgRutaConvoy(desde,desde,terreno);
-  return { sinCamino:false, motivo:'', ruta, parada:cur, dParada:ult.dParada, km, acceso };
+  if(!ult) return _wgRutaConvoy(desde,desde,terreno,via);
+  return { sinCamino:false, motivo:'', ruta, parada:cur, dParada:ult.dParada, km, kmHuella, acceso };
 }
 function _wgPreverMovimiento(u,destino,horas){
   const _md=_wgMedioDe(u);
@@ -36647,7 +36794,7 @@ function _wgPreverMovimiento(u,destino,horas){
       const tParcial=Math.min(presupuesto, km/v);
       tUsado+=tParcial; presupuesto-=tParcial;
       ruta.push([pos[0],pos[1]]);
-      if(clase!=='camino') kmFueraRuta+=km;
+      if(!_wgSobreCamino(clase)) kmFueraRuta+=km;
       if(porTanque){ detenida=true; motivo='SE LE ACABA EL COMBUSTIBLE ahí — hay que reabastecer antes'; }
       else { presupuesto=0; motivo='no alcanza el tiempo del turno'; }
       break;
@@ -36655,7 +36802,7 @@ function _wgPreverMovimiento(u,destino,horas){
     presupuesto-=tPaso; tUsado+=tPaso; pos=sig; avanzado+=pasoReal; consumoKm+=pasoReal*gasta;
     ruta.push([pos[0],pos[1]]);
     if(tope){ detenida=true; motivo=MINADO_TXT; break; }   // v2.9.441: llegó al borde del campo
-    if(clase!=='camino'){
+    if(!_wgSobreCamino(clase)){
       kmFueraRuta+=pasoReal;
       if(kmFueraRuta>=topeFuera-1e-9){
         detenida=true;
@@ -38075,6 +38222,84 @@ function _wg3dControlesGoogleEarth(map){
   });
 }
 // Vuelca en el mapa 3D el terreno, las órdenes y las fichas del estado actual.
+// v2.9.461 — LOS RÓTULOS, APARTE DE LAS FICHAS. Con el tiempo corriendo los km y la hora de
+// llegada cambian en cada paso: se rehacen sólo los globos, no las fichas (eso destella).
+function _wg3dRotulos(map){
+  const viejos=(WG.marc3d||[]).filter(m=>m.__rot);
+  if(viejos.length){ for(const m of viejos){ try{ m.remove(); }catch(_e){} } WG.marc3d=WG.marc3d.filter(m=>!m.__rot); }
+  const ALTO=30, ANCHO=210, TOPE=6;   // alto/ancho estimados del globo
+  const puestos=[];
+  // v2.9.261 — LOS LETREROS NO TAPAN LA ACCIÓN. Sergio: «los letreros o
+  // movimiento no deben tapar las acciones». Mientras hay fuego o marcha, los
+  // globos de texto se callan: lo que hay que mirar es el terreno y las fichas.
+  // ============================================================
+  // v2.9.262 — LOS LETREROS DEJAN DE BAILAR SOBRE EL TERRENO.
+  // Sergio: «los letreros son demasiados, se mueven de lugar».
+  // Tenía razón y la causa es de diseño, no de velocidad: el desplazamiento
+  // `dy` que evita que se pisen se calcula UNA VEZ, con las coordenadas de
+  // pantalla del momento en que se arman. Pero la cámara gira SIEMPRE
+  // (WG_ORBITA_GRADOS), así que un segundo después esa proyección ya no vale:
+  // el globo queda flotando lejos de su punto y encima del vecino. Recalcularlo
+  // por cuadro sería rehacer los marcadores del DOM 60 veces por segundo — que
+  // es exactamente lo que producía el destello (ver v2.9.261).
+  // Solución: sobre el terreno queda SÓLO el rótulo de la unidad seleccionada
+  // (la que estás comandando ahora). Todo lo demás se lee en la CINTA de la
+  // derecha, que es HTML fijo: no se proyecta, no se pisa y no se mueve nunca.
+  // ============================================================
+  const _todosRot=(WG._dib||[]).filter(s=>s.k==='txt');
+  _wgCintaRotulos(_todosRot);
+  const _selRot = WG.sel==null ? null : String(WG.sel);
+  const rotulos=(WG._accion||WG.replayando) ? [] : _todosRot
+    .filter(s=> s.uid==null || (_selRot && s.uid===_selRot))
+    .map(s=>{
+    let p=null; try{ p=map.project([s.lng,s.lat]); }catch(_e){}
+    return { s, x:p?p.x:0, y:p?p.y:0, ok:!!p };
+  }).filter(r=>r.ok).sort((a,b)=>a.y-b.y);
+  // v2.9.458: el cartel de la otra ruta del convoy, en 3D también.
+  for(const s of (WG._dib||[]).filter(x=>x.k==='via')){
+    const el=document.createElement('div');
+    el.innerHTML=_wgViaChip(s);
+    try{
+      const mk=new maplibregl.Marker({element:el, anchor:'bottom', offset:[0,-8]}).setLngLat([s.lng,s.lat]).addTo(map);
+      mk.__rot=1; WG.marc3d.push(mk);
+    }catch(_e){}
+  }
+  for(const r of rotulos){
+    // v2.9.273 — EL GLOBO ARRANCA POR ENCIMA DE LA FICHA, NO SOBRE ELLA.
+    // Sergio, otra vez: «los letreros están tapando e interfiriendo a las
+    // unidades». Con `dy=-10` el bocadillo nacía a diez píxeles del punto, o
+    // sea justo encima del símbolo militar, que mide unos 40. Se sube a 52:
+    // el rabito sigue señalando el punto, pero el cuerpo del cartel queda
+    // arriba y la ficha se ve entera.
+    let dy=-52, intentos=0;
+    while(intentos<TOPE && puestos.some(q=>
+      Math.abs(q.x-r.x)<ANCHO && Math.abs(q.y-(r.y+dy))<ALTO)){
+      dy-=ALTO+4; intentos++;
+    }
+    if(intentos>=TOPE) continue;          // no hay hueco: se omite
+    puestos.push({ x:r.x, y:r.y+dy });
+    const el=document.createElement('div');
+    el.style.pointerEvents='none';
+    el.innerHTML='<div class="wg-globo-mapa"></div>';
+    el.firstChild.textContent=r.s.txt;
+    // v2.9.455: el globo de una orden se anula con su ✖ o con clic derecho.
+    if(_wgPuedeAnular(r.s.uid)){
+      const g=el.firstChild, id=String(r.s.uid);
+      g.style.pointerEvents='auto';
+      g.addEventListener('contextmenu',(ev)=>wgAnularOrden(id, ev));
+      const bx=document.createElement('button'); bx.className='wg-x-orden'; bx.textContent='✖';
+      bx.title='Anular esta orden (también: clic derecho sobre la ruta)';
+      bx.addEventListener('mousedown',(ev)=>ev.stopPropagation());
+      bx.addEventListener('click',(ev)=>wgAnularOrden(id, ev));
+      g.appendChild(bx);
+    }
+    try{
+      const mk=new maplibregl.Marker({element:el, anchor:'bottom', offset:[0,dy]})
+        .setLngLat([r.s.lng,r.s.lat]).addTo(map);
+      mk.__rot=1; WG.marc3d.push(mk);
+    }catch(_e){}
+  }
+}
 function _wg3dDatos(){
   const map=WG.map3d; if(!map||!map.getSource) return;
   if(WG.replayando && _wgAnimando()){ WG._renderPend=true; return; }   // v2.9.430
@@ -38102,20 +38327,23 @@ function _wg3dDatos(){
   const firma=JSON.stringify([
     (WG.verUnidades===false), String(WG.sel), String(WG.dronVista),
     !!WG.verConos, _wgBandoLente(),
-    _wgUnidadesVisibles().map(u=>[u.id,+u.lng.toFixed(5),+u.lat.toFixed(5),
+    // v2.9.461: con el tiempo corriendo la posición y el ⛽ se mueven solos (`_wgVivoPaso`):
+    // si entraran en la firma, cada paso borraría y rehará todas las fichas (el destello).
+    _wgUnidadesVisibles().map(u=>[u.id,_wgCorre()?0:+u.lng.toFixed(5),_wgCorre()?0:+u.lat.toFixed(5),
       u.estado||'', u.dron_rumbo==null?'':Math.round(u.dron_rumbo),
       u.poder_actual==null?'':Math.round(u.poder_actual),
       // v2.9.457: lo que muestra el letrero (combustible, heridos, raciones, munición).
-      Math.round(Number(u.combustible_km)||0), Math.round(Number((u.carga||{}).heridos)||0),
+      _wgCorre()?0:Math.round(Number(u.combustible_km)||0), Math.round(Number((u.carga||{}).heridos)||0),
       Math.round(10*(Number((u.carga||{}).racion)||0)),
       Math.round(10*Object.values(u.municion||{}).reduce((a,x)=>a+(Number(x)||0),0))]),
-    Object.keys(WG.ordenes||{}).sort().join(','),
+    Object.keys(WG.ordenes||{}).sort().map(k=>k+((WG.ordenes[k]||{}).mision==='corta'?'c':'')).join(','),
+    (WG._dib||[]).filter(s=>s.k==='via').map(s=>s.uid+s.via).join('|'),   // v2.9.458
     // v2.9.344: sin esto, colocar o mover una instalación no redibujaba el 3D
     // (la firma no cambiaba y la función se salía antes de tocar el DOM).
     _wgInstalaciones().map(it=>[it.id,it.tipo,((it.geojson||{}).coordinates||[]).join(',')]),
     _wgInstalacionesAjenas().map(it=>[it.id,it.tipo,it._nivel]),   // v2.9.453
     (WG.incendios||[]).length]);
-  if(firma===WG._firma3d) return;
+  if(firma===WG._firma3d){ if(_wgCorre()) _wg3dRotulos(map); return; }
   WG._firma3d=firma;
   // ============================================================
   // v2.9.261 — EL DESTELLE MIENTRAS SE MUEVEN LAS UNIDADES.
@@ -38132,7 +38360,7 @@ function _wg3dDatos(){
   if(WG.replayando && (WG.marc3d||[]).length) return;
   // Fichas: el MISMO PNG del símbolo militar que usa el mapa 2D.
   for(const m of (WG.marc3d||[])){ try{ m.remove(); }catch(_e){} }
-  WG.marc3d=[];
+  WG.marc3d=[]; WG._vivoIdx=null;   // v2.9.461
   if(WG.verUnidades===false) return; // 🗺️ fichas apagadas
   // El anillo de selección va en el SUELO, no en el ícono.
   // v2.9.209: lleva anillo la SELECCIONADA y además toda unidad CON ORDEN de
@@ -38348,69 +38576,7 @@ function _wg3dDatos(){
   // de otros y no se leía ninguno. Ahora se proyectan a pantalla, se ordenan de
   // arriba hacia abajo y el que choca con uno ya colocado SUBE hasta despejarse.
   // Si aun así no entra, no se dibuja: mejor un dato menos que un amontonamiento.
-  const ALTO=30, ANCHO=210, TOPE=6;   // alto/ancho estimados del globo
-  const puestos=[];
-  // v2.9.261 — LOS LETREROS NO TAPAN LA ACCIÓN. Sergio: «los letreros o
-  // movimiento no deben tapar las acciones». Mientras hay fuego o marcha, los
-  // globos de texto se callan: lo que hay que mirar es el terreno y las fichas.
-  // ============================================================
-  // v2.9.262 — LOS LETREROS DEJAN DE BAILAR SOBRE EL TERRENO.
-  // Sergio: «los letreros son demasiados, se mueven de lugar».
-  // Tenía razón y la causa es de diseño, no de velocidad: el desplazamiento
-  // `dy` que evita que se pisen se calcula UNA VEZ, con las coordenadas de
-  // pantalla del momento en que se arman. Pero la cámara gira SIEMPRE
-  // (WG_ORBITA_GRADOS), así que un segundo después esa proyección ya no vale:
-  // el globo queda flotando lejos de su punto y encima del vecino. Recalcularlo
-  // por cuadro sería rehacer los marcadores del DOM 60 veces por segundo — que
-  // es exactamente lo que producía el destello (ver v2.9.261).
-  // Solución: sobre el terreno queda SÓLO el rótulo de la unidad seleccionada
-  // (la que estás comandando ahora). Todo lo demás se lee en la CINTA de la
-  // derecha, que es HTML fijo: no se proyecta, no se pisa y no se mueve nunca.
-  // ============================================================
-  const _todosRot=(WG._dib||[]).filter(s=>s.k==='txt');
-  _wgCintaRotulos(_todosRot);
-  const _selRot = WG.sel==null ? null : String(WG.sel);
-  const rotulos=(WG._accion||WG.replayando) ? [] : _todosRot
-    .filter(s=> s.uid==null || (_selRot && s.uid===_selRot))
-    .map(s=>{
-    let p=null; try{ p=map.project([s.lng,s.lat]); }catch(_e){}
-    return { s, x:p?p.x:0, y:p?p.y:0, ok:!!p };
-  }).filter(r=>r.ok).sort((a,b)=>a.y-b.y);
-  for(const r of rotulos){
-    // v2.9.273 — EL GLOBO ARRANCA POR ENCIMA DE LA FICHA, NO SOBRE ELLA.
-    // Sergio, otra vez: «los letreros están tapando e interfiriendo a las
-    // unidades». Con `dy=-10` el bocadillo nacía a diez píxeles del punto, o
-    // sea justo encima del símbolo militar, que mide unos 40. Se sube a 52:
-    // el rabito sigue señalando el punto, pero el cuerpo del cartel queda
-    // arriba y la ficha se ve entera.
-    let dy=-52, intentos=0;
-    while(intentos<TOPE && puestos.some(q=>
-      Math.abs(q.x-r.x)<ANCHO && Math.abs(q.y-(r.y+dy))<ALTO)){
-      dy-=ALTO+4; intentos++;
-    }
-    if(intentos>=TOPE) continue;          // no hay hueco: se omite
-    puestos.push({ x:r.x, y:r.y+dy });
-    const el=document.createElement('div');
-    el.style.pointerEvents='none';
-    el.innerHTML='<div class="wg-globo-mapa"></div>';
-    el.firstChild.textContent=r.s.txt;
-    // v2.9.455: el globo de una orden se anula con su ✖ o con clic derecho.
-    if(_wgPuedeAnular(r.s.uid)){
-      const g=el.firstChild, id=String(r.s.uid);
-      g.style.pointerEvents='auto';
-      g.addEventListener('contextmenu',(ev)=>wgAnularOrden(id, ev));
-      const bx=document.createElement('button'); bx.className='wg-x-orden'; bx.textContent='✖';
-      bx.title='Anular esta orden (también: clic derecho sobre la ruta)';
-      bx.addEventListener('mousedown',(ev)=>ev.stopPropagation());
-      bx.addEventListener('click',(ev)=>wgAnularOrden(id, ev));
-      g.appendChild(bx);
-    }
-    try{
-      const mk=new maplibregl.Marker({element:el, anchor:'bottom', offset:[0,dy]})
-        .setLngLat([r.s.lng,r.s.lat]).addTo(map);
-      WG.marc3d.push(mk);
-    }catch(_e){}
-  }
+  _wg3dRotulos(map);   // v2.9.461: aparte, para refrescarlos sin rehacer las fichas
   // v2.9.235 — LOS DRONES, VOLANDO. Un círculo punteado del tamaño que le
   // corresponde por escalón, y el aparato dando vueltas encima. Tocarlo abre
   // la VISTA DEL DRON: lo que ese medio alcanza a ver desde donde está.
@@ -38828,9 +38994,9 @@ const WG_MISIONES = {
   destruccion:  {nom:'Destrucción',   ico:'💥', col:'#ff4d1a',
     desc:'Batir a la fuerza que ocupa la zona. Daño inmediato a quien esté adentro.'},
   interdiccion: {nom:'Interdicción',  ico:'⛔', col:'#c060ff',
-    desc:'Negar el uso de un camino, un vado o un paso. La faja queda batida varios turnos: el que la cruce lo paga — los propios TAMBIÉN.'},
+    desc:'Negar el uso de un camino, un vado o un paso. La faja queda batida varias horas: el que la cruce lo paga — los propios TAMBIÉN.'},
   neutralizacion:{nom:'Neutralización',ico:'🌀', col:'#00e5ff',
-    desc:'Suprimir sin destruir: la fuerza batida combate a media máquina el turno siguiente. Sirve para callar una posición antes de asaltarla.'},
+    desc:'Suprimir sin destruir: la fuerza batida combate a media máquina las horas siguientes. Sirve para callar una posición antes de asaltarla.'},
 };
 function wgElegirMision(id){
   WG.misionSel = (WG.misionSel===id)?'destruccion':id;
@@ -38865,7 +39031,7 @@ function wgAlto(){
   if(WG.rutas) delete WG.rutas[u.id];
   WG.ordenes[u.id]={ tipo:'defender', _local:1 };
   WG.modoReplegar=false; WG.modoApoyar=false; WG.armaSel=null;
-  _wgAviso(`⏹ <b>${_rgEsc(u.designacion||'La unidad')}</b>: ALTO — se queda donde está. Mandá la orden con <b>✔️ Órdenes listas</b>.`, 4500);
+  _wgAviso(`⏹ <b>${_rgEsc(u.designacion||'La unidad')}</b>: ALTO — se queda donde está.`, 3000);
   _wgActualizarContadorOrdenes(); _wgRender(); if(WG.map3d) _wg3dDatos();
 }
 // v2.9.443 — 🤝 arma el modo «apoyar»: el próximo clic en una unidad propia lo agrega.
@@ -38968,7 +39134,7 @@ function _wgPanelArmasHTML(){
     +`<div onclick="wgAlto()" style="display:flex;align-items:center;justify-content:center;gap:7px;`
     +`padding:7px;margin:4px 0 2px;border-radius:9px;cursor:pointer;font-size:11.5px;font-weight:700;`
     +`background:rgba(140,210,255,.08);border:1px solid rgba(140,210,255,.35);color:#bfe3ff">⏹ ALTO · se queda donde está</div>`
-    +`<div class="rg-meta" style="font-size:10px;line-height:1.4;margin-bottom:6px">La marcha que no terminó sigue sola el turno que viene; con ALTO se corta.</div>`
+    +`<div class="rg-meta" style="font-size:10px;line-height:1.4;margin-bottom:6px">La marcha sigue sola hasta llegar; con ALTO se corta.</div>`
     +(_wgEsConvoy(u)
       ? `<div onclick="wgModoApoyar()" style="display:flex;align-items:center;justify-content:center;gap:7px;`
         +`padding:8px;margin:6px 0 2px;border-radius:9px;cursor:pointer;font-size:12px;font-weight:700;`
@@ -39128,7 +39294,7 @@ function _wgPanelTareaHTML(u){
   if(!o) return `<div class="rg-meta" style="font-size:10.5px;margin:0 0 8px;line-height:1.45;`
     +`padding:7px 9px;border-radius:8px;background:rgba(255,255,255,.04)">`
     +`📋 <b>Tarea táctica</b> — dale una orden a esta unidad y acá vas a poder decir `
-    +`<b>QUÉ tarea</b> cumple y <b>PARA QUÉ</b>. Al resolver el turno, la bitácora `
+    +`<b>QUÉ tarea</b> cumple y <b>PARA QUÉ</b>. Cada ${_wgHorasTurno()} h de juego la bitácora `
     +`la evalúa contra ese propósito.</div>`;
   const T=o.tarea?WG_TAREAS[o.tarea]:null;
   const chips=_wgTareasPara(o.tipo).map(k=>{
@@ -41245,6 +41411,8 @@ function _wgEstiloCalco(f){
   else if(capa==='mil_vias'){ const m=/V[ií]a\s*([1-4])/.exec(String(pr['Clasificación militar']||'')); if(m) e.w=WG_ANCHO_VIA_MIL[m[1]]; }
   else if(capa==='curvas_nivel' && pr.Tipo==='Curva índice'){ e.c='#d99a2b'; e.w=2.2; }
   if(vial && pr.Tipo==='Camino de tierra / senda' && !e.d) e.d='4 4';
+  // v2.9.458: en la capa de huellas, la senda de verdad queda marcada: a pie, sí; el convoy, no.
+  if(capa==='comunicaciones_huellas' && /^(path|footway|bridleway|cycleway)$/.test(String(pr.Tipo||pr.fclass||''))) e.t='path';
   return e;
 }
 // Menos peso sin cambiar lo que se ve: coordenadas a 5 decimales (≈ 1 m) y las
@@ -42827,6 +42995,8 @@ const _wgD = {
   // sólo salga el de la unidad que estás comandando; el resto se lee en la
   // cinta fija de la derecha, que no se mueve con la cámara.
   txt:(lng,lat,txt,uid)=>({k:'txt',lng,lat,txt,uid:uid==null?null:String(uid)}),
+  // v2.9.458: el cartel que elige la otra ruta del convoy (se toca).
+  via:(lng,lat,txt,uid,via)=>({k:'via',lng,lat,txt,uid:String(uid),via}),
 };
 // Gemelo en el navegador de `armaDeFuego` del motor: con qué sistema empeña.
 // Tiene que dar EXACTAMENTE lo mismo que el servidor, si no la vista previa
@@ -42842,7 +43012,8 @@ function _wgDibujo(){
   // pero lo que se DIBUJA sale de la lente activa.
   const uById={}; for(const u of (e.unidades||[])) uById[u.id]=u;
   const visibles=_wgUnidadesVisibles();
-  const horasTurno = Number(((e.partida||{}).duracion_turno_horas))||2;
+  // v2.9.461: ya no hay turno que corte la marcha: la previsión la mira entera.
+  const horasTurno = 10000;
   // v2.9.455: cada línea, punto y cartel de una orden queda marcado con la
   // unidad dueña (`uid`): así el clic derecho sabe QUÉ orden anular.
   let _ini=D.length, _uidPrev=null;
@@ -42860,16 +43031,17 @@ function _wgDibujo(){
       let rutaOrden=(Array.isArray(o.ruta)&&o.ruta.length)?o.ruta:[[o.destino_lng,o.destino_lat]];
       // v2.9.444 — el convoy, por el camino: se dibuja la ruta que de verdad va a hacer.
       let destOrden=[o.destino_lng,o.destino_lat];
+      let _alterna=null;   // v2.9.458: la otra ruta que puede elegir el G-4
       if(_wgEsConvoy(u)){
-        const rc=_wgRutaConvoyPuntos([u.lng,u.lat], rutaOrden);
+        const _pts=rutaOrden, _via=o.mision==='corta'?'corta':null;
+        const rc=_wgRutaConvoyPuntos([u.lng,u.lat], _pts, null, _via);
+        _alterna=()=>_wgViaAlterna(D,u,uid,_via,rc,(v)=>_wgRutaConvoyPuntos([u.lng,u.lat],_pts,null,v));
         if(rc.sinCamino || !rc.ruta.length){
           D.push(_wgD.txt(u.lng,u.lat,`⛔ ${rc.motivo||'sin camino'} — el convoy no anda campo traviesa: no se mueve`, uid));
           continue;
         }
-        if(rc.dParada>0.2){
-          D.push(_wgD.lin([rc.parada,[o.destino_lng,o.destino_lat]],'#e08a2c',2,'2 6',.85));
-          D.push(_wgD.txt(o.destino_lng,o.destino_lat,`🛣️ el camino llega a ${rc.dParada.toFixed(1)} km de acá: para en el camino`, uid));
-        }
+        if(rc.dParada>0.2) D.push(_wgD.lin([rc.parada,[o.destino_lng,o.destino_lat]],'#e08a2c',2,'2 6',.85));
+        if(rc.dParada>1) D.push(_wgD.txt(o.destino_lng,o.destino_lat,`🛣️ el camino llega a ${rc.dParada.toFixed(1)} km de acá: para en el camino`, uid));
         rutaOrden=rc.ruta; destOrden=rc.parada;
       }
       const pv=_wgPreverRuta(u, rutaOrden, horasTurno);
@@ -42914,8 +43086,9 @@ function _wgDibujo(){
       }
       D.push(_wgD.txt(pv.lng,pv.lat, pv.detenida
         ? `${marca}🛑 ${pv.avanzadoKm.toFixed(1)} km · ${pv.motivo}`
-        : (pv.llego ? `${marca}✅ llega (${pv.avanzadoKm.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)})${_amb}`
-                    : `${marca}⏱️ ${pv.avanzadoKm.toFixed(1)} de ${pv.totalKm.toFixed(1)} km — no alcanza el turno${_amb}`), uid));
+        : (pv.llego ? `${marca}${_wgEsConvoy(u)?(o.mision==='corta'?'🛤️ ':'🛣️ '):''}✅ llega (${pv.avanzadoKm.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)})${_amb}`
+                    : `${marca}⏱️ ${pv.avanzadoKm.toFixed(1)} de ${pv.totalKm.toFixed(1)} km${_amb}`), uid));
+      if(_alterna) _alterna();
     }else if(o.tipo==='atacar' && o.objetivo_id && uById[o.objetivo_id]){
       const t=uById[o.objetivo_id];
       const d=_wgHav([u.lng,u.lat],[t.lng,t.lat]);
@@ -42944,7 +43117,8 @@ function _wgDibujo(){
       // v2.9.444 — 🚚 ABASTECER A: la ruta por camino hasta donde para, y si desde
       // ahí la unidad queda a tiro de descarga (3 km) o no.
       const t=uById[o.objetivo_id];
-      const rc=_wgRutaConvoy([u.lng,u.lat],[t.lng,t.lat]);
+      const _via=o.mision==='corta'?'corta':null;   // v2.9.458
+      const rc=_wgRutaConvoy([u.lng,u.lat],[t.lng,t.lat],null,_via);
       if(rc.sinCamino){
         D.push(_wgD.txt(u.lng,u.lat,`⛔ ${rc.motivo} — el convoy no anda campo traviesa: no sale`, uid));
       }else{
@@ -42955,8 +43129,9 @@ function _wgDibujo(){
         D.push(_wgD.lin([rc.parada,[t.lng,t.lat]],col,2,'2 6',.9));
         D.push(_wgD.pt(rc.parada[0],rc.parada[1],6,'#ffffff',2,col));
         D.push(_wgD.txt(rc.parada[0],rc.parada[1], llega
-          ? `🚚 para a ${rc.dParada.toFixed(1)} km de ${t.designacion||'la unidad'}${pv.llego?' ('+_wgHoras(pv.horasUsadas)+')':' · no llega este turno'} · descarga y vuelve`
+          ? `${_via?'🛤️':'🛣️'} 🚚 para a ${rc.dParada.toFixed(1)} km de ${t.designacion||'la unidad'} (${rc.km.toFixed(1)} km${pv.llego?' · '+_wgHoras(pv.horasUsadas):''}) · descarga y vuelve`
           : `⛔ el camino queda a ${rc.dParada.toFixed(1)} km de ${t.designacion||'la unidad'}: sin abastecimiento si no se acerca a ${WG_REABASTECER_KM} km`, uid));
+        _wgViaAlterna(D,u,uid,_via,rc,(v)=>_wgRutaConvoy([u.lng,u.lat],[t.lng,t.lat],null,v));
       }
     }else if(o.tipo==='defender'){
       D.push(_wgD.txt(u.lng,u.lat,'⏹ ALTO — se queda donde está', uid));
@@ -42989,13 +43164,53 @@ function _wgDibujo(){
       D.push(_wgD.txt(o.destino_lng,o.destino_lat, alcanza
         ? `${M.ico} ${M.nom} · ${arma.nom} · ${d.toFixed(1)} km · zona ${radioZona>=1?radioZona+' km':Math.round(radioZona*1000)+' m'}`
           + (mis==='interdiccion'
-              ? ` · faja NEGADA varios turnos${propios?` · ⚠️ ${propios} PROPIA(S) adentro`:''}`
+              ? ` · faja NEGADA varias horas${propios?` · ⚠️ ${propios} PROPIA(S) adentro`:''}`
               : (dentro?` · ${dentro} en la zona`:' · zona VACÍA')
                 + (propios?` · ⚠️ ${propios} PROPIA(S)`:''))
         : `🔥 TIRO CORTO · ${arma?arma.nom:'el sistema'} bate ${alcance.toFixed(1)} km y el punto está a ${d.toFixed(1)} km. Dispara igual: gasta munición y delata su posición.`, uid));
     }
   }
   _marcar();   // v2.9.455: lo de la última orden también
+  // ============================================================
+  // v2.9.461 — LA COLUMNA EN MISIÓN SE VE. La orden del G-4 pasa a la misión del convoy
+  // (`carga`) y sigue sola: sin esto la línea desaparecía apenas salía. Sólo las propias.
+  // ============================================================
+  for(const u of visibles){
+    if(!_wgEsConvoy(u) || WG.ordenes[u.id] || u.estado==='fuera_combate') continue;
+    const lente=_wgBandoLente();
+    if(lente ? u.bando!==lente : !(WG.soy==='arbitro'||u.bando===WG.soy)) continue;
+    const c=u.carga||{}, uid=String(u.id), via=c.via==='corta'?'corta':null, aqui=[u.lng,u.lat];
+    const ini=D.length;
+    if(c.apoya!=null && c.fase==='ida' && uById[c.apoya]){
+      const t=uById[c.apoya], rc=_wgRutaConvoy(aqui,[t.lng,t.lat],null,via);
+      if(!rc.sinCamino && rc.ruta.length){
+        const pv=_wgPreverRuta(u, rc.ruta, horasTurno);
+        D.push(_wgD.lin(pv.ruta,pv.detenida?'#e08a2c':'#2ecc71',4));
+        D.push(_wgD.txt(rc.parada[0],rc.parada[1],`${via?'🛤️':'🛣️'} 🚚 a ${t.designacion||'la unidad'} · ${rc.km.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)}`,uid));
+        _wgViaAlterna(D,u,uid,via,rc,(v)=>_wgRutaConvoy(aqui,[t.lng,t.lat],null,v));
+      }
+    }else if(Array.isArray(c.destino) && c.destino.length>=2){
+      let rc;
+      if(Array.isArray(c.ruta) && c.ruta.length){
+        // Lo que le queda de SU ruta (la que eligió el G-4), desde donde va.
+        let i0=0, dm=Infinity;
+        c.ruta.forEach((p,i)=>{ const d=_wgHav(aqui,p); if(d<dm){ dm=d; i0=i; } });
+        const resto=c.ruta.slice(i0);
+        rc={ ruta:resto, parada:resto[resto.length-1], km:_wgVivoLargo([aqui,...resto]), dParada:0 };
+      }else rc=_wgRutaConvoy(aqui,c.destino,null,via);
+      if(!rc.sinCamino && rc.ruta.length){
+        const pv=_wgPreverRuta(u, rc.ruta, horasTurno);
+        D.push(_wgD.lin(pv.ruta,pv.detenida?'#e08a2c':'#2ecc71',4));
+        D.push(_wgD.txt(rc.parada[0],rc.parada[1],`${via?'🛤️':'🛣️'} ✅ llega (${rc.km.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)})`,uid));
+        _wgViaAlterna(D,u,uid,via,rc,(v)=>_wgRutaConvoy(aqui,c.destino,null,v));
+      }
+    }else if(c.fase==='vuelta'){
+      D.push(_wgD.txt(u.lng,u.lat,'↩️ vuelve a su puesto',uid));
+    }else if(c.fase==='descarga'){
+      D.push(_wgD.txt(u.lng,u.lat,(_wgCargaDe(u,'EVAC')>0?'🚑 cargando heridos':'⏳ descargando'),uid));
+    }
+    for(let k=ini;k<D.length;k++) if(D[k].uid==null) D[k].uid=uid;
+  }
   // ALCANCE DE OBSERVACIÓN (hasta dónde levantan la niebla).
   // v2.9.219 — CADA CÍRCULO DICE QUÉ ES Y CUÁNTO MIDE. Antes salían varios
   // círculos iguales sin rótulo y no se sabía cuál era cuál ni de cuántos km.
@@ -44425,8 +44640,55 @@ function _wgAnilloKm(lng,lat,km,n){
 }
 // v2.9.455 — ¿esta pantalla puede anular la orden de esa unidad? (sin carteles: se llama al dibujar)
 function _wgPuedeAnular(uid){
-  if(uid==null || !WG.ordenes || !WG.ordenes[uid] || WG.replayando) return false;
+  if(uid==null || !WG.ordenes || WG.replayando) return false;
+  if(!WG.ordenes[uid] && !_wgOrdenDeMision(_wgUnidadPorId(uid))) return false;   // v2.9.461: la columna en misión
   try{ return _wgHudPuedeOrdenar(_wgUnidadPorId(uid)); }catch(_e){ return false; }
+}
+// ============================================================
+// v2.9.458 — 🛣️ / 🛤️ LA ELECCIÓN DEL G-4. Sergio (05-11-2026): «que me dé la opción de
+// elegir cuál camino quiero que tome… ésa es la elección del G-4». Con el convoy
+// elegido se ven las dos: la que va a hacer (verde) y la otra (ámbar punteada), con
+// sus km y su tiempo. Tocar el cartel la cambia; también con la columna ya en marcha.
+// ============================================================
+function _wgViaAlterna(D,u,uid,via,rc,calcular){
+  if(String(WG.sel)!==String(uid)) return;
+  try{ if(!_wgHudPuedeOrdenar(u)) return; }catch(_e){ return; }
+  const otra = via==='corta' ? null : 'corta';
+  const ra=calcular(otra);
+  if(!ra || ra.sinCamino || !ra.ruta.length) return;
+  const clave=(p)=>Math.round(p[0]*2000)+','+Math.round(p[1]*2000);   // ~50 m
+  const mia=new Set((rc.ruta||[]).map(clave));
+  const distinta=ra.ruta.filter(p=>!mia.has(clave(p)));
+  if(distinta.length<3) return;   // es la misma ruta: no hay nada que elegir
+  const pa=_wgPreverRuta(u, ra.ruta, 10000);
+  D.push(_wgD.lin(ra.ruta,'#ffcf5a',3,'7 6',.95));
+  const m=distinta[Math.floor(distinta.length/2)]||ra.parada;
+  D.push(_wgD.via(m[0],m[1], `${otra==='corta'?'🛤️ Por caminos de 3.ª/4.ª':'🛣️ Por la ruta principal'} · ${ra.km.toFixed(1)} km · ${_wgHoras(pa.horasUsadas)}`, uid, otra||'principal'));
+}
+function _wgViaChip(s){
+  const id=String(s.uid).replace(/[^0-9a-zA-Z_-]/g,''), v=s.via==='corta'?'corta':'principal';
+  return `<button class="wg-via" title="El convoy va por esta ruta" onmousedown="event.stopPropagation()" onclick="wgElegirVia('${id}','${v}',event)">${_rgEsc(s.txt)}<b>USAR</b></button>`;
+}
+function wgElegirVia(uid, via, ev){
+  if(ev){ try{ ev.preventDefault(); ev.stopPropagation(); }catch(_e){} }
+  const u=_wgUnidadPorId(uid); if(!u) return;
+  let o=WG.ordenes[uid];
+  if(!o) o=_wgOrdenDeMision(u);   // la columna ya salió: la misma misión, por la otra ruta
+  if(!o) return;
+  o=Object.assign({}, o, { _local:1 });
+  if(via==='corta') o.mision='corta'; else o.mision=null;
+  WG.ordenes[uid]=o;
+  _wgActualizarContadorOrdenes(); _wgRender(); if(WG.map3d) _wg3dDatos();
+  _wgAviso(via==='corta' ? `🛤️ <b>${_rgEsc(u.designacion||'El convoy')}</b> va por los caminos de 3.ª/4.ª.`
+    : `🛣️ <b>${_rgEsc(u.designacion||'El convoy')}</b> va por la ruta principal.`, 2600);
+}
+// La orden que representa lo que el convoy ya está haciendo (su `carga`), para poder
+// cambiarle la ruta sin que el G-4 tenga que volver a mandarlo.
+function _wgOrdenDeMision(u){
+  const c=(u&&u.carga)||{};
+  if(c.apoya!=null && c.fase==='ida') return { tipo:'apoyar', objetivo_id:c.apoya, mision:c.via==='corta'?'corta':null };
+  if(Array.isArray(c.destino) && c.destino.length>=2) return { tipo:'mover', destino_lng:c.destino[0], destino_lat:c.destino[1], mision:c.via==='corta'?'corta':null };
+  return null;
 }
 // El texto del cartel con su ✖. El clic derecho sobre el texto también anula.
 function _wgTxtConX(txt, uid){
@@ -44454,6 +44716,10 @@ function _wgPintar2D(D){
       L.circleMarker([s.lat,s.lng],{radius:0.1,opacity:0,fillOpacity:0,interactive:false})
         .addTo(WG.capa).bindTooltip(conX ? _wgTxtConX(s.txt, s.uid) : s.txt,
           {permanent:true,direction:'right',className:'wg-tip-orden',interactive:conX});
+    }else if(s.k==='via'){
+      // v2.9.458: el cartel de la otra ruta: se toca y el convoy va por ahí.
+      L.circleMarker([s.lat,s.lng],{radius:0.1,opacity:0,fillOpacity:0,interactive:false})
+        .addTo(WG.capa).bindTooltip(_wgViaChip(s),{permanent:true,direction:'top',className:'wg-tip-via',interactive:true});
     }
   }
 }
@@ -44484,6 +44750,7 @@ function _wgRender(){
   // película repinta (y `_wgAnimando` destraba si la bandera quedó muerta).
   if(WG.replayando && _wgAnimando()){ WG._renderPend=true; return; }
   WG._renderPend=false;
+  WG._vivoIdx=null;   // v2.9.461: las fichas se rehacen: la marcha las vuelve a buscar
   WG.capa.clearLayers();
   const e=WG.estado; if(!e) return;
   // El TERRENO vive en su propia capa (v2.9.201): un escenario importado del
@@ -44547,8 +44814,8 @@ function _wgRender(){
     // cinco turnos no se maniobra, se vuelve a reconocer.
     let edadTxt='';
     if(u._reportado){
-      edadTxt = ` · 🕰️ dato del turno ${u._turno}`
-        + (u._antig>0 ? ` (hace ${u._antig} ${u._antig===1?'turno':'turnos'})` : ' — recién');
+      edadTxt = ` · 🕰️ dato de H+${Math.max(0,(Number(u._turno)||1)-1)*_wgHorasTurno()}`
+        + (u._antig>0 ? ` (hace ${u._antig*_wgHorasTurno()} h)` : ' — recién');
       if(u._antig>0 && u._nivelOrig>u._nivel)
         edadTxt += ` · ⬇️ era «${_wgIntTxt(u._nivelOrig)}», sin confirmar bajó a «${_wgIntTxt(u._nivel)}»`;
     }
@@ -44748,7 +45015,7 @@ function _wgPuedeEmpenar(u){
   if(marca && Number(marca.nivel)>=WG_INT_IDENT){
     const a=_wgIntAntiguedad(marca.turno);
     _wgAviso(`🕰️ <b>Información vencida.</b> Ese dato es del <b>turno ${marca.turno}</b> — hace `
-      +`${a} ${a===1?'turno':'turnos'} que no se lo vuelve a observar, así que ya no sirve para `
+      +`${a*_wgHorasTurno()} h que no se lo vuelve a observar, así que ya no sirve para `
       +`empeñar.<br>Volvé a batir el sector con el <b>CW 40</b> para confirmarlo.`, 7000);
     return false;
   }
@@ -44785,7 +45052,7 @@ function _wgUnidadClick(u){
           +(rc.dParada<=WG_REABASTECER_KM
             ? `, descarga y vuelve solo.`
             : `. ⚠️ <b>Más de ${WG_REABASTECER_KM} km: si la unidad no se acerca, no hay abastecimiento.</b>`)
-          +` Mandá la orden con <b>✔️ Órdenes listas</b>.`, 8000);
+          +` La orden sale sola.`, 8000);
       _wgActualizarContadorOrdenes(); _wgRender(); if(WG.map3d) _wg3dDatos();
       return;
     }
@@ -44884,8 +45151,7 @@ function _wgMapClick(ev){
     const h=u?_wgHorasDeObra(u,WG.obraSel,p):0;
     const cp=u?_wgCapacidadObra(u):null;
     _wgAviso(`${WG_OBRAS[WG.obraSel].icono} <b>${WG_OBRAS[WG.obraSel].nom}</b> ordenada — `
-      +`<b>${h.toFixed(1)} h de trabajo</b> = <b>${n} turno${n>1?'s':''}</b> `
-      +`(turnos de ${_wgHorasTurno()} h)${cp&&!cp.ing?', a pico y pala':''}. `
+      +`<b>${h.toFixed(1)} h de trabajo</b>${cp&&!cp.ing?', a pico y pala':''}. `
       +`La unidad tiene que quedarse en el lugar.`, 4600);
     WG.obraSel=null;
     _wgActualizarContadorOrdenes(); _wgRender();
@@ -45022,7 +45288,7 @@ function _wgMatrizHTML(){
         detalle=`${f.km.toFixed(1)} km · necesita <b>${_wgHoras(f.necesita)}</b> · ${f.vel.toFixed(0)} km/h`;
         estado = f.llega
           ? `<span style="color:#2ecc71">✅ llega a <b>${hTexto(f.llegada)}</b></span>`
-          : `<span style="color:#e8c33a">⏱️ avanza ${f.avanza.toFixed(1)} km y sigue el turno que viene</span>`;
+          : `<span style="color:#e8c33a">⏱️ avanza ${f.avanza.toFixed(1)} km y sigue</span>`;
       }
     }else{
       detalle = f.arma ? `${f.arma.nom} · alcance ${f.arma.alcance} km · blanco a ${f.d.toFixed(1)} km` : 'sin sistema que bata';
@@ -45041,7 +45307,7 @@ function _wgMatrizHTML(){
   }).join('');
   return `<div class="section-label" style="margin:0 0 6px">📋 MATRIZ DE SINCRONIZACIÓN</div>`
     +`<div class="rg-meta" style="font-size:11px;margin-bottom:8px;line-height:1.45">`
-    +`Turno de <b>${horas} h</b>. Elegí a qué hora arranca cada unidad para coordinarlas — `
+    +`Jornada de <b>${horas} h</b>. Elegí a qué hora arranca cada unidad para coordinarlas — `
     +`por ejemplo, la caballería a <b>H+0</b> y la artillería batiendo a <b>H+1</b>.<br>`
     +`Las horas que <b>no dejan terminar la tarea</b> aparecen deshabilitadas: la matriz no te deja `
     +`pedir lo imposible.</div>`
@@ -45057,7 +45323,8 @@ function _wgOrdenDesdeRuta(id){
   // v2.9.223: se conserva la hora de arranque elegida en la matriz — si no, al
   // agregar un punto de paso se perdía la sincronización que ya habías puesto.
   const inicio=(WG.ordenes[id]||{}).inicio;
-  WG.ordenes[id]={ tipo:'mover', destino_lng:fin[0], destino_lat:fin[1], ruta:r.map(p=>[p[0],p[1]]), _local:1 };
+  const _mis=(WG.ordenes[id]||{}).mision==='corta'?'corta':null;   // v2.9.458: la ruta que eligió el G-4 sigue valiendo
+  WG.ordenes[id]={ tipo:'mover', destino_lng:fin[0], destino_lat:fin[1], ruta:r.map(p=>[p[0],p[1]]), _local:1, mision:_mis };
   // v2.9.353: apenas se marca la ruta, la ficha ya se orienta hacia el primer
   // tramo — se ve para dónde va a salir ANTES de jugar el turno.
   try{
@@ -45161,7 +45428,7 @@ function _wgPuedeOrdenar(){
       +`sobre los elementos de juicio que vos les pongas.`
       + (_wgRol()==='g4'
         ? `<br>🚚 <b>Tus convoyes y trenes sí los movés vos</b>: seleccionalos, tocá a dónde van `
-          + `y después <b>✔️ Órdenes listas</b> (abajo a la derecha). El turno lo hace correr el mando.`
+          + `y la orden sale sola.`
         : ''), 6000);
     return false;
   }
@@ -45222,10 +45489,13 @@ async function _wgEnviarOrdenesLote(ids, btn, silencioso){
     // v2.9.351: ya está en el servidor — deja de ser «lo que estoy armando».
     if(r.ok){ okc++; enviadas.push(env); const ahora=WG.ordenes[uid]; if(ahora && firmaDe(ahora)===firma) delete ahora._local;
       (WG._enviadas||(WG._enviadas={}))[String(uid)]=_wgTurnoActual(); }   // v2.9.455: para poder anularla allá
-    else { console.warn('orden',uid,r.error); fallos.push(`${uid}: ${r.error||'sin detalle'}`); }
+    else {
+      console.warn('orden',uid,r.error); fallos.push(`${uid}: ${r.error||'sin detalle'}`);
+      if(!/no respondió|fetch|NetworkError|timeout/i.test(r.error||'')) (WG._autoMal||(WG._autoMal={}))[uid]=JSON.stringify(o);
+    }
   };
   for(let i=0;i<ids.length;i+=4) await Promise.all(ids.slice(i,i+4).map(uno));
-  if(enviadas.length) _wgCanalOrden(enviadas);   // v2.9.455: los compañeros y el árbitro la ven ya
+  if(enviadas.length){ _wgCanalOrden(enviadas); WG._ticPronto=true; }   // v2.9.455: los compañeros y el árbitro la ven ya
   if(btn) btn.disabled=false;
   if(silencioso){
     // v2.9.455 — el envío automático avisa en chiquito; si algo falló, en grande.
@@ -45407,7 +45677,7 @@ function _wgCombVivoHud(piezas){
   if(p){
     const fila=document.querySelector('#wg-hud-ficha [data-wgfila="combustible"]'), c=_wgCombustible(p.comb.u);
     if(fila && c){ const r=100-c.pct;
-      fila.innerHTML=`${_wgSvg('combustible',13)}${_wgHudBarra(r,12)}<b style="color:${_wgHudColor(r)}">${c.resta.toFixed(0)} km</b>`; }
+      fila.innerHTML=`${_wgSvg('combustible',15)}${_wgHudBarra(r,12)}<b style="color:${_wgHudColor(r)}">${c.resta.toFixed(0)} km</b>`; }
   }
   try{ _wgHudSit(); }catch(_e){}
 }
@@ -45918,8 +46188,8 @@ function _wgBurbuja(id, texto, ms){
   try{
     if(WG.map && WG.capa && typeof L!=='undefined' && L.divIcon){
       const m=L.marker([u.lat,u.lng],{interactive:false,zIndexOffset:2000,
-        icon:L.divIcon({className:'wg-globo-wrap',html,iconSize:null,iconAnchor:[0,58]})}).addTo(WG.capa);
-      vivos.push(()=>{ try{ WG.capa.removeLayer(m); }catch(_e){} });
+        icon:L.divIcon({className:'wg-globo-wrap',html,iconSize:null,iconAnchor:[0,58]})}).addTo(WG.map);   // v2.9.461: no en WG.capa: el repintado se lo llevaba
+      vivos.push(()=>{ try{ WG.map.removeLayer(m); }catch(_e){} });
     }
   }catch(_e){}
   // 3D
@@ -46093,6 +46363,366 @@ function _wg3dReplayPaso(piezas, horaSim, humo, ahora){
   try{ map.getSource('wg-humo').setData({type:'FeatureCollection',features:puf}); }catch(_e){}
 }
 // ============================================================
+// v2.9.461 — ▶ EL JUEGO CORRE SOLO: SE ACABARON LOS TURNOS.
+// Sergio (05-11-2026): «quitá eso de turnos, directamente debería ser play… no hay
+// nada que esperar del otro grupo, es un ejercicio simultáneo». Y también: «los
+// vehículos a veces se traban o parecen moverse de la nada».
+// Las dos cosas tenían la misma raíz. Con turnos, una ficha estaba quieta y de golpe
+// corría 22 s de película con el recorrido de dos horas; y en la pantalla que no
+// alcanzaba a ver la película (pestaña dormida, aviso perdido, sondeo que llegaba
+// antes) saltaba directo al final: «se mueve de la nada».
+// Ahora:
+//   · ▶ PLAY: el tiempo corre para todos. Cada ~5 s la pantalla que lleva el reloj
+//     (árbitro, si no JEM, si no Comandante, si no cualquiera) pide un PASO (`tic`) y
+//     lo reparte por el canal: nadie más le pide nada al servidor.
+//   · LA FICHA VA SIEMPRE POR SU RUTA: cada paso trae el trozo recorrido y la ficha lo
+//     sigue a la velocidad justa para llegar cuando llega el paso siguiente. No hay
+//     película ni salto. Si una pantalla perdió un paso, la ficha se desliza hasta
+//     donde tiene que estar; nunca aparece en otro lado.
+//   · LA ORDEN VALE YA: se manda sola al segundo y el paso siguiente sale antes.
+//     Sigue viva hasta cumplirse: nadie la reenvía ni se pierde.
+// ============================================================
+const WG_TIC_MS=5000;
+const WG_VELOCIDADES=[[120,'1 h = 30 s'],[60,'1 h = 1 min'],[30,'1 h = 2 min'],[12,'1 h = 5 min']];
+function _wgCorre(){
+  const R=WG.relojJuego, p=(WG.estado&&WG.estado.partida)||{};
+  return !!(R && R.activo && R.continuo) && p.estado==='en_curso';
+}
+// La hora de juego desde que empezó: H+horas:minutos.
+function _wgHoraJuego(){
+  const p=(WG.estado&&WG.estado.partida)||{}, R=WG.relojJuego||{};
+  const hDur=Number(p.duracion_turno_horas)||2;
+  let h=Math.max(0,(Number(p.turno_actual)||1)-1)*hDur+(Number(R.hEn)||0);
+  if(_wgCorre() && WG._ticVisto) h+=Math.min(12000,Date.now()-WG._ticVisto)/1000*(Number(R.velocidad)||60)/3600;
+  return h;
+}
+function _wgHoraTxt(h){ const m=Math.floor((Number(h)||0)*60+1e-6); return `H+${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`; }
+// ------------------------------------------------------------
+// LA FICHA SIGUE SU RUTA (2D y 3D, la misma cuenta)
+// ------------------------------------------------------------
+function _wgVivoLargo(q){ let km=0; for(let i=1;i<q.length;i++) km+=_wgHav(q[i-1],q[i]); return km; }
+function _wgVivoEncolar(id, pts, fin){
+  const k=String(id), u=_wgUnidadPorId(id);
+  if(!u || !Array.isArray(pts) || !pts.length) return;
+  WG._vivo=WG._vivo||{};
+  let f=WG._vivo[k];
+  if(!f) f=WG._vivo[k]={ id:k, q:[[Number(u.lng),Number(u.lat)]], v:0, t0:performance.now(), fin:false, ph:(Number(id)%7)*0.9 };
+  for(const p of pts){
+    if(!Array.isArray(p) || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) continue;
+    if(_wgHav(f.q[f.q.length-1],p)>0.002) f.q.push([p[0],p[1]]);
+  }
+  f.fin=!!fin;
+  // La velocidad justa para llegar un poco DESPUÉS del paso que viene: así nunca se
+  // queda esperándolo (eso se vería como un tironeo).
+  const T=Math.max(1500,(WG._ticPeriodo||WG_TIC_MS)*1.3)/1000;
+  f.v=_wgVivoLargo(f.q)/T;
+  if(!WG._vivoAnda){ WG._vivoAnda=true; WG._vivoUlt=0; _wgCuadro(_wgVivoPaso); }
+}
+function _wgVivoIndice(){
+  const fi={}, le={}, m3={};
+  try{ if(WG.capa && WG.capa.eachLayer) WG.capa.eachLayer((l)=>{
+    if(l.__uid!=null && l.setLatLng) fi[String(l.__uid)]=l;
+    if(l.__letreroDe!=null && l.setLatLng) le[String(l.__letreroDe)]=l; }); }catch(_e){}
+  for(const m of (WG.marc3d||[])){ if(m.__uid==null) continue; const k=String(m.__uid); (m3[k]=m3[k]||[]).push(m); }
+  WG._vivoIdx={ fi, le, m3 };
+}
+function _wgVivoPolvo(f,pos,rumbo,ahora,en3D){
+  if(ahora-(f.tp||0)<240 || (WG._vivoHumo||[]).length>48) return;
+  f.tp=ahora;
+  const lado=(Math.random()-.5)*0.0022, jx=Math.cos(rumbo)*lado, jy=-Math.sin(rumbo)*lado;
+  const lng=pos[0]+jx/Math.max(0.2,Math.cos(pos[1]*Math.PI/180)), lat=pos[1]+jy;
+  const vida=1300+Math.random()*700, w=Math.round(18+Math.random()*12);
+  let m=null;
+  if(!en3D && WG.map){
+    const dxp=Math.round(-Math.sin(rumbo)*12+(Math.random()*6-3)), dyp=Math.round(Math.cos(rumbo)*12-5);
+    try{ m=L.marker([lat,lng],{interactive:false,zIndexOffset:-500,icon:L.divIcon({className:'wg-polvo',iconSize:[0,0],iconAnchor:[0,0],
+      html:`<i style="width:${w}px;height:${w}px;--dur:${Math.round(vida)}ms;--dx:${dxp}px;--dy:${dyp}px;--gir:${Math.round(Math.random()*70-35)}deg;--op:${(0.45+Math.random()*0.3).toFixed(2)}"></i>`})}).addTo(WG.map); }catch(_e){ m=null; }
+  }
+  (WG._vivoHumo=WG._vivoHumo||[]).push({ lng, lat, t0:ahora, vida, r0:w*0.55, m });
+}
+function _wgVivoPolvoPaso(ahora,en3D){
+  const H=WG._vivoHumo||[];
+  for(let i=H.length-1;i>=0;i--){
+    const h=H[i];
+    if((ahora-h.t0)/h.vida>=1){ if(h.m) try{ WG.map.removeLayer(h.m); }catch(_e){} H.splice(i,1); }
+  }
+  if(!en3D || !WG.map3d) return;
+  try{
+    WG.map3d.getSource('wg-humo').setData({type:'FeatureCollection',features:H.map((h)=>{
+      const e=Math.min(1,(ahora-h.t0)/h.vida);
+      return {type:'Feature',geometry:{type:'Point',coordinates:[h.lng,h.lat]},properties:{_r:h.r0+e*h.r0*3.2,_op:0.55*Math.pow(1-e,1.6)}};
+    })});
+  }catch(_e){}
+}
+function _wgVivoPaso(ahora){
+  const V=WG._vivo||{}, ids=Object.keys(V);
+  if(!ids.length && !(WG._vivoHumo||[]).length){ WG._vivoAnda=false; return; }
+  if(WG._vivoUlt && ahora-WG._vivoUlt<33){ _wgCuadro(_wgVivoPaso); return; }   // 30 pasos por segundo alcanzan
+  const dt=WG._vivoUlt ? Math.min(0.6,(ahora-WG._vivoUlt)/1000) : 0.033;
+  WG._vivoUlt=ahora;
+  const uds=(WG.estado&&WG.estado.unidades)||[];
+  if(WG._vivoUds!==uds || !WG._vivoMapa){ WG._vivoUds=uds; WG._vivoMapa=new Map(uds.map(u=>[String(u.id),u])); }
+  if(!WG._vivoIdx) _wgVivoIndice();
+  const en3D=_wgEn3D();
+  let I=WG._vivoIdx;
+  for(const k of ids){
+    const f=V[k], u=WG._vivoMapa.get(k);
+    if(!u){ delete V[k]; continue; }
+    // Arranca pesada, no sale disparada.
+    let d=f.v*Math.min(1,(ahora-f.t0)/650+0.12)*dt;
+    while(d>0 && f.q.length>1){
+      const seg=_wgHav(f.q[0],f.q[1]);
+      if(seg<=d){ d-=seg; f.q.shift(); continue; }
+      const c=d/seg; f.q[0]=[f.q[0][0]+(f.q[1][0]-f.q[0][0])*c, f.q[0][1]+(f.q[1][1]-f.q[0][1])*c]; d=0;
+    }
+    const pos=f.q[0], ade=f.q[1]||null;
+    u.lng=pos[0]; u.lat=pos[1];
+    let g=null, rumbo=0;
+    if(ade){
+      const dx=(ade[0]-pos[0])*Math.cos(pos[1]*Math.PI/180), dy=ade[1]-pos[1];
+      if(dx||dy){ rumbo=Math.atan2(dx,dy); g=(rumbo*180/Math.PI+360)%360; (WG.rumbos||(WG.rumbos={}))[k]=g; }
+    }
+    const anda=f.q.length>1;
+    if(!en3D){
+      let fic=I.fi[k];
+      if(fic && !fic._map){ _wgVivoIndice(); I=WG._vivoIdx; fic=I.fi[k]; }
+      if(fic){
+        try{ fic.setLatLng([pos[1],pos[0]]); }catch(_e){}
+        const le=I.le[k]; if(le) try{ le.setLatLng([pos[1],pos[0]]); }catch(_e){}
+        const cuna=fic._icon && fic._icon.firstChild;
+        if(cuna){
+          if(g!=null) _wgOrientar(cuna,g);
+          if(anda){
+            const ph=ahora/115+f.ph, veh=cuna.classList.contains('wg-vehcuna');
+            cuna.style.transform=`translateY(${(Math.sin(ph)*1.5).toFixed(2)}px) `+(veh?'':`rotate(${(Math.sin(ph*0.61)*1.2).toFixed(2)}deg)`);
+            cuna.classList.add('marchando');
+          }else{ cuna.style.transform=''; cuna.classList.remove('marchando'); }
+        }
+      }
+    }else{
+      const ms=I.m3[k]||[];
+      for(const m of ms){ try{ m.setLngLat(pos); }catch(_e){} if(g!=null && !m.__pie) try{ _wgOrientar(m.getElement()&&m.getElement().firstChild,g); }catch(_e){} }
+      const mk=ms[0], cuna=mk&&mk.getElement&&mk.getElement()&&mk.getElement().firstChild;
+      if(cuna && cuna.style){
+        const veh=cuna.classList&&cuna.classList.contains('wg-vehcuna');
+        cuna.style.transform=anda ? `translateY(${(Math.sin(ahora/110+f.ph)*1.6).toFixed(2)}px) `+(veh?'':`rotate(${(Math.sin(ahora/150)*1.0).toFixed(2)}deg)`) : '';
+      }
+    }
+    if(anda){ if(u.medio!=='pie' && f.v>0) _wgVivoPolvo(f,pos,rumbo,ahora,en3D); }
+    else delete V[k];
+  }
+  _wgVivoPolvoPaso(ahora,en3D);
+  // La huella en el suelo y el anillo de la elegida, unas veces por segundo (3D).
+  if(en3D && ids.length && ahora-(WG._vivoPiso||0)>260){
+    WG._vivoPiso=ahora;
+    try{ WG.map3d.getSource('wg-piso').setData(_wgPisoFC()); }catch(_e){}
+    try{ const s=[]; for(const u of uds){ const es=String(WG.sel)===String(u.id); if(es||WG.ordenes[u.id]) s.push({type:'Feature',geometry:{type:'Point',coordinates:[u.lng,u.lat]},properties:{_sel:es?1:0}}); }
+      WG.map3d.getSource('wg-sel').setData({type:'FeatureCollection',features:s}); }catch(_e){}
+  }
+  // 🎯 La cámara acompaña a la elegida, si está pedido.
+  if(en3D && WG.camara && !WG.camQuieta && WG.sel!=null && V[String(WG.sel)] && _wgSeguirOn()){
+    const u=WG._vivoMapa.get(String(WG.sel));
+    if(u) try{ WG.map3d.jumpTo({center:[u.lng,u.lat]}); }catch(_e){}
+  }
+  _wgCuadro(_wgVivoPaso);
+}
+// ------------------------------------------------------------
+// EL ESTADO QUE LLEGA NO HACE SALTAR A NADIE
+// ------------------------------------------------------------
+// `wgEstado` trae dónde está cada ficha de verdad. La que se ve en otro lado no se
+// teletransporta: sigue desde donde se la ve hasta donde corresponde.
+function _wgVivoFusion(r){
+  if(!r || !Array.isArray(r.unidades) || !WG.estado) return;
+  const viejas=new Map(((WG.estado.unidades)||[]).map(u=>[String(u.id),u]));
+  const seguir=[];
+  for(const n of r.unidades){
+    const k=String(n.id), v=viejas.get(k);
+    if(!v || n._reportado) continue;
+    const srv=[Number(n.lng),Number(n.lat)], ver=[Number(v.lng),Number(v.lat)];
+    if(!Number.isFinite(srv[0]) || !Number.isFinite(ver[0])) continue;
+    const d=_wgHav(ver,srv), f=(WG._vivo||{})[k];
+    if(d>60){ if(f) delete WG._vivo[k]; continue; }   // otra cosa (la colocó el árbitro): va directo
+    n.lng=ver[0]; n.lat=ver[1];
+    if(f){ if(_wgHav(f.q[f.q.length-1],srv)>0.05) seguir.push([k,srv]); }
+    else if(d>0.02) seguir.push([k,srv]);
+  }
+  WG._vivoFusion=seguir;
+}
+function _wgVivoFusionFin(){
+  for(const [k,p] of (WG._vivoFusion||[])) _wgVivoEncolar(k,[p],true);
+  WG._vivoFusion=null; WG._vivoMapa=null; WG._vivoIdx=null;
+}
+// ------------------------------------------------------------
+// EL PASO DEL RELOJ
+// ------------------------------------------------------------
+// Quién lo pide: el árbitro; si no está, el JEM; si no, el Comandante; si no, el
+// primero que vea que hace rato no llega (el servidor no deja que corran dos).
+function _wgTicEspera(){
+  if(_wgEsMaqueta()) return WG_TIC_MS+9000;
+  if(WG.soy==='arbitro') return WG_TIC_MS;
+  const r=_wgRol();
+  if(r==='jem') return WG_TIC_MS+1500;
+  if(r==='cmte') return WG_TIC_MS+3000;
+  if(WG._ticAzar==null) WG._ticAzar=Math.random()*8000;
+  return WG_TIC_MS+6000+WG._ticAzar;
+}
+function _wgTicLatido(){
+  try{
+    if(!WG.partidaId || !WG.estado) return;
+    WG._ticLat=(WG._ticLat||0)+1;
+    if(WG._ticLat%4===0) _wgRelojTic();
+    if(!_wgCorre() || WG._ticEnVuelo) return;
+    const ahora=Date.now();
+    // Lo último que se sabe del reloj: lo que llegó por el canal o lo que dijo el sondeo
+    // (una pantalla sin canal no se pone a correr el tiempo por su cuenta).
+    const R=WG.relojJuego||{}, enServidor=Number(R.ticEn) ? Number(R.ticEn)-(_wgAhora()-ahora) : 0;
+    const visto=Math.max(WG._ticVisto||0, WG._ticPedido||0, enServidor);
+    let espera=_wgTicEspera();
+    if(WG._ticPronto && _wgManejaReloj()) espera=Math.min(espera,2200);   // una orden nueva no espera
+    if(ahora-visto<espera) return;
+    _wgTicPedir();
+  }catch(e){ console.warn('reloj:', e); }
+}
+function _wgTicArrancar(){
+  if(!WG._ticVisto) WG._ticVisto=Date.now();   // el que entra no pide un paso de una
+  if(WG._ticW || WG._ticI) return;
+  try{
+    const src='setInterval(()=>postMessage(1),250);';
+    const url=URL.createObjectURL(new Blob([src],{type:'text/javascript'}));
+    WG._ticW=new Worker(url); URL.revokeObjectURL(url);
+    WG._ticW.onmessage=_wgTicLatido;
+  }catch(_e){ WG._ticW=null; WG._ticI=setInterval(_wgTicLatido,250); }
+}
+async function _wgTicPedir(){
+  WG._ticEnVuelo=true; WG._ticPedido=Date.now();
+  try{
+    const r=await _wgInvoke('tic',{ partida_id:WG.partidaId, clave_acceso:WG.clave });
+    if(!r || !r.ok){ console.warn('tic:', r&&r.error); return; }
+    if(r.reloj!==undefined && r.reloj) WG.relojJuego=r.reloj;
+    if(r.pausado || r.temprano || r.ocupado || !r.tic) return;
+    _wgTicAvisar(r);          // primero el aviso: las demás pantallas arrancan a la vez
+    _wgTicRecibido(r);
+  }finally{ WG._ticEnVuelo=false; }
+}
+function _wgTicAvisar(r){
+  if(!WG._canal || !WG._canalOk) return;
+  try{
+    let datos=r;
+    try{ if(JSON.stringify(r).length>200000) datos={ tic:r.tic, turno:r.turno, hEn:r.hEn, hora:r.hora, velocidad:r.velocidad, sinDatos:1 }; }catch(_e){}
+    WG._canal.send({ type:'broadcast', event:'tic', payload:datos });
+  }catch(_e){}
+}
+// Pedir el tablero completo, pero no todas las pantallas a la vez ni a cada rato.
+function _wgTicRefresco(ms){
+  if(WG._ticRefT) return;
+  const falta=Math.max(0,(WG._ticRefUlt||0)+10000-Date.now());
+  WG._ticRefT=setTimeout(async()=>{
+    WG._ticRefT=null; WG._ticRefUlt=Date.now();
+    try{ await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos(); }catch(_e){}
+  }, falta+Math.random()*(ms||3000));
+}
+function _wgTicRecibido(r){
+  if(!r || !WG.partidaId || !WG.estado) return;
+  const n=Number(r.tic);
+  if(!Number.isFinite(n)) return;
+  if(WG._ticN!=null && n<=WG._ticN) return;   // ya lo vio (por el canal o en el tablero)
+  const ahora=Date.now();
+  const hueco=WG._ticN!=null && n>WG._ticN+1;
+  WG._ticN=n;
+  if(WG._ticVisto){ const d=ahora-WG._ticVisto; if(d>1500 && d<20000) WG._ticPeriodo=0.65*(WG._ticPeriodo||WG_TIC_MS)+0.35*d; }
+  WG._ticVisto=ahora; WG._ticPronto=false;
+  const p=WG.estado.partida||{};
+  if(Number.isFinite(Number(r.turno))) p.turno_actual=Number(r.turno);
+  WG.relojJuego=Object.assign(WG.relojJuego||{}, { hEn:r.hEn, n, velocidad:r.velocidad, activo:true, continuo:true, ticEn:r.ticEn });
+  if(WG.maqueta) _wgLatido(true);
+  if(r.sinDatos || hueco){ _wgTicRefresco(1500); if(r.sinDatos){ _wgRelojTic(); return; } }
+  const uds=WG.estado.unidades||[], porId=new Map(uds.map(u=>[String(u.id),u]));
+  const trazas=new Map((r.trazas||[]).map(t=>[String(t.id),t]));
+  const lado=(WG.soy==='azul'||WG.soy==='rojo')?WG.soy:null;
+  let duro=false, pedir=false;
+  for(const c of (r.cambios||[])){
+    const k=String(c.id), u=porId.get(k);
+    if(!u){ if(!lado || c.bando===lado) pedir=true; continue; }
+    if(u.estado!==c.estado || Math.round(Number(u.poder_actual)||0)!==Math.round(Number(c.poder_actual)||0)) duro=true;
+    const vieja=(u.carga||{}).ruta;
+    u.poder_actual=c.poder_actual; u.estado=c.estado; u.combustible_km=c.combustible_km; u.municion=c.municion;
+    u.carga=c.carga ? Object.assign({},c.carga,(vieja && !c.carga.ruta && Array.isArray(c.carga.destino))?{ruta:vieja}:{}) : c.carga;
+    u.trabajo=c.trabajo; u.suprimida_hasta=c.suprimida_hasta;
+    const t=trazas.get(k);
+    if(t && Array.isArray(t.ruta) && t.ruta.length>1 && Number(t.km)>0) _wgVivoEncolar(k, t.ruta, t.llego||t.detenida);
+    else if(_wgHav([u.lng,u.lat],[c.lng,c.lat])>0.01 && !(WG._vivo||{})[k]) _wgVivoEncolar(k,[[c.lng,c.lat]],true);
+    // ⛽ del letrero
+    try{ const cb=_wgCombustible(u);
+      if(cb) document.querySelectorAll(`[data-wgcomb="${k.replace(/[^0-9a-zA-Z_-]/g,'')}"]`).forEach((sp)=>{
+        const pct=Math.max(0,Math.round(100-cb.pct)), cl=pct<20?'r':(pct<40?'a':'');
+        sp.textContent=pct<=0?'⛽SIN':'⛽'+pct+'%'; sp.classList.remove('a','r'); if(cl) sp.classList.add(cl); });
+    }catch(_e){}
+  }
+  // Las órdenes: los puntos de paso que quedaron atrás y las que se cumplieron.
+  for(const t of (r.trazas||[])){
+    const k=String(t.id), m=Number(t.consumidos)||0, u=porId.get(k);
+    if(!u || _wgEsConvoy(u)) continue;
+    if(m>0){
+      const o=WG.ordenes[k];
+      if(o && !o._local && Array.isArray(o.ruta)) o.ruta=o.ruta.slice(m);
+      if(WG.rutas && WG.rutas[k]){ WG.rutas[k].splice(0,m); if(!WG.rutas[k].length) delete WG.rutas[k]; }
+    }
+  }
+  for(const uid of (r.cerradas||[])){
+    const k=String(uid), o=WG.ordenes[k];
+    if(o && !o._local){ delete WG.ordenes[k]; if(WG.rutas) delete WG.rutas[k]; duro=true; }
+    if(WG.estado.ordenes) WG.estado.ordenes=WG.estado.ordenes.filter(x=>String(x.unidad_id)!==k);
+  }
+  // Lo que le pasó a cada una, sobre su ficha.
+  for(const t of (r.trazas||[])){
+    const u=porId.get(String(t.id));
+    if(!u || (lado && u.bando!==lado)) continue;
+    if(t.detenida){ try{ setTimeout(()=>_wgTemblar(t.id),1800); }catch(_e){} _wgBurbuja(t.id, t.contacto?'⚔️ En contacto':'🛑 Frenada: mirá la bitácora', 4500); duro=true; }
+    else if(t.llego) _wgBurbuja(t.id,'✅ Llegó', 3200);
+  }
+  // La bitácora, sin pedirle nada al servidor.
+  const ev=(r.eventos||[]).filter(e=>!lado || (e.bandos_visibles||[]).includes(lado));
+  if(ev.length){
+    ev.forEach((e,i)=>{ e.id=9e12+n*1000+i; });
+    WG.bitEventos=[...(WG.bitEventos||[]), ...ev].slice(-400);
+    try{ _wgBitRender(); }catch(_e){}
+  }
+  // El fuego y las minas, a su hora dentro del paso.
+  const im=r.impactos||[];
+  if(im.length){
+    duro=true;
+    const T=Math.min(4,(WG._ticPeriodo||WG_TIC_MS)/1000);
+    try{ _wgAnimarDisparos(im,[],T,Number(r.horas)||0.1); }catch(e){ console.warn(e); }
+    try{ _wgAnimarMinas(im,[],T,Number(r.horas)||0.1); }catch(e){ console.warn(e); }
+    try{ _wgEncender(im,Number(r.turno)); _wgApagarViejos(Number(r.turno)); }catch(_e){}
+  }
+  // La descarga se ve una vez por unidad, no en cada paso.
+  const vistas=WG._entregaVista=WG._entregaVista||{};
+  const ents=(r.entregas||[]).filter(e=>{ const k=String(e.uid); if(ahora-(vistas[k]||0)<45000 || (lado && e.bando!==lado)) return false; vistas[k]=ahora; return true; });
+  if(ents.length) try{ _wgAnimarEntregas(ents); }catch(_e){}
+  // La niebla viaja en el paso: el enemigo que aparece trae su ficha y el que se
+  // pierde se va, sin pedirle nada al servidor.
+  if(r.vis){
+    if(WG.estado.detecciones) WG.estado.detecciones=r.vis;
+    if(lado){
+      const ve=new Set((r.vis[lado]||[]).map(String));
+      for(const row of ((r.aparecen&&r.aparecen[lado])||[])){
+        if(porId.has(String(row.id))) continue;
+        uds.push(row); porId.set(String(row.id),row); duro=true;
+      }
+      const quedan=uds.filter(u=>u.bando===lado || ve.has(String(u.id)));
+      if(quedan.length!==uds.length){ WG.estado.unidades=quedan; duro=true; }
+      if([...ve].some(k=>!porId.has(k))) pedir=true;
+    }
+  }
+  if(r.obras) pedir=true;
+  if(pedir) _wgTicRefresco(3000);
+  _wgRelojTic();
+  WG._ticBlando=(WG._ticBlando||0)+1;
+  if(duro || WG._ticBlando>=2){ WG._ticBlando=0; _wgRender(); if(WG.map3d) _wg3dDatos(); }
+  else try{ _wgHudRender(); }catch(_e){}
+}
+// ============================================================
 // v2.9.449 — ⏱️ EL RELOJ DEL JUEGO, ⏹️ EL ALTO DEL JEM Y 📊 LOS RESULTADOS.
 // Sergio (03-11-2026): «debe ser un juego donde el G-3, G-4, G-2 estén moviendo sus
 // fichas a todo dar para tomar decisiones en ese momento, y lanzar un resultado
@@ -46111,52 +46741,49 @@ function _wgRelojTic(){
   const p=(WG.estado&&WG.estado.partida)||{}, R=WG.relojJuego||null;
   const enCurso=p.estado==='en_curso';
   const maneja=_wgManejaReloj() && enCurso && !_wgEsMaqueta();
-  const firma=[maneja, !!(R&&R.activo), (R&&R.cadaMin)||3, p.estado, WG.soy].join('|');
+  // v2.9.461 — ▶ PLAY: arriba ya no hay turno, hay hora de juego. El que maneja el reloj
+  // tiene ▶ / ⏸ y la velocidad; el resto sólo ve la hora.
+  const corre=_wgCorre(), vel=Number(R&&R.velocidad)||60;
+  const reloj=document.getElementById('wg-turno-chip');
+  if(reloj){
+    const txt=(corre?'▶ ':(enCurso?'⏸ ':''))+_wgHoraTxt(_wgHoraJuego())+(enCurso?'':' · '+(p.estado||''));
+    if(reloj.textContent!==txt) reloj.textContent=txt;
+    reloj.title=corre?'El tiempo corre. Hora de juego desde el inicio del ejercicio.':(enCurso?'En pausa: se pueden dar órdenes y salen cuando corra el tiempo.':'');
+    reloj.classList.toggle('wg-hora',true); reloj.classList.toggle('corre',corre);
+  }
+  const firma=[maneja, corre, vel, p.estado, WG.soy].join('|');
   if(ctl._firma!==firma){
     ctl._firma=firma;
     ctl.innerHTML = maneja
-      ? `<select id="wg-reloj-min" class="wg-chip" style="padding:2px 4px" title="Cada cuántos minutos corre el turno">`
-        +[1,2,3,5,10].map(n=>`<option value="${n}"${(Number(R&&R.cadaMin)||3)===n?' selected':''}>${n} min</option>`).join('')+`</select>`
-        +(R&&R.activo
-          ? `<button class="wg-pill" onclick="wgReloj(false)" title="Pausar el reloj">⏸️</button>`
-          : `<button class="wg-pill wg-fuerte" onclick="wgReloj(true)" title="El turno corre solo cada tantos minutos">▶️ Reloj</button>`)
+      ? (corre
+          ? `<button class="wg-pill wg-play pausa" onclick="wgReloj(false)" title="Detiene el tiempo para todos">⏸️ PAUSA</button>`
+          : `<button class="wg-pill wg-fuerte wg-play" onclick="wgReloj(true)" title="El tiempo corre para todos: las unidades cumplen sus órdenes sin esperar a nadie">▶️ PLAY</button>`)
+        +`<select id="wg-reloj-vel" class="wg-chip" style="padding:2px 4px" onchange="wgRelojVelocidad(this.value)" title="A qué velocidad corre el tiempo del ejercicio">`
+        +WG_VELOCIDADES.map(([v,nom])=>`<option value="${v}"${vel===v?' selected':''}>${nom}</option>`).join('')+`</select>`
         +`<button class="wg-pill" style="border-color:#e23b3b;color:#ffb4b4" onclick="wgAltoJuego()" title="Termina el juego y muestra los resultados">⏹️ ALTO</button>`
       : (p.estado==='finalizada'
         ? `<button class="wg-pill wg-fuerte" onclick="wgResultados()">📊 Resultados</button>`
           +(WG.soy==='arbitro'?`<button class="wg-pill" onclick="wgReanudar()" title="Vuelve a abrir la partida">▶️ Reanudar</button>`:'')
         : '');
   }
-  if(!R || !R.activo || !enCurso){ chip.style.display='none'; return; }
-  const falta=Math.round((Number(R.proximo)-_wgAhora())/1000);
-  const f=Math.max(0,falta);
-  chip.style.display='';
-  chip.textContent=`⏱️ ${Math.floor(f/60)}:${String(f%60).padStart(2,'0')}`;
-  chip.style.color = falta<=10 ? '#ff6b6b' : (falta<=30 ? '#ffb15c' : '');
-  chip.style.borderColor = falta<=10 ? '#e23b3b' : '';
-  const turno=p.turno_actual;
-  // A los 10 s se mandan las órdenes armadas.
-  if(falta<=10 && WG._relojEnvio!==turno){
-    WG._relojEnvio=turno;
-    if(Object.values(WG.ordenes||{}).some(o=>o && o._local) && _wgRolEnvia()){
-      _wgAviso('⏱️ Quedan 10 s: se envían tus órdenes.', 2500);
-      try{ wgEnviarOrdenes(null); }catch(_e){}
-    }
-  }
-  // En 0 resuelve quien maneja el reloj; a los 15 s, cualquiera.
-  if((falta<=0 && _wgManejaReloj()) || falta<=-15){
-    if(WG._relojResuelve!==turno && !WG.replayando && !WG._accion && !WG._enviando){
-      WG._relojResuelve=turno;
-      wgResolver(null);
-    }
-  }
+  chip.style.display='none';   // v2.9.461: ya no hay cuenta regresiva de turno
 }
 setInterval(()=>{ try{ if(WG.partidaId) _wgRelojTic(); }catch(_e){} }, 1000);
+// v2.9.461 — ▶ / ⏸. Le avisa a todas las pantallas por el canal, sin esperar el sondeo.
 async function wgReloj(activo){
-  const sel=document.getElementById('wg-reloj-min');
-  const r=await _wgInvoke('reloj',{ partida_id:WG.partidaId, clave_acceso:WG.clave, activo:!!activo, cada_min:Number(sel&&sel.value)||3 });
+  const vel=Number((document.getElementById('wg-reloj-vel')||{}).value)||Number((WG.relojJuego||{}).velocidad)||60;
+  const r=await _wgInvoke('reloj',{ partida_id:WG.partidaId, clave_acceso:WG.clave, activo:!!activo, velocidad:vel });
+  if(!r || !r.ok){ _wgAviso('No se pudo: '+_rgEsc((r&&r.error)||''), 4500); return; }
+  WG.relojJuego=r.reloj; WG._ticVisto=Date.now(); WG._ticPronto=!!activo; _wgRelojTic();
+  try{ if(WG._canal && WG._canalOk) WG._canal.send({ type:'broadcast', event:'reloj', payload:{ reloj:r.reloj } }); }catch(_e){}
+  _wgAviso(activo?'▶️ <b>El tiempo corre.</b> Las órdenes se cumplen solas.':'⏸️ <b>Pausa.</b> Podés seguir dando órdenes.', 2600);
+}
+async function wgRelojVelocidad(v){
+  const R=WG.relojJuego||{};
+  const r=await _wgInvoke('reloj',{ partida_id:WG.partidaId, clave_acceso:WG.clave, activo:!!R.activo&&!!R.continuo, velocidad:Number(v)||60 });
   if(!r || !r.ok){ _wgAviso('No se pudo: '+_rgEsc((r&&r.error)||''), 4500); return; }
   WG.relojJuego=r.reloj; _wgRelojTic();
-  _wgAviso(activo?`⏱️ <b>Reloj en marcha</b>: el turno corre solo cada ${r.reloj.cadaMin} min.`:'⏸️ Reloj en pausa.', 3500);
+  try{ if(WG._canal && WG._canalOk) WG._canal.send({ type:'broadcast', event:'reloj', payload:{ reloj:r.reloj } }); }catch(_e){}
 }
 async function wgAltoJuego(){
   if(!confirm('⏹️ ALTO\n\nTerminar el juego de guerra y mostrar los resultados a todos?\nYa no se podrán dar órdenes (el árbitro puede reanudarlo).')) return;
@@ -46210,7 +46837,7 @@ function _wgResultadosHTML(){
       +`<td>${_rgEsc(u.estado||'')}</td></tr>`;
   }).join('');
   return `<div style="font-size:16px;font-weight:800">📊 RESULTADOS DEL JUEGO DE GUERRA</div>`
-    +`<div style="font-size:12px;opacity:.8;margin:2px 0 10px">${_rgEsc(p.nombre||'')} · ⏹️ ALTO en el turno ${turno}`
+    +`<div style="font-size:12px;opacity:.8;margin:2px 0 10px">${_rgEsc(p.nombre||'')} · ⏹️ ALTO a la hora ${_wgHoraTxt(_wgHoraJuego())}`
     +` (${horas} h de combate)${A.quien?' · lo dio '+_rgEsc(A.quien):''}</div>`
     +`<div style="font-size:13px;line-height:1.7;padding:8px 11px;border-radius:10px;background:rgba(255,255,255,.05);margin-bottom:10px">`
     +`⚖️ <b>Potencia relativa de combate</b>: al empezar ${I?rel(n(I.azul),n(I.rojo)):'—'}`
@@ -46411,7 +47038,7 @@ function _wgDetalleHTML(u, k){
     +(reemp?` · ${n(reemp)} reemplazos recibidos`:'')
     +(d.falt>=1?`<br>👥 <i>El G-1 cubre los que faltan con convoyes de reemplazos.</i>`:'');
   const her=d.her>=1
-    ? `<b>${n(d.her)}</b> heridos esperan evacuación. Se agrava el 1,5 % por hora: <b>~${n(mueren)} mueren el próximo turno</b> si nadie los saca.`
+    ? `<b>${n(d.her)}</b> heridos esperan evacuación. Se agrava el 1,5 % por hora: <b>~${n(mueren)} mueren en las próximas 2 h</b> si nadie los saca.`
       +`<br>🚑 <i>El G-4 manda una ambulancia (convoy EVAC, 20 heridos cada 30 min) o la unidad se acerca a 3 km de un puesto de socorro.</i>`
     : 'No tiene heridos esperando.';
   const comb=d.comb
@@ -46483,14 +47110,15 @@ function _wgBitRender(ev){
   const caja=(b)=>{
     const col=WG_BIT_COL[b];
     // Los turnos más nuevos arriba; dentro del turno, en el orden en que pasó.
-    const evs=porLado[b].slice().sort((x,y)=>((Number(y.turno)||0)-(Number(x.turno)||0))||((Number(x.id)||0)-(Number(y.id)||0)));
+    // v2.9.461: lo último arriba de todo (ya no hay turnos que agrupar).
+    const evs=porLado[b].slice().sort((x,y)=>((Number(y.turno)||0)-(Number(x.turno)||0))||((Number(y.id)||0)-(Number(x.id)||0)));
     const ped=_wgBitPedidos(b);
     // v2.9.457 — cada renglón recuerda su evento: tocarlo ilumina la unidad de la que habla.
     const filas=evs.map(e=>{
       const c=_wgBitCorto(e.descripcion);
       const i=WG._bitIdx.push(e)-1;
       return `<div class="wg-bit-f${Number(e.turno)===ultimo?' nuevo':''}${e.tipo==='pedido'?' pedido':''}${e.tipo==='arranque'?' arranque':''}" data-i="${i}" onclick="wgBitTocar(this)" title="Tocá para ver en el mapa de quién habla (y el resto del texto)">`
-        +`<span class="t">T${_rgEsc(e.turno)}</span>${_rgEsc(c.corto)}${c.resto?' <span style="opacity:.5">…</span>':''}`
+        +`<span class="t">H+${Math.max(0,(Number(e.turno)||1)-1)*(Number(((WG.estado||{}).partida||{}).duracion_turno_horas)||2)}</span>${_rgEsc(c.corto)}${c.resto?' <span style="opacity:.5">…</span>':''}`
         +(c.resto?`<div class="mas">${_rgEsc(c.resto)}</div>`:'')+`</div>`;
     }).join('');
     // ============================================================
@@ -46886,8 +47514,14 @@ function _wgHudTabs(){
         tip:'VISTA DESDE EL AZUL|El tablero tal como lo ve el Estado Mayor azul: sus unidades, lo que su dron descubrió y lo que subió a la carta. Nada más.' },
       { id:'rojo', ico:'<i class="pt"></i>', nom:'VISTA ROJO',
         tip:'VISTA DESDE EL ROJO|El tablero tal como lo ve el Estado Mayor rojo, con su niebla de guerra.' },
+      // v2.9.460 — 🗺️ LA PROYECCIÓN SOBRE LA MAQUETA, A MANO. Sergio (05-11-2026): «debe
+      // haber la opción de vista de maqueta para proyectar sobre una maqueta». Existía
+      // desde la v2.9.319 pero sólo se llegaba desde la lista de partidas. Va en otra
+      // ventana a propósito: ésa se lleva al proyector y acá sigue la consola del árbitro.
+      { id:'maq', ico:'<i class="ic">🗺️</i>', nom:'VISTA MAQUETA',
+        tip:'VISTA DE MAQUETA|Abre en OTRA VENTANA la proyección para la maqueta física: los dos bandos en vivo, sin consola.|Llevá esa ventana al proyector y apretá ⛶ Pantalla completa. Después ⛶ Encuadrar para calzarla con el modelo y 🔒 Trabar.' },
     ];
-    h=T.map(t=>`<button class="wg-tab t-${t.id}${v===t.id?' on':''}" onclick="wgVistaArbitro('${t.id}')" `
+    h=T.map(t=>`<button class="wg-tab t-${t.id}${v===t.id?' on':''}" onclick="${t.id==='maq'?`wgMaquetaLobby(${Number(WG.partidaId)})`:`wgVistaArbitro('${t.id}')`}" `
       +`data-tip="${_rgEsc(t.tip)}">${t.ico}<span>${t.nom}</span></button>`).join('');
   }else if(WG.soy==='azul' || WG.soy==='rojo'){
     const r=_wgRolNom();
@@ -47012,7 +47646,7 @@ function _wgHudFicha(){
     h=`<div class="wg-vacio">${_wgSvg('mano',26)}<b>Elegí una unidad</b><span>en la columna de la izquierda o tocándola en el mapa</span></div>`;
   }else{
     const s=_wgHudSimbolo(u), d=_wgHudDatos(u), col=WG_COL[u.bando]||'#888';
-    const fila=(ico,p,txt,tip)=>`<div class="wg-fila" data-wgfila="${ico}" data-tip="${_rgEsc(tip)}">${_wgSvg(ico,13)}${_wgHudBarra(p,12)}<b style="color:${_wgHudColor(p)}">${txt}</b></div>`;   // v2.9.457: data-wgfila (el ⛽ en vivo)
+    const fila=(ico,p,txt,tip)=>`<div class="wg-fila" data-wgfila="${ico}" data-tip="${_rgEsc(tip)}">${_wgSvg(ico,15)}${_wgHudBarra(p,12)}<b style="color:${_wgHudColor(p)}">${txt}</b></div>`;   // v2.9.457: data-wgfila (el ⛽ en vivo)
     const pct=(x)=>x==null?'—':x+' %';
     const est=[];
     if(u.estado==='fuera_combate') est.push(['FUERA DE COMBATE','r']);
@@ -47109,14 +47743,14 @@ function _wgHudGrilla(){
       +B({ k:'m', ico:_wgSvg('mover',20), on:puede&&modoMover, off:!puede, click:'wgHudMover()',
           tip:tipNo('MOVER|Tocá en el mapa a dónde va: marcha por el camino más rápido y gasta combustible.|Atajo: M') })
       +B({ k:'x', ico:_wgSvg('alto',20), off:!puede, click:'wgAlto()',
-          tip:tipNo('ALTO|Se queda donde está. Corta la marcha que seguía sola desde el turno anterior.|Atajo: X') })
+          tip:tipNo('ALTO|Se queda donde está. Corta la marcha que venía haciendo.|Atajo: X') })
       +(conv ? '' : B({ k:'r', ico:_wgSvg('replegar',20), on:!!WG.modoReplegar, off:!puede, click:'wgReplegar()',
           tip:tipNo('ROMPER CONTACTO|Se retira SIN empeñarse: tocá en el mapa hacia dónde. Si tenía el enemigo encima, aguanta la persecución sin devolver golpes.|Atajo: R') }))
       +(conv ? B({ k:'b', ico:_wgSvg('apoyar',20), on:!!WG.modoApoyar, off:!puede, click:'wgModoApoyar()',
           tip:tipNo((_wgCargaDe(u,'EVAC')>0?'EVACUAR':(_wgCargaDe(u,'REEMP')>0?'REEMPLAZAR':'ABASTECER'))
             +'|Tocá después la unidad propia que tiene que recibirlo. El convoy va por camino y puede ser batido en ruta.|Atajo: B') }) : '')
       +B({ k:'t', ico:_wgSvg('tarea',20), on:WG.hudPop==='tarea', off:!puede, click:"wgHudPop('tarea')",
-          tip:tipNo('TAREA TÁCTICA|QUÉ hace y PARA QUÉ: destruir, fijar, retardar… Al resolver el turno, la bitácora la evalúa contra ese propósito.|Atajo: T') })
+          tip:tipNo('TAREA TÁCTICA|QUÉ hace y PARA QUÉ: destruir, fijar, retardar… Cada 2 h de juego la bitácora la evalúa contra ese propósito.|Atajo: T') })
       +(_wgPuedeZapar(u) ? B({ k:'o', ico:_wgSvg('obras',20), on:WG.hudPop==='obras', off:!puede, click:"wgHudPop('obras')",
           tip:tipNo('OBRAS DE INGENIERÍA|Campos minados, zanjas, alambradas, demoliciones… y abrir brechas.|Atajo: O') }) : '')
       +btnDron
@@ -47445,11 +48079,11 @@ async function wgHistorial(){
     .replace(/📖 (.+)$/,'<br><i style="color:#9fd0ff;font-size:11px">📖 $1</i>');
   const fila=(e,nuevo)=>`<div style="padding:5px 8px;margin-bottom:4px;border-radius:8px;line-height:1.45;`
     +(nuevo?`background:rgba(74,163,224,.13);border-left:3px solid #4aa3e0`:`border-left:3px solid transparent`)+`">`
-    +`<span class="rg-meta" style="font-size:10px">T${e.turno}</span> ${icono(e.tipo)} ${resaltar(e.descripcion||'')}</div>`;
+    +`<span class="rg-meta" style="font-size:10px">H+${Math.max(0,(Number(e.turno)||1)-1)*_wgHorasTurno()}</span> ${icono(e.tipo)} ${resaltar(e.descripcion||'')}</div>`;
   const nuevos=ev.filter(e=>e.turno===ultimo), viejos=ev.filter(e=>e.turno!==ultimo);
   cont.innerHTML = ev.length
-    ? (nuevos.length?`<div class="section-label" style="margin:0 0 6px">🆕 Turno ${ultimo}</div>`+nuevos.map(e=>fila(e,true)).join(''):'')
-      +(viejos.length?`<div class="section-label" style="margin:10px 0 6px">Turnos anteriores</div>`+viejos.map(e=>fila(e,false)).join(''):'')
+    ? (nuevos.length?`<div class="section-label" style="margin:0 0 6px">🆕 Lo último</div>`+nuevos.map(e=>fila(e,true)).join(''):'')
+      +(viejos.length?`<div class="section-label" style="margin:10px 0 6px">Antes</div>`+viejos.map(e=>fila(e,false)).join(''):'')
     : '<div class="rg-meta">Sin eventos todavía.</div>';
 }
 // ---- árbitro: configuración ----
@@ -47661,7 +48295,7 @@ async function _wgColocarEn(latlng){
   await wgEstado();
 }
 async function wgIniciar(btn){
-  if(!confirm('¿Iniciar la partida? Empieza el turno 1 y los EM podrán enviar órdenes.')) return;
+  if(!confirm('¿Iniciar la partida? Los EM podrán dar órdenes; el tiempo corre cuando toques ▶ PLAY.')) return;
   if(btn) btn.disabled=true;
   const r=await _wgInvoke('iniciar',{ partida_id:WG.partidaId });
   if(btn) btn.disabled=false;
