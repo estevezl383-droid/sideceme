@@ -3,6 +3,11 @@ on:
   pull_request:
     paths:
       - 'postulantes/**'
+      - 'efm-campo/app.mjs'
+      - 'efm-campo/launcher.js'
+      - 'soporte.js'
+      - 'index.html'
+      - 'tests/efmc-conformidad-browser.cjs'
       - 'supabase/functions/postulantes-ops/**'
       - 'supabase/postulantes/**'
       - 'tests/postulantes*'
@@ -22,6 +27,9 @@ jobs:
       - name: Contrato del endpoint y regresión de soporte
         run: |
           node --check postulantes/app.mjs
+          node --check postulantes/nomina.mjs
+          node --check efm-campo/app.mjs
+          node --check efm-campo/launcher.js
           node --check postulantes/integracion.js
           node --test tests/postulantes-endpoint.test.cjs
           node tests/auth-soporte.test.cjs
@@ -32,6 +40,7 @@ jobs:
           node "$RUNNER_TEMP/post-pruebas/node_modules/playwright/cli.js" install --with-deps chromium
       - name: Navegación con datos ficticios y PDF verificable
         env:
+          SIDECEME_PLAYWRIGHT_MODULE: ${{ runner.temp }}/post-pruebas/node_modules/playwright
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/post-pruebas/node_modules/playwright
           POST_TEST_OUTPUT: ${{ runner.temp }}/post-salidas
           POST_PDF_DEPS: ${{ runner.temp }}/post-pruebas/node_modules
@@ -39,3 +48,4 @@ jobs:
           python3 -m http.server 8127 --bind 127.0.0.1 --directory "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/post-http.log" 2>&1 &
           node tests/postulantes-ui.cjs
           node tests/postulantes-pdf.mjs
+          node tests/efmc-conformidad-browser.cjs
