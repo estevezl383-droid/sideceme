@@ -17,8 +17,8 @@
   if(loading||open||!owner())return;loading=true;
   try{
    if(!document.getElementById('efmc-style')){const s=document.createElement('link');s.id='efmc-style';s.rel='stylesheet';s.href='efm-campo/style.css?v=27';document.head.append(s);}
-   const tipo=session().tipo,app=tipo==='cursante'?await import('./alumno.mjs?v=22'):await import('./app.mjs?v=27');
-   open=true;const account=allowedKey;await app.abrir({invoke,evaluacionId,vistaInicial,owner:session().user.id,authorized:()=>owner()&&allowedKey===account,onClose:()=>{open=false;checkedAt=0;refresh();}});
+   const tipo=session().tipo,app=tipo==='cursante'?await import('./alumno.mjs?v=22'):await import('./app.mjs?v=28');
+   open=true;const account=allowedKey;await app.abrir({invoke,evaluacionId,vistaInicial,onPostulantes:tipo==='docente'&&['P001','P002','P020','P030','P032'].includes(session().user.id)?()=>{if(!owner()||allowedKey!==account)throw new Error('SESIÓN CAMBIADA. VUELVA A INGRESAR.');location.assign(new URL('postulantes/?personal=1&evaluacion=fisica',location.href).href);}:null,owner:session().user.id,authorized:()=>owner()&&allowedKey===account,onClose:()=>{open=false;checkedAt=0;refresh();}});
   }catch(e){open=false;alert(e.message);}finally{loading=false;}
  }
  const style='background:linear-gradient(135deg,#164959,#18372e);margin:0 0 12px;border:1px solid #5dcdb5;color:white;width:100%;white-space:normal';
