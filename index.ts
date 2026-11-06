@@ -964,7 +964,10 @@ function moverUnidad(u: any, destino: number[], terreno: any[], horas: number, p
   // nada la hacía cumplir. Ahora la autonomía que le queda LIMITA la marcha,
   // igual que el reloj o el terreno infranqueable.
   const tanque = tanqueDe(u);   // v2.9.439: la autonomía planificada de ESA unidad
-  const autonomia = tanque > 0 ? Math.max(0, tanque - (Number(u.combustible_km) || 0)) : Infinity;
+  // v2.9.466 — EL CONVOY QUE VUELVE A SU PUESTO LLEGA: va con la reserva. Sin esto, el camión seco
+  // se quedaba para siempre (nadie reabastece a un convoy en el campo) y con los heridos a bordo.
+  const vuelve = esConvoy(u) && !!u.carga && u.carga.fase === "vuelta";
+  const autonomia = tanque > 0 && !vuelve ? Math.max(0, tanque - (Number(u.combustible_km) || 0)) : Infinity;
   const idx = indiceDe(terreno);
   let pos = [u.lng, u.lat];
   const totalDest = haversineKm(pos, destino);
@@ -1983,6 +1986,7 @@ function enConoDron(u: any, pt: number[]) {
 // En UNIDADES DE FUEGO (UF): no se planifica «tantos proyectiles», se planifica
 // cuántas veces puede batir esa pieza antes de quedarse muda.
 const COSTO_UF: any = { destruccion: 1, interdiccion: 2, neutralizacion: 1, empeno: 1, encuentro: 0.5 };
+const claveTiro = (uid: any, armaId: any) => `${uid}:${armaId}`;   // v2.9.463: la cadencia es de cada sistema
 function municionDe(u: any, armaId: string) {
   const arma: any = ARMAS[armaId];
   if (!arma) return 0;
@@ -3452,6 +3456,16 @@ function horasDescarga(cv: any, u: any) {
   }
   return Math.max(ESPERA_MIN_H, h);
 }
+// v2.9.466: las unidades propias a 3 km o menos que todavía necesitan algo de lo que lleva el convoy
+// (la ambulancia: las que tienen heridos y hay lugar), de la más cercana a la más lejana.
+function aQuienAtiende(cv: any, U: Map<any, any>) {
+  const amb = cargaDe(cv, "EVAC") > 0;
+  const leSirve = (u: any) => amb ? (herDe(u) >= 0.5 && lugarAmbulancia(cv) >= 0.5)
+    : ["III", "V", "I", "REEMP"].some((k) => (k === "I" ? cargaDe(cv, "I") + cargaDe(cv, "AGUA") : cargaDe(cv, k)) > 1e-6 && necesidad(u, k, 1) > 1e-3);
+  return [...U.values()].filter((u: any) => u && !esConvoy(u) && u.bando === cv.bando && poderEfectivo(u) > 0 && leSirve(u))
+    .map((u: any) => ({ u, d: haversineKm([Number(cv.lng), Number(cv.lat)], [Number(u.lng), Number(u.lat)]) }))
+    .filter((o: any) => o.d <= REABASTECER_KM).sort((a: any, b: any) => a.d - b.d);
+}
 // Recorta la ruta para que termine a `km` del objetivo: el convoy se queda
 // DETRÁS de la unidad que apoya, no encima de ella.
 function rutaHastaCerca(ruta: number[][], objetivo: number[], km: number) {
@@ -3841,17 +3855,47 @@ function resolverTurno(estado: any) {
   const cierraJornada = !T || !!T.cierre;
   const hJornada = T ? (T.cierre ? horasTurno : 0) : horas;
   const fin: Set<any> = T ? T.fin : new Set();     // las órdenes que este paso cerró
+  // ============================================================
+  // v2.9.463 — 🎯 EL GATILLO: CADA ARMA TIRA POR SU CUENTA. Sergio (06-11-2026): «cuando se elija
+  // la unidad haya un disparador dentro de cada arma para que se pueda disparar individualmente».
+  //   · La cadencia es del SISTEMA (`unidad:arma`), no de la unidad: que tire el mortero no le
+  //     quita el turno al obús. Sigue siendo una vez por jornada, con la munición de cada uno.
+  //   · El tiro no es una orden: la unidad puede marchar y tirar a la vez, y con varias armas. Va
+  //     en una cola aparte (`estado.tiros`, filas `tiro` de wg_terreno) con su hora de juego `h`.
+  // ============================================================
+  const tirosHoy: any[] = [];
+  const esperan = new Set<any>();   // v2.9.466: los que tienen una orden con hora de arranque por delante
   if (T) {
+    T.tirosFin = T.tirosFin || new Set();   // las filas de la cola que este paso cerró
+    T.tirados = T.tirados || [];            // qué sistema tiró y a qué hora (para el gatillo de la pantalla)
+    const uPor = new Map<any, any>((estado.unidades || []).map((u: any) => [u.id, u]));
+    const recargando = (uid: any, armaId: any, h: number) => h - (T.mem.disparos[claveTiro(uid, armaId)] ?? -1e9) < horasTurno - 1e-6;
     const quedan: any[] = [];
     for (const o of estado.ordenes || []) {
       // El sistema que tiró vuelve a tirar pasada la jornada: la cadencia de siempre.
-      if ((o.tipo === "atacar" || o.tipo === "fuego") && T.hora - (T.mem.disparos[o.unidad_id] ?? -1e9) < horasTurno - 1e-6) continue;
-      // Hora de arranque (H+…): cuenta en la jornada en que se dio.
-      const esp = (o.inicio != null && Number(o.turno) === Number(estado.turno)) ? Number(o.inicio) - T.hEn : 0;
-      if (esp >= horas) continue;
+      if (o.tipo === "atacar" || o.tipo === "fuego") {
+        const a: any = armaDeFuego(uPor.get(o.unidad_id), o.arma);
+        if (a && recargando(o.unidad_id, a.id, T.hora)) continue;
+      }
+      // v2.9.465 — HORA DE ARRANQUE (H+…): horas desde que empezó la jornada en que se dio la orden.
+      // Antes valía sólo dentro de esa jornada; la sincronización la pide horas después.
+      const esp = o.inicio != null ? (Number(o.turno) - 1) * horasTurno + Number(o.inicio) - T.hora : 0;
+      if (esp >= horas) { esperan.add(o.unidad_id); continue; }
       quedan.push({ ...o, inicio: esp > 0 ? esp : null });
     }
     estado = { ...estado, ordenes: quedan };
+    const ya = new Set<string>();
+    for (const x of estado.tiros || []) {
+      const u: any = uPor.get(x.unidad_id);
+      const arma: any = u ? armaDeFuego(u, x.arma) : null;
+      if (!u || !arma || poderEfectivo(u) <= 0) { T.tirosFin.add(x.id); continue; }   // ya no hay quién tire
+      const esp = (Number(x.h) || 0) - T.hora, clave = claveTiro(u.id, arma.id);
+      if (esp >= horas || ya.has(clave) || recargando(u.id, arma.id, T.hora + Math.max(0, esp))) continue;   // no es la hora o recarga
+      ya.add(clave);
+      tirosHoy.push({ id: null, _tiro: x.id, unidad_id: u.id, bando: u.bando, tipo: x.objetivo_id != null ? "atacar" : "fuego",
+        objetivo_id: x.objetivo_id ?? null, destino_lng: x.lng ?? null, destino_lat: x.lat ?? null, arma: arma.id,
+        mision: x.mision || null, tarea: x.tarea || null, proposito: x.proposito || null, inicio: esp > 0 ? esp : 0 });
+    }
   }
   const rango = estado.rango_combate_km || 3;
   const terreno = prepararTerreno(estado.terreno); // v2.9.201: cajas para el prefiltro
@@ -4156,7 +4200,7 @@ function resolverTurno(estado: any) {
   // ---- 4) EL TURNO, HORA POR HORA ----
   const horaDe = (o: any) => (o.inicio != null && Number.isFinite(Number(o.inicio)))
     ? Math.max(0, Math.min(horas, Number(o.inicio))) : null;
-  const fuegos = ordenes.filter((o: any) => (o.tipo === "atacar" && o.objetivo_id != null)
+  const fuegos = [...ordenes, ...tirosHoy].filter((o: any) => (o.tipo === "atacar" && o.objetivo_id != null)
     || (o.tipo === "fuego" && o.destino_lat != null)).map((o: any) => ({ o, h: undefined as any, hecho: false }));
   const minas = [...marcha.entries()].filter(([, m]: any) => m.r.minado)
     .map(([id, m]: any) => ({ id, m, h: m.inicio + (Number(m.r.horasUsadas) || 0), hecho: false }));
@@ -4196,6 +4240,13 @@ function resolverTurno(estado: any) {
     if (!atac || !def || atac.bando === def.bando || !vivo(atac) || !vivo(def)) return;
     const arma: any = armaDeFuego(atac, o.arma);
     if (!arma) return; // no tiene con qué batir (p. ej. sólo medios de zapa)
+    // v2.9.463 — EL EMPEÑAMIENTO ES UNO POR JORNADA Y POR PAR (mide la unidad entera). El arma que
+    // se suma después sobre el mismo blanco cuenta por lo que ELLA pega, no otra vez por la división.
+    if (o._tiro != null && paresHechos.has(claveP(atac.id, def.id))) {
+      const pB0 = trPos(TR.get(def.id), h);
+      resolverConcentracion({ ...o, tipo: "fuego", objetivo_id: null, destino_lng: pB0[0], destino_lat: pB0[1], mision: "destruccion" }, h);
+      return;
+    }
     // v2.9.230 — SIN MUNICIÓN NO SE TIRA, y se dice.
     if (municionDe(atac, arma.id) <= 0) {
       eventos.push({ tipo: "sin_municion", bando: atac.bando, lat: atac.lat, lng: atac.lng,
@@ -4442,7 +4493,17 @@ function resolverTurno(estado: any) {
       if (f.h === undefined || sucios.has(f.o.unidad_id) || (f.o.objetivo_id != null && sucios.has(f.o.objetivo_id))) {
         f.h = horaDeFuego(f, tAhora);
       }
-      if (f.h == null) { f.hecho = true; if (T && f.o.id != null) fin.add(f.o.id); continue; }
+      if (f.h == null) {
+        f.hecho = true;
+        if (T && f.o.id != null) fin.add(f.o.id);
+        if (T && f.o._tiro != null) {
+          T.tirosFin.add(f.o._tiro);
+          const q: any = U.get(f.o.unidad_id);
+          if (vivo(q)) eventos.push({ tipo: "fuego_perdido", bando: q.bando, lat: q.lat, lng: q.lng,
+            descripcion: `🎯 ${nombreUnidad(q)}: el blanco ya no está. El tiro no salió.`, bandos_visibles: [q.bando] });
+        }
+        continue;
+      }
       proponer(Math.max(f.h, tAhora), "fuego", f, 1);
     }
     for (const c of candidatos) {
@@ -4460,7 +4521,12 @@ function resolverTurno(estado: any) {
     if (prox.tipo === "mina") { prox.x.hecho = true; resolverMina(prox.x); continue; }
     if (prox.tipo === "fuego") {
       prox.x.hecho = true;
-      if (T) { T.mem.disparos[prox.x.o.unidad_id] = T.hora + prox.h; if (prox.x.o.id != null) fin.add(prox.x.o.id); }
+      if (T) {
+        const o = prox.x.o, sis: any = armaDeFuego(U.get(o.unidad_id), o.arma);
+        if (sis) { T.mem.disparos[claveTiro(o.unidad_id, sis.id)] = T.hora + prox.h; T.tirados.push({ u: o.unidad_id, a: sis.id, h: T.hora + prox.h }); }
+        if (o.id != null) fin.add(o.id);
+        if (o._tiro != null) T.tirosFin.add(o._tiro);
+      }
       if (prox.x.o.tipo === "atacar") resolverAtaque(prox.x.o, prox.h); else resolverConcentracion(prox.x.o, prox.h);
       continue;
     }
@@ -4530,8 +4596,16 @@ function resolverTurno(estado: any) {
     if (esConvoy(u) && u.carga && Array.isArray(u.carga.ruta)) {
       if (acabo) {
         u.carga = { ...u.carga, ruta: null };
-        if (T && r.detenida && !cont) u.carga.destino = null;   // frenada: espera otra orden del G-4
+        if (T && r.detenida && !cont) u.carga.destino = null;   // frenada: si nadie le da otra orden, vuelve (v2.9.466)
       } else u.carga = { ...u.carga, ruta: u.carga.ruta.slice(Number(r.consumidos) || 0) };
+    }
+    // v2.9.466 — ⛽ EL CONVOY QUE SE QUEDA SECO EN LA IDA NO SE QUEDA AHÍ: corta la misión y vuelve con
+    // la reserva. Nadie reabastece a un convoy en el campo: seco, se quedaba para siempre en el camino.
+    if (esConvoy(u) && r.seco && u.carga && u.carga.fase !== "vuelta" && vivo(u)) {
+      u.carga = { ...u.carga, fase: "vuelta", apoya: null, destino: null, ruta: null, resta: null };
+      eventos.push({ tipo: "logistica", bando: u.bando, lat: u.lat, lng: u.lng,
+        descripcion: `⛽ ${nombreUnidad(u)} se quedó sin combustible: corta la misión y vuelve a su puesto con la reserva.`,
+        bandos_visibles: [u.bando] });
     }
   }
   // La bitácora de cada marcha (después del turno entero: «a la vista de» y
@@ -4764,6 +4838,27 @@ function resolverTurno(estado: any) {
           bandos_visibles: [cv.bando] });
       }
     }
+    // ============================================================
+    // v2.9.466 — ↩️ NADIE SE QUEDA POR INDEFINIDO EN UN LUGAR. Sergio (06-11-2026): «los vehículos que
+    // hacen reabastecimiento o evacuaciones deben retornar automáticamente». En «azafran III» el
+    // Cnv-III-3 salió cargado con MOVER, llegó y se quedó parado a 11 km de su puesto desde la
+    // jornada 25: sólo volvía el convoy vacío o el que había ido con «🚚 ABASTECER A…».
+    // Ahora el convoy sin misión que quedó parado lejos de sus instalaciones entra en la misma cuenta
+    // que todos: descarga lo que alguien propio necesite a 3 km (si no, espera lo mínimo) y vuelve.
+    // ALTO y la marcha frenada también: lo detienen, no lo dejan ahí para siempre.
+    // ============================================================
+    const c2 = cv.carga || {};
+    const conPuesto = _instal.some((x: any) => x && x.bando === cv.bando && INSTAL_LOG[x.tipo] && (INSTAL_LOG[x.tipo].despacha || []).length);
+    if (!c2.fase && c2.apoya == null && !(Array.isArray(c2.destino) && c2.destino.length >= 2)
+      && num(horasConvoy.get(cv.id)) > 1e-6 && conPuesto && !esperan.has(cv.id) && !cercaDeSuInstalacion(cv, _instal)) {
+      const x: any = aQuienAtiende(cv, U)[0];
+      cv.carga = { ...c2, apoya: null, fase: "descarga", aMano: true, llegoH: quietoDesde, resta: ESPERA_MIN_H, dParada: x ? x.d : null,
+        entrego: 0, destino: null, ruta: null };
+      eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
+        descripcion: x ? `🚚 ${nombreUnidad(cv)} está a ${x.d.toFixed(1)} km de ${nombreUnidad(x.u)}: atiende a los que lo necesiten y después vuelve a su instalación.`
+          : `↩️ ${nombreUnidad(cv)} quedó parado sin nadie a quien atender: espera ${horasATexto(ESPERA_MIN_H)} y vuelve a su instalación.`,
+        bandos_visibles: [cv.bando] });
+    }
   }
   // v2.9.351 — LA DESCARGA SE VE. v2.9.443 — y alcanza para todos los que estén cerca.
   const entregas: any[] = [];
@@ -4835,17 +4930,19 @@ function resolverTurno(estado: any) {
       : ["III", "V", "I", "REEMP"].some((k) =>
         (k === "I" ? cargaDe(cv, "I") + cargaDe(cv, "AGUA") : cargaDe(cv, k)) > 1e-6 && necesidad(x, k, 1) > 1e-3));
     const vacio = amb ? lugarAmbulancia(cv) < 0.5 : cargaTotal(cv) <= 1e-6;
-    if (!vacio && resta > 1e-6 && (leFalta || !cerca)) { cv.carga = { ...c, resta }; continue; }
+    // v2.9.466: el que llegó a mano sigue mientras alguien propio a 3 km lo necesite; si no, espera lo mínimo.
+    if (!vacio && (c.aMano ? (resta > 1e-6 || aQuienAtiende(cv, U).length > 0) : (resta > 1e-6 && (leFalta || !cerca)))) { cv.carga = { ...c, resta }; continue; }
     const dio = Number(c.entrego) || 0, lleva = num(c.aBordo);
-    cv.carga = { ...c, fase: "vuelta", apoya: null, resta: null };
+    cv.carga = { ...c, fase: "vuelta", apoya: null, resta: null, aMano: null };
+    const nadie = c.aMano ? "no había a quién atender" : "la unidad no está";   // v2.9.466
     eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
       descripcion: amb
         ? (lleva >= 0.5 ? `🚑 ${nombreUnidad(cv)} terminó de cargar (${Math.round(lleva)} herido(s)): los lleva a su puesto por camino.`
-          : `↩️ ${nombreUnidad(cv)} vuelve SIN heridos: ${x ? nombreUnidad(x) + " no se acercó" : "la unidad no está"}`
+          : `↩️ ${nombreUnidad(cv)} vuelve SIN heridos: ${x ? nombreUnidad(x) + " no se acercó" : nadie}`
             + `${x ? ` (quedó a ${haversineKm([cv.lng, cv.lat], [x.lng, x.lat]).toFixed(1)} km)` : ""}.`)
-        : dio > 1e-6
+        : dio >= 0.05
         ? `↩️ ${nombreUnidad(cv)} terminó la descarga (${dio.toFixed(1)} carga(s)): vuelve a su instalación por camino.`
-        : `↩️ ${nombreUnidad(cv)} vuelve SIN descargar: ${x ? nombreUnidad(x) + " no se acercó" : "la unidad no está"}`
+        : `↩️ ${nombreUnidad(cv)} vuelve SIN descargar: ${x ? nombreUnidad(x) + " no se acercó" : nadie}`
           + `${x ? ` (quedó a ${haversineKm([cv.lng, cv.lat], [x.lng, x.lat]).toFixed(1)} km)` : ""}.`,
       bandos_visibles: [cv.bando] });
   }
@@ -4888,7 +4985,7 @@ function resolverTurno(estado: any) {
   let aJuzgar: any[] = ordenes, antesTarea: Map<any, any> = _antes as any;
   let pelearon = new Set<any>([...disparadoras, ...procesados]);
   if (T) {
-    for (const o of ordenes) if (o && o.tarea && TAREAS[o.tarea]) {
+    for (const o of [...ordenes, ...tirosHoy]) if (o && o.tarea && TAREAS[o.tarea]) {
       T.mem.tareas[o.unidad_id] = { unidad_id: o.unidad_id, tarea: o.tarea, proposito: o.proposito || null, tipo: o.tipo,
         objetivo_id: o.objetivo_id ?? null, destino_lng: o.destino_lng ?? null, destino_lat: o.destino_lat ?? null };
     }
@@ -5209,6 +5306,11 @@ function relojPublico(g: any) {
   const { g4firma: _f, mem: _m, detFirma: _d, ...resto } = g;
   return { ...resto, g4auto: g4AutoDe(g) };
 }
+// v2.9.463: una fila `tiro` de wg_terreno, como la lee el motor y la pantalla.
+function filaDeTiro(r: any) {
+  const { type: _t, coordinates: _c, ...g } = (r && r.geojson) || {};
+  return { ...g, id: r.id, bando: r.bando };
+}
 async function g4Automatico(pid: any, unidades: any[], terreno: any[], instalLog: any[], ordenes: any[], eventos: any[]) {
   const fila = await relojDe(pid);
   const g: any = (fila && fila.geojson) || {};
@@ -5329,7 +5431,9 @@ async function manejar(req: Request): Promise<Response> {
     // v2.9.455: el que dio una orden por enlace también la puede anular.
     "anular_orden",
     // v2.9.461: el JEM (por enlace) lleva el reloj; y si se cae, cualquiera del bando.
-    "tic"];
+    "tic",
+    // v2.9.463 · v2.9.465: el gatillo y la sincronización, también por enlace.
+    "sincronizar"];
   let ses: any = token ? await validarSesion(token) : null;
   let invitado: any = null;
   if (!ses) {
@@ -5386,7 +5490,9 @@ async function manejar(req: Request): Promise<Response> {
        // v2.9.455: anular una orden (la del bando, o cualquiera el árbitro).
        "anular_orden",
        // v2.9.461: el paso del reloj continuo.
-       "tic"].includes(accion)) {
+       "tic",
+       // v2.9.465: lanzar órdenes y tiros juntos.
+       "sincronizar"].includes(accion)) {
     if (!partida) return err("Partida no encontrada", 404);
   }
   const arbitro = partida ? esArbitro(partida, ses) : false;
@@ -5610,10 +5716,9 @@ async function manejar(req: Request): Promise<Response> {
     return ok({ dron_rumbo: rumbo });
   }
 
-  if (accion === "enviar_orden") {
-    if (partida.estado !== "en_curso") return err("La partida no está en curso");
-    if (!arbitro && !miBando) return err("Clave de bando inválida", 403);
-    const o = body.orden || {};
+  // v2.9.465: guardar UNA orden. La usan `enviar_orden` y `sincronizar`; devuelve el error o null.
+  // `inicioH`: horas desde que empezó esta jornada (lo que calcula la sincronización).
+  const guardarOrden = async (o: any, inicioH: any = null): Promise<Response | null> => {
     // La unidad debe ser del bando del caller (o el árbitro puede ordenar a cualquiera).
     const { data: us } = await sb.from("wg_unidades").select("id, bando, estado").eq("id", o.unidad_id).eq("partida_id", partida.id).limit(1);
     const u = us && us[0];
@@ -5650,6 +5755,7 @@ async function manejar(req: Request): Promise<Response> {
           && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1])))
           .slice(0, 60).map((p: any) => [Number(p[0]), Number(p[1])])
       : null;
+    const inicio = inicioH != null ? inicioH : (Number.isFinite(Number(o.inicio)) ? Math.max(0, Number(o.inicio)) : null);
     // Una orden por unidad por turno. v2.9.430: antes era «borrar la previa y
     // crear la nueva» en dos pasos; dos envíos con 20 ms de diferencia pasaban
     // los dos por el borrado antes de que ninguno insertara, y quedaban DOS
@@ -5672,8 +5778,8 @@ async function manejar(req: Request): Promise<Response> {
       tarea: typeof o.tarea === "string" && TAREAS[o.tarea] ? o.tarea : null,
       proposito: typeof o.proposito === "string" && o.proposito.trim()
         ? o.proposito.trim().slice(0, 300) : null,
-      // v2.9.223: hora de arranque dentro del turno (matriz de sincronización).
-      inicio: Number.isFinite(Number(o.inicio)) ? Math.max(0, Number(o.inicio)) : null,
+      // v2.9.223: hora de arranque (matriz de sincronización). v2.9.465: puede caer varias jornadas después.
+      inicio,
       estado: "pendiente",
       // v2.9.461: fecha nueva aunque pise la fila: el paso del reloj en curso no la cierra.
       creada_en: new Date().toISOString(),
@@ -5690,14 +5796,86 @@ async function manejar(req: Request): Promise<Response> {
         mision: ["destruccion", "interdiccion", "neutralizacion", "corta", "marcada"].includes(o.mision) ? o.mision : null,
         tarea: typeof o.tarea === "string" && TAREAS[o.tarea] ? o.tarea : null,
         proposito: typeof o.proposito === "string" && o.proposito.trim() ? o.proposito.trim().slice(0, 300) : null,
-        inicio: Number.isFinite(Number(o.inicio)) ? Math.max(0, Number(o.inicio)) : null,
+        inicio,
         estado: "pendiente",
       };
       await sb.from("wg_ordenes").delete().eq("partida_id", partida.id).eq("turno", partida.turno_actual).eq("unidad_id", o.unidad_id);
       const { error: e2 } = await sb.from("wg_ordenes").insert(fila);
       if (e2) return err(e2.message, 500);
     }
-    return ok();
+    return null;
+  };
+  if (accion === "enviar_orden") {
+    if (partida.estado !== "en_curso") return err("La partida no está en curso");
+    if (!arbitro && !miBando) return err("Clave de bando inválida", 403);
+    return (await guardarOrden(body.orden || {})) || ok();
+  }
+
+  // ============================================================
+  // v2.9.463 · v2.9.465 — 🎯 ⏱ LANZAR: el gatillo de un arma, o la sincronización entera.
+  // Sergio (06-11-2026): «arriba de esta tabla debe estar la que más tarda… y en base a ésa se
+  // sincronizan los fuegos y los otros movimientos». Cada orden y cada tiro traen su `demora` (horas
+  // desde ahora). Se lee el reloj UNA vez, así todos cuentan desde la misma hora aunque el paso
+  // del reloj caiga en el medio del envío. El tiro va a la cola (fila `tiro` de wg_terreno: sin
+  // bando nulo no es carta, y por tipo no es obra): la unidad puede marchar y tirar con varias armas.
+  // ============================================================
+  if (accion === "sincronizar") {
+    if (partida.estado !== "en_curso") return err("La partida no está en curso");
+    if (!arbitro && !miBando) return err("Clave de bando inválida", 403);
+    const ordenes = Array.isArray(body.ordenes) ? body.ordenes.slice(0, 200) : [];
+    const tiros = Array.isArray(body.tiros) ? body.tiros.slice(0, 200) : [];
+    const filaR = await relojDe(partida.id);
+    const hDur = Number(partida.duracion_turno_horas) || 2;
+    const hEn = Number(((filaR && filaR.geojson) || {}).hEn) || 0;
+    const base = Math.max(0, Number(partida.turno_actual) - 1) * hDur + hEn;
+    const demoraDe = (x: any) => Math.max(0, Math.min(240, Number(x && x.demora) || 0));
+    const fallos: string[] = [];
+    let nO = 0;
+    for (let i = 0; i < ordenes.length; i += 4) {
+      await Promise.all(ordenes.slice(i, i + 4).map(async (o: any) => {
+        const d = demoraDe(o);
+        const r = await guardarOrden(o || {}, d > 0 ? hEn + d : null);
+        if (!r) { nO++; return; }
+        const j: any = await r.json().catch(() => ({}));
+        fallos.push(`${o && o.unidad_id}: ${j.error || "no se pudo guardar"}`);
+      }));
+    }
+    let nuevos: any[] = [];
+    if (tiros.length) {
+      const ids = [...new Set(tiros.map((t: any) => Number(t && t.unidad_id)).filter((n: number) => Number.isFinite(n)))];
+      const [{ data: us }, { data: previos }] = await Promise.all([
+        sb.from("wg_unidades").select("id, bando, estado").eq("partida_id", partida.id).in("id", ids),
+        sb.from("wg_terreno").select("id, geojson").eq("partida_id", partida.id).eq("tipo", "tiro").limit(1000),
+      ]);
+      const porId = new Map<number, any>((us || []).map((u: any) => [Number(u.id), u]));
+      const filas: any[] = [], borrar: any[] = [];
+      for (const t of tiros) {
+        const id = Number(t && t.unidad_id), u = porId.get(id);
+        const arma = t && typeof t.arma === "string" && ARMAS[t.arma] ? t.arma : null;
+        const obj = t && t.objetivo_id != null ? Number(t.objetivo_id) : null;
+        const lng = Number(t && t.lng), lat = Number(t && t.lat), conPunto = Number.isFinite(lng) && Number.isFinite(lat);
+        if (!u) { fallos.push(`${id}: unidad no encontrada`); continue; }
+        if (!arbitro && u.bando !== miBando.bando) { fallos.push(`${id}: no es de tu bando`); continue; }
+        if (u.estado === "fuera_combate") { fallos.push(`${id}: está fuera de combate`); continue; }
+        if (!arma || (obj == null && !conPunto)) { fallos.push(`${id}: falta el arma o el blanco`); continue; }
+        // Un tiro por arma: el nuevo pisa al que esperaba.
+        for (const p of previos || []) if (Number(p.geojson && p.geojson.unidad_id) === id && p.geojson.arma === arma) borrar.push(p.id);
+        filas.push({ partida_id: partida.id, tipo: "tiro", bando: u.bando,
+          geojson: { type: "Point", coordinates: conPunto ? [lng, lat] : [0, 0], unidad_id: id, arma, objetivo_id: obj,
+            lng: conPunto ? lng : null, lat: conPunto ? lat : null,
+            mision: ["destruccion", "interdiccion", "neutralizacion"].includes(t.mision) ? t.mision : null,
+            tarea: typeof t.tarea === "string" && TAREAS[t.tarea] ? t.tarea : null,
+            proposito: typeof t.proposito === "string" && t.proposito.trim() ? t.proposito.trim().slice(0, 300) : null,
+            h: base + demoraDe(t) } });
+      }
+      if (borrar.length) await sb.from("wg_terreno").delete().eq("partida_id", partida.id).eq("tipo", "tiro").in("id", borrar);
+      if (filas.length) {
+        const { data, error } = await sb.from("wg_terreno").insert(filas).select("id, bando, geojson");
+        if (error) return err(`No se pudo guardar el tiro: ${error.message}`, 500);
+        nuevos = (data || []).map(filaDeTiro);
+      }
+    }
+    return ok({ base, ordenes: nO, tiros: nuevos, fallos });
   }
 
   // ============================================================
@@ -5716,6 +5894,13 @@ async function manejar(req: Request): Promise<Response> {
     const u = us && us[0];
     if (!u) return err("Unidad no encontrada", 404);
     if (!arbitro && u.bando !== miBando.bando) return err("Esa unidad no es de tu bando", 403);
+    // v2.9.463: con `arma`, lo que se anula es el tiro que esperaba en la cola.
+    if (typeof body.arma === "string") {
+      const { data: cola } = await sb.from("wg_terreno").select("id, geojson").eq("partida_id", partida.id).eq("tipo", "tiro").limit(1000);
+      const ids = (cola || []).filter((p: any) => String(p.geojson && p.geojson.unidad_id) === String(uid) && p.geojson.arma === body.arma).map((p: any) => p.id);
+      if (ids.length) await sb.from("wg_terreno").delete().eq("partida_id", partida.id).eq("tipo", "tiro").in("id", ids);
+      return ok({ anulada: ids.length > 0 });
+    }
     const { error } = await sb.from("wg_ordenes").delete().eq("partida_id", partida.id)
       .eq("estado", "pendiente").eq("unidad_id", uid);
     if (error) return err(error.message, 500);
@@ -5809,13 +5994,14 @@ async function manejar(req: Request): Promise<Response> {
       const cierre = hEn0 + horas >= hDur - 1e-9;
       const hora = (turno - 1) * hDur + hEn0;
       const m0: any = g.mem || {};
-      const T: any = { horas, cierre, hEn: hEn0, hora, fin: new Set<any>(),
+      const T: any = { horas, cierre, hEn: hEn0, hora, fin: new Set<any>(), tirosFin: new Set<any>(), tirados: [],
         mem: { pares: { ...(m0.pares || {}) }, disparos: { ...(m0.disparos || {}) }, foto: m0.foto || null,
           tareas: { ...(m0.tareas || {}) }, pelearon: { ...(m0.pelearon || {}) }, vis: m0.vis || null } };
-      const [rU, rI, rO] = await Promise.all([
+      const [rU, rI, rO, rT] = await Promise.all([
         sb.from("wg_unidades").select("*").eq("partida_id", partida.id),
         sb.from("wg_terreno").select("id, tipo, geojson, bando").eq("partida_id", partida.id).like("tipo", "log\\_%").limit(400),
         sb.from("wg_ordenes").select("*").eq("partida_id", partida.id).eq("estado", "pendiente"),
+        sb.from("wg_terreno").select("id, bando, geojson").eq("partida_id", partida.id).eq("tipo", "tiro").limit(500),   // v2.9.463
       ]);
       const terreno = await cartaDelMotor(partida.id);
       const unidades = (rU as any).data || [];
@@ -5830,7 +6016,7 @@ async function manejar(req: Request): Promise<Response> {
       let res: any;
       try {
         res = resolverTurno({ duracion_turno_horas: hDur, rango_combate_km: body.rango_combate_km || 3, turno,
-          terreno, unidades, ordenes, instalaciones: instalLog, tic: T });
+          terreno, unidades, ordenes, instalaciones: instalLog, tiros: ((rT as any).data || []).map(filaDeTiro), tic: T });
       } catch (e) {
         return err(`Error en el paso del reloj: ${(e as any)?.message || e}`, 500);
       }
@@ -5877,6 +6063,7 @@ async function manejar(req: Request): Promise<Response> {
       const cerradas = [...T.fin];
       if (cerradas.length) escribir(sb.from("wg_ordenes").update({ estado: "resuelta" })
         .eq("partida_id", partida.id).in("id", cerradas).lte("creada_en", corteOrden));
+      if (T.tirosFin.size) escribir(sb.from("wg_terreno").delete().eq("partida_id", partida.id).eq("tipo", "tiro").in("id", [...T.tirosFin]));   // v2.9.463
       const hechas = await Promise.all(escrituras);
       for (const r of hechas) if (r && r.error) return err(`No se pudo guardar el paso: ${r.error.message}`, 500);
       // v2.9.461 — LA NIEBLA VIAJA EN EL PASO: qué ve cada bando ahora (la tropa, el dron que
@@ -5896,7 +6083,9 @@ async function manejar(req: Request): Promise<Response> {
       for (const k of Object.keys(T.mem.disparos)) if (hAhora - Number(T.mem.disparos[k]) >= hDur) delete T.mem.disparos[k];
       const hEn = cierre ? Math.max(0, hEn0 + horas - hDur) : hEn0 + horas;
       const n = (Number(g.n) || 0) + 1;
-      const fr = cierre ? await relojDe(partida.id) : fila;   // el 🤖 G-4 escribe su memoria en la misma fila
+      // El 🤖 G-4 escribe su memoria en la misma fila. v2.9.463: y se lee siempre de nuevo, si no el paso
+      // que estaba corriendo pisaba la ⏸ PAUSA o el ⏹ ALTO que entraron mientras tanto (06-11, partida 15).
+      const fr = await relojDe(partida.id);
       const g2: any = { ...((fr && fr.geojson) || g), ticEn: t0, hEn, n, mem: T.mem, detFirma };
       const { error: eR } = await guardarReloj(partida.id, fr || fila, g2);
       if (eR) return err(`No se pudo guardar el reloj: ${eR.message}`, 500);
@@ -5908,6 +6097,7 @@ async function manejar(req: Request): Promise<Response> {
         trazas: (res.trazas || []).map((t: any) => ({ id: t.id, bando: t.bando, ruta: (t.ruta || []).map((p: number[]) => [r5(p[0]), r5(p[1])]),
           km: t.km, llego: t.llego, detenida: t.detenida, contacto: t.contacto, minado: t.minado, consumidos: t.consumidos, c1: t.c1 })),
         impactos: res.impactos || [], entregas: res.entregas || [],
+        tirados: T.tirados, tirosFin: [...T.tirosFin],   // v2.9.463: qué sistema tiró (el gatillo de la pantalla) y qué salió de la cola
         // Lo que cambió de cada ficha.
         cambios: cambiadas.map((u: any) => {
           // La ruta del convoy viaja una vez, cuando sale; después cada pantalla la va recortando.
@@ -5982,7 +6172,7 @@ async function manejar(req: Request): Promise<Response> {
     // v2.9.461: las órdenes VIVAS (en el juego continuo duran hasta cumplirse).
     const qOrd = sb.from("wg_ordenes").select("*").eq("partida_id", partida.id).eq("estado", "pendiente");
     const qDet = sb.from("wg_detecciones").select("unidad_id, bando_observador").eq("partida_id", partida.id).eq("turno", turnoDet);
-    const [rUni, rBan, rTer, rCnt, rUlt, rIns, rDet, rOrd, rInt, rObr, rRel] = await Promise.all([
+    const [rUni, rBan, rTer, rCnt, rUlt, rIns, rDet, rOrd, rInt, rObr, rRel, rTir] = await Promise.all([
       sb.from("wg_unidades").select("*").eq("partida_id", partida.id).limit(2000),
       sb.from("wg_bandos").select("bando, nombre, grupo_id").eq("partida_id", partida.id),
       // v2.9.201: el terreno importado del Generador pesa MB. Se manda una sola
@@ -6011,6 +6201,8 @@ async function manejar(req: Request): Promise<Response> {
         .not("bando", "is", null).in("tipo", [...TIPOS_MOTOR, "obstaculo"]).order("id", { ascending: true }).limit(1000),
       // v2.9.449: el reloj del juego.
       sb.from("wg_terreno").select("geojson").eq("partida_id", partida.id).eq("tipo", "reloj").limit(1),
+      // v2.9.463: los tiros que esperan su hora.
+      sb.from("wg_terreno").select("id, bando, geojson").eq("partida_id", partida.id).eq("tipo", "tiro").limit(500),
     ]);
     const unidades = (rUni as any).data || [];
     const bandos = (rBan as any).data || [];
@@ -6109,6 +6301,13 @@ async function manejar(req: Request): Promise<Response> {
       obras,                      // v2.9.324: obras y fajas, siempre frescas y con niebla
       detecciones: detPorBando,   // v2.9.233: sólo para el árbitro
       reloj: relojPublico((((rRel as any).data || [])[0] || {}).geojson),   // v2.9.449 (v2.9.451: sin la memoria del G-4)
+      // v2.9.463 — 🎯 la cola de tiros y cuándo tiró cada sistema, sólo los del bando (los dos para el árbitro).
+      tiros: ((rTir as any).data || []).filter((x: any) => arbitro || (miBando && x.bando === miBando.bando)).map(filaDeTiro),
+      cadencia: (() => {
+        const m0: any = ((((rRel as any).data || [])[0] || {}).geojson || {}).mem || {};
+        const mias2 = new Set<string>((unidades || []).filter((u: any) => arbitro || (miBando && u.bando === miBando.bando)).map((u: any) => String(u.id)));
+        return Object.fromEntries(Object.entries(m0.disparos || {}).filter(([k]) => mias2.has(String(k).split(":")[0])));
+      })(),
     });
   }
 
