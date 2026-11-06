@@ -1,0 +1,41 @@
+name: Postulantes ECEME 2027
+on:
+  pull_request:
+    paths:
+      - 'postulantes/**'
+      - 'supabase/functions/postulantes-ops/**'
+      - 'supabase/postulantes/**'
+      - 'tests/postulantes*'
+      - '.github/workflows/postulantes.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Contrato del endpoint y regresión de soporte
+        run: |
+          node --check postulantes/app.mjs
+          node --check postulantes/integracion.js
+          node --test tests/postulantes-endpoint.test.cjs
+          node tests/auth-soporte.test.cjs
+          node tests/soporte-ui.test.cjs
+      - name: Preparar pruebas de navegador y PDF
+        run: |
+          npm install --prefix "$RUNNER_TEMP/post-pruebas" --save-exact playwright@1.51.1 pdf-lib@1.17.1 qrcode-generator@1.4.4
+          node "$RUNNER_TEMP/post-pruebas/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Navegación con datos ficticios y PDF verificable
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/post-pruebas/node_modules/playwright
+          POST_TEST_OUTPUT: ${{ runner.temp }}/post-salidas
+          POST_PDF_DEPS: ${{ runner.temp }}/post-pruebas/node_modules
+        run: |
+          python3 -m http.server 8127 --bind 127.0.0.1 --directory "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/post-http.log" 2>&1 &
+          node tests/postulantes-ui.cjs
+          node tests/postulantes-pdf.mjs
