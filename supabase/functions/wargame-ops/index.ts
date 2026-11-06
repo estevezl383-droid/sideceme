@@ -3243,6 +3243,9 @@ function pieEnTramo(p: number[], a: number[], b: number[]) {
 // La salida a la red se busca entre todo lo que haya a 2 km (ACCESO_PENAL: salirse
 // del camino es caro), no en el nudo más cercano: ése puede ser un pedazo suelto
 // de 300 m, y entonces la columna no llegaba a ningún lado.
+// v2.9.462 — 📍 «marcada»: la ruta que el G-4 marcó punto por punto. Pasa por CADA punto y por
+// el camino donde lo marcó (ver `rutaConvoyPorPuntos`). Sergio (06-11-2026): «si marqué por las
+// rutas de cuarta debería mantener los puntos que he marcado y no cambiarme la ruta».
 // ============================================================
 const HUELLA_PENAL = 8;
 const ACCESO_PENAL = 6;
@@ -3256,18 +3259,23 @@ function accesoLibre(terreno: any[], a: number[], b: number[]) {
   }
   return true;
 }
-function rutaConvoy(terreno: any[], desde: number[], hasta: number[], via?: any, soloLimpias = false) {
+// `fijo` (v2.9.462): { de, a } son pies de `pieEnRed`. `de`: sale de ESE tramo, sin saltar a otro
+// camino. `a`: llega a ESE tramo (el nudo más cercano al punto puede ser de otro camino).
+function rutaConvoy(terreno: any[], desde: number[], hasta: number[], via?: any, soloLimpias = false, fijo?: any) {
   const g = grafoVial(terreno);
+  const pieDe = fijo && fijo.de, pieA = fijo && fijo.a;
   const nada = (motivo: string) => ({ sinCamino: true, motivo, ruta: [] as number[][], parada: desde,
     dParada: haversineKm(desde, hasta), km: 0, kmHuella: 0, acceso: 0 });
   if (!g.nodos.length) return nada("la carta no tiene caminos");
-  let fuentes = g.cercanos(desde, CONVOY_FUERA_RUTA_KM);
+  let fuentes = pieDe
+    ? [[pieDe.i, haversineKm(pieDe.q, g.nodos[pieDe.i])], [pieDe.j, haversineKm(pieDe.q, g.nodos[pieDe.j])]]
+    : g.cercanos(desde, CONVOY_FUERA_RUTA_KM);
   if (!fuentes.length) return nada(`no hay camino a menos de ${CONVOY_FUERA_RUTA_KM} km`);
   if (soloLimpias) {
     const limpias = fuentes.filter(([i, d]: number[]) => d <= CAMINO_KM || accesoLibre(terreno, desde, g.nodos[i]));
     if (limpias.length) fuentes = limpias;   // ninguna: la más cercana (el motor la frena y dice por qué)
   }
-  const corta = via === "corta";
+  const corta = via === "corta" || via === "marcada";
   const n = g.nodos.length;
   const dist = new Float64Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1);
   const cerrado = new Uint8Array(n), porHuella = new Uint8Array(n);
@@ -3295,12 +3303,13 @@ function rutaConvoy(terreno: any[], desde: number[], hasta: number[], via?: any,
   };
   // Dijkstra entero desde las entradas: el mejor nodo es el alcanzable más cercano a
   // `hasta` (a igual distancia, el de camino más corto).
-  for (const [i, d] of fuentes) { dist[i] = d * ACCESO_PENAL; push(dist[i], i); }
+  for (const [i, d] of fuentes) { dist[i] = pieDe ? d : d * ACCESO_PENAL; push(dist[i], i); }
   let mejor = -1, dMejor = Infinity, it = 0;
   while (heap.length && ++it < 2000000) {
     const [, i] = pop();
     if (cerrado[i]) continue;
     cerrado[i] = 1;
+    if (pieA && cerrado[pieA.i] && cerrado[pieA.j]) break;   // ya tiene por dónde llegar
     const d = haversineKm(g.nodos[i], hasta);
     if (mejor < 0 || d < dMejor - 1e-9 || (Math.abs(d - dMejor) <= 1e-9 && dist[i] < dist[mejor])) { mejor = i; dMejor = d; }
     const ad = g.ady[i], ps = g.pes[i], hu = g.hue[i];
@@ -3311,13 +3320,18 @@ function rutaConvoy(terreno: any[], desde: number[], hasta: number[], via?: any,
       if (nd < dist[j]) { dist[j] = nd; prev[j] = i; porHuella[j] = hu[k]; push(nd, j); }
     }
   }
+  let alTramo = false;
+  if (pieA) {
+    const ci = dist[pieA.i] + haversineKm(g.nodos[pieA.i], pieA.q), cj = dist[pieA.j] + haversineKm(g.nodos[pieA.j], pieA.q);
+    if (Math.min(ci, cj) < Infinity) { mejor = ci <= cj ? pieA.i : pieA.j; dMejor = haversineKm(g.nodos[mejor], hasta); alTramo = true; }
+  }
   const idx: number[] = [];
   for (let i = mejor; i >= 0; i = prev[i]) idx.push(i);
   idx.reverse();
   const a = idx[0];
   // Si la salida al camino no se puede hacer, se busca otra entrada.
-  if (!soloLimpias && haversineKm(desde, g.nodos[a]) > CAMINO_KM && !accesoLibre(terreno, desde, g.nodos[a])) {
-    return rutaConvoy(terreno, desde, hasta, via, true);
+  if (!soloLimpias && !pieDe && haversineKm(desde, g.nodos[a]) > CAMINO_KM && !accesoLibre(terreno, desde, g.nodos[a])) {
+    return rutaConvoy(terreno, desde, hasta, via, true, fijo);
   }
   const ruta = idx.map((i) => g.nodos[i]);
   // El punto del camino más cercano: el pie sobre los tramos que tocan al mejor nodo.
@@ -3327,6 +3341,7 @@ function rutaConvoy(terreno: any[], desde: number[], hasta: number[], via?: any,
     const dq = haversineKm(q, hasta);
     if (dq < dFin - 1e-6) { dFin = dq; fin = q; }
   }
+  if (alTramo) { fin = pieA.q; dFin = pieA.d; }
   if (haversineKm(fin, ruta[ruta.length - 1]) > 0.005) {
     // Si el pie cae sobre el tramo por el que llegó, se corta ahí (no va y vuelve).
     const ant = ruta.length > 1 ? ruta[ruta.length - 2] : null;
@@ -3342,23 +3357,82 @@ function rutaConvoy(terreno: any[], desde: number[], hasta: number[], via?: any,
   return { sinCamino: false, motivo: "", ruta, parada: ruta[ruta.length - 1], dParada: dFin, km, kmHuella,
     acceso: haversineKm(desde, g.nodos[a]) };
 }
-// La ruta del G-4 (sus puntos de paso), pasada al camino: cada punto se lleva al
-// punto de la red más cercano que se pueda alcanzar desde el anterior.
+// v2.9.462 — El punto de la red más cercano a `p`: el pie sobre el TRAMO más cercano (el nudo más
+// cercano puede ser de otro camino que pasa al lado). `h`: el tramo es de 3.ª/4.ª.
+function pieEnRed(g: any, p: number[], maxKm = CONVOY_FUERA_RUTA_KM) {
+  let m: any = null;
+  for (const [i] of g.cercanos(p, maxKm + 0.6)) {
+    const ad = g.ady[i];
+    for (let k = 0; k < ad.length; k++) {
+      const j = ad[k], q = pieEnTramo(p, g.nodos[i], g.nodos[j]), d = haversineKm(q, p), h = !!g.hue[i][k];
+      if (d > maxKm) continue;
+      // A la misma distancia (un cruce), vale el camino mejor.
+      if (!m || d < m.d - 1e-9 || (Math.abs(d - m.d) <= 1e-9 && m.h && !h)) m = { i, j, q, d, h };
+    }
+  }
+  return m;
+}
+const mismoTramo = (a: any, b: any) => (a.i === b.i && a.j === b.j) || (a.i === b.j && a.j === b.i);
+const SOBRE_CAMINO_KM = 0.1;
+// La ruta del G-4 (sus puntos de paso), pasada al camino. v2.9.462: cada punto se toca, y entre
+// uno y otro va por la red: sin saltar a otro camino que pase cerca y sin rodeos por la ruta
+// principal cuando el punto está sobre uno de 3.ª/4.ª. En «azafran III» un clic en el km 9,3 de
+// un camino de 4.ª mandaba a la columna 38 km por la principal, que venía a buscarlo por atrás.
 function rutaConvoyPorPuntos(terreno: any[], desde: number[], puntos: number[][], via?: any) {
   const pts = (puntos || []).filter((p: any) => Array.isArray(p) && p.length >= 2);
-  let cur = desde, ruta: number[][] = [], km = 0, kmHuella = 0, acceso = 0, ult: any = null;
+  const g = grafoVial(terreno);
+  const hayRed = g.nodos.length > 0;
+  const sale = hayRed ? pieEnRed(g, desde, SOBRE_CAMINO_KM) : null;   // sobre qué camino está parada
+  let cur = desde, ruta: number[][] = [], kmHuella = 0, acceso = 0, ult: any = null, de: any = null;
   for (let i = 0; i < pts.length; i++) {
-    const r: any = rutaConvoy(terreno, cur, pts[i], via);
+    const p = pts[i], pie = hayRed ? pieEnRed(g, p) : null, antes = de || sale;
+    // «marcada»: si el tramo toca un camino de 3.ª/4.ª, va por él; entre dos puntos de la
+    // principal, por la principal (un atajo no marcado tampoco es la ruta que dio).
+    const v = via === "marcada" ? (((antes && antes.h) || (pie && pie.h)) ? "corta" : null) : via;
+    let r: any;
+    if (de && pie && mismoTramo(de, pie)) {
+      const d = haversineKm(de.q, pie.q);
+      r = { sinCamino: false, motivo: "", ruta: [pie.q], parada: pie.q, dParada: pie.d, km: d, kmHuella: pie.h ? d : 0, acceso: 0 };
+    } else {
+      r = rutaConvoy(terreno, cur, p, v, false, pie ? { de, a: pie } : undefined);
+      // Por la red no se llega desde el punto anterior: se busca otra entrada, como siempre.
+      if (de && pie && haversineKm(r.parada, pie.q) > 0.005) r = rutaConvoy(terreno, cur, p, v, false, { a: pie });
+    }
     if (r.sinCamino) {
       if (i === 0) return r;
       break;
     }
     if (i === 0) acceso = r.acceso;
-    for (const p of r.ruta) if (!ruta.length || haversineKm(ruta[ruta.length - 1], p) > 1e-4) ruta.push(p);
-    km += r.km; kmHuella += r.kmHuella || 0; cur = r.parada; ult = r;
+    for (const q of r.ruta) if (!ruta.length || haversineKm(ruta[ruta.length - 1], q) > 1e-4) ruta.push(q);
+    kmHuella += r.kmHuella || 0; cur = r.parada; ult = r;
+    de = pie && haversineKm(r.parada, pie.q) <= 0.005 ? pie : null;
   }
   if (!ult) return rutaConvoy(terreno, desde, desde, via);
+  let km = 0;
+  for (let i = 1; i < ruta.length; i++) km += haversineKm(ruta[i - 1], ruta[i]);
   return { sinCamino: false, motivo: "", ruta, parada: cur, dParada: ult.dParada, km, kmHuella, acceso };
+}
+// v2.9.462 — Con la columna en marcha la pantalla va un paso atrasada: el G-4 suma un punto y la
+// lista que manda puede traer uno que la columna ya pasó. Ése no se toca de nuevo (sería dar la
+// vuelta): la lista arranca en el primer punto que sigue sobre lo que le queda de ruta (`R`). Un
+// punto que cae sobre `R` DESPUÉS del que le sigue es uno que quedó atrás en una ruta de ida y
+// vuelta. El último punto vale siempre: es lo que acaba de marcar.
+function puntosPorDelante(terreno: any[], pts: number[][], R: number[][]) {
+  if (pts.length < 2) return pts;
+  const g = grafoVial(terreno);
+  const en = pts.map((p) => {
+    const pie = g.nodos.length ? pieEnRed(g, p) : null, q = pie ? pie.q : p;
+    if (R.length === 1) return haversineKm(q, R[0]) <= 0.03 ? 0 : -1;
+    for (let i = 1; i < R.length; i++) if (haversineKm(pieEnTramo(q, R[i - 1], R[i]), q) <= 0.03) return i;
+    return -1;
+  });
+  for (let i = 0; i < pts.length - 1; i++) {
+    if (en[i] < 0) continue;
+    const sig = en.slice(i + 1).find((x) => x >= 0);
+    if (sig !== undefined && sig < en[i]) continue;
+    return pts.slice(i);
+  }
+  return pts;
 }
 // v2.9.444 — LA DESCARGA LLEVA TIEMPO (horas por CARGA DE BATALLÓN, de cada clase).
 // ⚠️ Cifras de referencia propuestas el 03-11-2026, a validar con las tablas de la
@@ -3830,12 +3904,14 @@ function resolverTurno(estado: any) {
         bandos_visibles: [u.bando] });
     } else if (["mover", "replegar", "defender"].includes(o.tipo)) {
       // Una orden a mano del G-4: manda él (deja la misión y la vuelta).
-      const via = o.mision === "corta" ? "corta" : null;   // v2.9.458
+      const via = o.mision === "corta" || o.mision === "marcada" ? o.mision : null;   // v2.9.458 · v2.9.462
+      // Lo que le queda de la marcha en curso (tras un ⏹ ALTO la ruta vieja ya no cuenta).
+      const cg0 = u.carga || {}, resto = [[Number(u.lng), Number(u.lat)], ...(Array.isArray(cg0.destino) && Array.isArray(cg0.ruta) ? cg0.ruta : [])];
       u.carga = { ...(u.carga || {}), apoya: null, fase: null, destino: null, resta: null, auto: false, via };
       if (o.tipo !== "defender" && o.destino_lat != null) {
         // v2.9.444 — sus puntos de paso, llevados al camino.
         const pts = Array.isArray(o.ruta) && o.ruta.length ? o.ruta : [[o.destino_lng, o.destino_lat]];
-        const r = rutaConvoyPorPuntos(terreno, [Number(u.lng), Number(u.lat)], pts, via);
+        const r = rutaConvoyPorPuntos(terreno, [Number(u.lng), Number(u.lat)], puntosPorDelante(terreno, pts, resto), via);
         if (r.sinCamino || !r.ruta.length) {
           o._sinCamino = true;
           eventos.push({ tipo: "logistica", bando: u.bando, lat: u.lat, lng: u.lng,
@@ -5586,8 +5662,9 @@ async function manejar(req: Request): Promise<Response> {
       // v2.9.234: qué obra pidió la orden de zapa (validada contra el catálogo).
       obra: typeof o.obra === "string" && OBRAS[o.obra] ? o.obra : null,
       ruta: ruta && ruta.length ? ruta : null,
-      // v2.9.226: misión del fuego de artillería. v2.9.458: en un convoy, «corta» es la ruta que eligió el G-4.
-      mision: ["destruccion", "interdiccion", "neutralizacion", "corta"].includes(o.mision) ? o.mision : null,
+      // v2.9.226: misión del fuego de artillería. v2.9.458: en un convoy, «corta» es la ruta que eligió
+      // el G-4; v2.9.462: «marcada», la que marcó él punto por punto.
+      mision: ["destruccion", "interdiccion", "neutralizacion", "corta", "marcada"].includes(o.mision) ? o.mision : null,
       // v2.9.325 — LA TAREA TÁCTICA Y SU PROPÓSITO. La tarea se valida contra el
       // catálogo (una inventada entra como null y el motor no la evalúa); el
       // propósito es texto libre del cursante —es SU intención, no un menú— y se
@@ -5610,7 +5687,7 @@ async function manejar(req: Request): Promise<Response> {
         tipo, destino_lat: o.destino_lat ?? null, destino_lng: o.destino_lng ?? null, objetivo_id: o.objetivo_id ?? null,
         arma, obra: typeof o.obra === "string" && OBRAS[o.obra] ? o.obra : null,
         ruta: ruta && ruta.length ? ruta : null,
-        mision: ["destruccion", "interdiccion", "neutralizacion", "corta"].includes(o.mision) ? o.mision : null,
+        mision: ["destruccion", "interdiccion", "neutralizacion", "corta", "marcada"].includes(o.mision) ? o.mision : null,
         tarea: typeof o.tarea === "string" && TAREAS[o.tarea] ? o.tarea : null,
         proposito: typeof o.proposito === "string" && o.proposito.trim() ? o.proposito.trim().slice(0, 300) : null,
         inicio: Number.isFinite(Number(o.inicio)) ? Math.max(0, Number(o.inicio)) : null,
