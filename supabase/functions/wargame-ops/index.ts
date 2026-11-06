@@ -1,5 +1,5 @@
 // ============================================================
-// EDGE FUNCTION: wargame-ops — Juego de Guerra (PMTD) de SIDECEME.  ·  v2.9.453
+// EDGE FUNCTION: wargame-ops — Juego de Guerra (PMTD) de SIDECEME.  ·  v2.9.457
 // Wargame multijugador POR TURNOS, combate DETERMINISTA, con NIEBLA DE GUERRA.
 //
 // Roles:
@@ -4227,7 +4227,10 @@ function resolverTurno(estado: any) {
       // v2.9.440: la frenó un campo minado — la marcha NO sigue sola el turno que viene.
       minado: !!r.minado,
       // v2.9.443: la detuvo un contacto — tampoco sigue sola.
-      contacto: !!cont, auto: m.o.auto || null });
+      contacto: !!cont, auto: m.o.auto || null,
+      // v2.9.457 — ⛽ el combustible gastado ANTES y DESPUÉS de esta marcha (km de
+      // autonomía usados): la pantalla lo va descontando en vivo mientras anima.
+      c0: Number((Number(m.usadoAntes) || 0).toFixed(2)), c1: Number(u.combustible_km) || 0 });
   }
   // La bitácora de cada marcha (después del turno entero: «a la vista de» y
   // «en contacto con» dependen de dónde quedaron todos).
@@ -4419,6 +4422,32 @@ function resolverTurno(estado: any) {
           : `⛔ ${nombreUnidad(cv)} paró en el camino a ${dP.toFixed(1)} km de ${nombreUnidad(x)}: lejos para descargar. `
             + `Espera ${horasATexto(cv.carga.resta)}; si la unidad no se acerca a ${REABASTECER_KM} km, vuelve.`,
         bandos_visibles: [cv.bando] });
+    } else if (!c.fase && cargaDe(cv, "EVAC") > 0 && lugarAmbulancia(cv) >= 1 && num(horasConvoy.get(cv.id)) > 1e-6) {
+      // ============================================================
+      // v2.9.456 — 🚑 LA AMBULANCIA QUE LLEGA «A MANO» TAMBIÉN CARGA HERIDOS.
+      // Sergio (04-11-2026, partida «azafran III»): «la ambulancia llegó al lugar
+      // y no se embarcaron los heridos; está parada ahí». El G-4 la había llevado
+      // con MOVER (clic en el mapa) hasta 50 m de la DIV MEC-2, que tenía 915
+      // heridos esperando: sólo «🚑 EVACUAR A…» (orden `apoyar`) la ponía a
+      // cargar, así que se quedó tres turnos parada al lado mientras morían.
+      // Ahora la ambulancia SIN misión que pasa parte del turno quieta a 3 km o
+      // menos de una unidad propia con heridos empieza a cargar como si la
+      // hubieran mandado a evacuarla (la que tiene más heridos primero). Llena o
+      // sin nadie más que cargar, vuelve sola a su puesto por camino.
+      // ============================================================
+      const x: any = [...U.values()]
+        .filter((u: any) => u && !esConvoy(u) && u.bando === cv.bando && herDe(u) >= 1)
+        .map((u: any) => ({ u, d: haversineKm([cv.lng, cv.lat], [u.lng, u.lat]) }))
+        .filter((o: any) => o.d <= REABASTECER_KM)
+        .sort((a: any, b: any) => (herDe(b.u) - herDe(a.u)) || (a.d - b.d))[0];
+      if (x) {
+        cv.carga = { ...c, apoya: x.u.id, fase: "descarga", llegoH: quietoDesde, resta: horasDescarga(cv, x.u),
+          dParada: x.d, entrego: 0, destino: null };
+        eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
+          descripcion: `🚑 ${nombreUnidad(cv)} está a ${x.d.toFixed(1)} km de ${nombreUnidad(x.u)} (${Math.round(herDe(x.u))} heridos) `
+            + `desde ${hMas(quietoDesde)}: carga heridos ~${horasATexto(cv.carga.resta)} y después los lleva a su puesto.`,
+          bandos_visibles: [cv.bando] });
+      }
     }
   }
   // v2.9.351 — LA DESCARGA SE VE. v2.9.443 — y alcanza para todos los que estén cerca.
@@ -4507,8 +4536,15 @@ function resolverTurno(estado: any) {
   if (_instal.length) {
     for (const cv of _convoyes) {
       const rec = recargarConvoy(cv, _instal);
+      // v2.9.456 — la ambulancia con heridos a bordo que el G-4 trajo A MANO hasta
+      // un puesto de socorro (o el ASDI) propio también los entrega: la orden de
+      // mover le borra la fase «vuelta», y sin esto los llevaba a bordo para siempre.
+      const aMano = !!cv.carga && cv.estado !== "fuera_combate" && num(cv.carga.aBordo) >= 0.5
+        && cv.carga.fase !== "descarga" && cv.carga.fase !== "vuelta"
+        && _instal.some((x: any) => x && x.bando === cv.bando && INSTAL_LOG[x.tipo] && INSTAL_LOG[x.tipo].sanidad
+          && haversineKm([cv.lng, cv.lat], puntoInstalacion(x) as number[]) <= REABASTECER_KM);
       // v2.9.444: el que volvía y llegó queda listo, esperando orden del G-4.
-      if (cv.carga && cv.carga.fase === "vuelta" && (rec || cercaDeSuInstalacion(cv, _instal))) {
+      if (cv.carga && ((cv.carga.fase === "vuelta" && (rec || cercaDeSuInstalacion(cv, _instal))) || aMano)) {
         // v2.9.448 — la ambulancia entrega sus heridos en el puesto.
         const lleva = num(cv.carga.aBordo);
         if (lleva >= 0.5) {
@@ -4901,7 +4937,9 @@ async function manejar(req: Request): Promise<Response> {
     // v2.9.335: el convoy lo forma el G-4, que muchas veces entra por enlace.
     "formar_convoy",
     // v2.9.449: el JEM (por enlace) maneja el reloj y da el ALTO.
-    "reloj", "alto"];
+    "reloj", "alto",
+    // v2.9.455: el que dio una orden por enlace también la puede anular.
+    "anular_orden"];
   let ses: any = token ? await validarSesion(token) : null;
   let invitado: any = null;
   if (!ses) {
@@ -4954,7 +4992,9 @@ async function manejar(req: Request): Promise<Response> {
        // v2.9.440: del árbitro, nunca de un invitado (no va en la otra lista).
        "plan_barreras",
        // v2.9.443: del árbitro.
-       "actualizar_medios", "actualizar_carta", "reponer_instalacion"].includes(accion)) {
+       "actualizar_medios", "actualizar_carta", "reponer_instalacion",
+       // v2.9.455: anular una orden (la del bando, o cualquiera el árbitro).
+       "anular_orden"].includes(accion)) {
     if (!partida) return err("Partida no encontrada", 404);
   }
   const arbitro = partida ? esArbitro(partida, ses) : false;
@@ -5263,6 +5303,48 @@ async function manejar(req: Request): Promise<Response> {
       if (e2) return err(e2.message, 500);
     }
     return ok();
+  }
+
+  // ============================================================
+  // v2.9.455 — 🗑️ ANULAR LA ORDEN DE UNA UNIDAD (la de este turno).
+  // Sergio (04-11-2026): «toqué sin querer, se quedó ahí y no puedo borrar».
+  // Una orden enviada sólo se podía PISAR con otra. Ahora se borra: la unidad
+  // vuelve a como estaba antes del clic (si seguía una marcha del turno
+  // anterior, la sigue; si estaba quieta, se queda). La puede anular quien
+  // podía dársela: su bando o el árbitro.
+  // ============================================================
+  if (accion === "anular_orden") {
+    if (partida.estado !== "en_curso") return err("La partida no está en curso");
+    if (!arbitro && !miBando) return err("Clave de bando inválida", 403);
+    const uid = body.unidad_id;
+    const { data: us } = await sb.from("wg_unidades").select("id, bando, arma, carga").eq("id", uid).eq("partida_id", partida.id).limit(1);
+    const u = us && us[0];
+    if (!u) return err("Unidad no encontrada", 404);
+    if (!arbitro && u.bando !== miBando.bando) return err("Esa unidad no es de tu bando", 403);
+    const { error } = await sb.from("wg_ordenes").delete().eq("partida_id", partida.id)
+      .eq("turno", partida.turno_actual).eq("unidad_id", uid);
+    if (error) return err(error.message, 500);
+    // Lo que se ve es lo que pasa: si sin orden la unidad SEGUIRÍA SOLA (la marcha
+    // del turno anterior que no terminó, o el convoy con su misión), anular la
+    // deja QUIETA — si no, seguiría marchando sin línea en el mapa.
+    let seguiria = false;
+    const c = u.carga || {};
+    if (u.arma === CONVOY_ARMA) seguiria = c.apoya != null || (Array.isArray(c.destino) && c.destino.length >= 2) || c.fase === "ida" || c.fase === "vuelta";
+    else {
+      const [{ data: op }, { data: rp }] = await Promise.all([
+        sb.from("wg_ordenes").select("tipo").eq("partida_id", partida.id).eq("turno", partida.turno_actual - 1).eq("unidad_id", uid).limit(1),
+        sb.from("wg_replays").select("trazas").eq("partida_id", partida.id).eq("turno", partida.turno_actual - 1).limit(1),
+      ]);
+      const o0 = op && op[0];
+      const t0 = (((rp && rp[0] && rp[0].trazas) || []) as any[]).find((t: any) => String(t && t.id) === String(uid));
+      seguiria = !!(o0 && (o0.tipo === "mover" || o0.tipo === "replegar") && t0 && !t0.llego && !t0.detenida && !t0.minado && !t0.contacto);
+    }
+    if (seguiria) {
+      const { error: eA } = await sb.from("wg_ordenes").insert({ partida_id: partida.id, turno: partida.turno_actual, bando: u.bando,
+        unidad_id: uid, tipo: "defender", estado: "pendiente" });
+      if (eA) return err(eA.message, 500);
+    }
+    return ok({ anulada: true, alto: seguiria });
   }
 
   // ---------- v2.9.449 — ⏱️ reloj · ⏹️ alto · ▶️ reanudar ----------
