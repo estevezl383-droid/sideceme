@@ -1,3 +1,4 @@
+import {POST_CONSULTA,esPost,accesoPost,operarPostulantes} from './postulantes.mjs';
 import {JEFES,ESTACIONES,CONDICIONES,puedeEvaluar,validarPlan,asignaciones,puedeRegistrar} from './organizacion.mjs';
 import {validarNacimiento} from './perfil.mjs';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
@@ -60,7 +61,9 @@ Deno.serve(async(req:Request)=>{
   }
   if(s.usuario_tabla!=='profesores')return reply(403,{ok:false,error:'USÁ TU CUENTA PERSONAL'});
   const {data:actor,error:ae}=await sb.from('profesores').select('id,ci,activo,grado,arma,especialidad,nombre_completo,es_suboficial,es_auxiliar,solo_lectura').eq('id',s.usuario_id).eq('ci',s.usuario_ci).single();
-  if(ae||actor?.activo!==true||!puedeEvaluar({...actor,id:s.usuario_id}))return reply(403,{ok:false,error:'CUENTA NO HABILITADA PARA EVALUAR'});
+  if(ae||actor?.activo!==true||(!puedeEvaluar({...actor,id:s.usuario_id})&&!POST_CONSULTA.includes(s.usuario_id)))return reply(403,{ok:false,error:'CUENTA NO HABILITADA PARA EVALUAR'});
+  if(esPost(b.plan?.ciclo)||esPost(b.ciclo))return await operarPostulantes({sb,b,actor,reply});
+  if(!puedeEvaluar({...actor,id:s.usuario_id})&&b.accion!=='acceso')return reply(403,{ok:false,error:'CUENTA DE CONSULTA: SELECCIONE POSTULANTES 2027'});
   const jefe=JEFES.includes(s.usuario_id);
   const actorNombre=[actor.grado,actor.nombre_completo].filter(Boolean).join(' ');
   if(['organizar','condicion'].includes(b.accion)&&!jefe)return reply(403,{ok:false,error:'SOLO AGUIRRE, LINARES Y MORALES ORGANIZAN LAS PRUEBAS'});
@@ -77,9 +80,10 @@ Deno.serve(async(req:Request)=>{
    if(r.error)throw r.error;return reply(r.data?.ok?200:409,r.data);
   }
   if(b.accion==='acceso'){
-   if(jefe)return reply(200,{ok:true,jefe:true});
+   if(jefe)return reply(200,{ok:true,jefe:true,postulantes:true});
    const q=await sb.from('efmc_organizaciones').select('*').eq('habilitado',true);if(q.error)throw q.error;
-   return q.data.some(p=>asignaciones(p,s.usuario_id).length)?reply(200,{ok:true,jefe:false}):reply(403,{ok:false,error:'SIN DESIGNACIONES HABILITADAS'});
+   const legacy=puedeEvaluar(actor)&&q.data.some(p=>asignaciones(p,s.usuario_id).length),post=await accesoPost(sb,s.usuario_id);
+   return legacy||post?reply(200,{ok:true,jefe:false,postulantes:post,solo_postulantes:post&&!legacy}):reply(403,{ok:false,error:'SIN DESIGNACIONES HABILITADAS'});
   }
   if(['preparar_borrado','confirmar_borrado','historial_borrados'].includes(b.accion)){
    if(!jefe)return reply(403,{ok:false,error:'SÓLO LOS JEFES PUEDEN BORRAR PRUEBAS Y CONSULTAR SU AUDITORÍA'});

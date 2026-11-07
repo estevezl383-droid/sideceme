@@ -1,3 +1,4 @@
+import * as postulantesFisica from '../supabase/functions/efm-campo/postulantes.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -25,7 +26,7 @@ const saved=files.get(tables.efmc_documentos.at(-1).storage_path);files.set(tabl
 tables.efmc_registros.push({...record,id:'44444444-4444-4444-4444-444444444444',revision:3});simulateInsertError=true;const before=files.size;await assert.rejects(hojaPDFAlumno(sb,'TEST1',body,options));assert.equal(files.size,before);simulateInsertError=false;collision=true;r=await hojaPDFAlumno(sb,'TEST1',body,options);assert.equal(r.status,200);assert.equal(files.size,before+1);
 // Autorización real del endpoint: la identidad procede de la sesión, jamás del cuerpo recibido.
 const source=fs.readFileSync(new URL('../supabase/functions/efm-campo/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/:number|:any|:Request/g,'');
-vm.runInNewContext(source,{...org,hojaPDFAlumno:(db,id,b)=>hojaPDFAlumno(db,id,b,options),createClient:()=>sb,console,Response,Date,Number,Deno:{env:{get:()=>''},serve:f=>handler=f}});
+vm.runInNewContext(source,{...postulantesFisica,...org,hojaPDFAlumno:(db,id,b)=>hojaPDFAlumno(db,id,b,options),createClient:()=>sb,console,Response,Date,Number,Deno:{env:{get:()=>''},serve:f=>handler=f}});
 const call=b=>handler({method:'POST',json:async()=>({token:'TEST',accion:'hoja_pdf',...body,...b})});assert.equal((await call()).status,200);
 for(const change of [{revocado:true},{es_master:true},{usuario_id:'TEST2'},{usuario_ci:'OTRO'},{soporte_actor_id:'P030',soporte_actor_ci:'OWNER'},{expira_en:'2000-01-01'}]){const old=session;session={...session,...change};assert([401,403].includes((await call()).status));session=old;}
 // Verificador público: QR desconocido no valida y no expone CI, medidas, nacimiento ni rutas privadas.

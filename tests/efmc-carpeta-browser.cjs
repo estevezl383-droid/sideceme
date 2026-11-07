@@ -3,7 +3,7 @@ const {chromium}=require(process.env.SIDECEME_PLAYWRIGHT_MODULE||'playwright');
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
 const base=path.resolve(__dirname,'..');
 (async()=>{
- const helpers=Object.assign({},...await Promise.all(['organizacion','perfil','baremos','medidas'].map(x=>import('../efm-campo/'+x+'.mjs'))));
+ const helpers=Object.assign({},await import('../supabase/functions/efm-campo/postulantes.mjs'),...await Promise.all(['organizacion','perfil','baremos','medidas'].map(x=>import('../efm-campo/'+x+'.mjs'))));
  const {hojaPDFAlumno}=await import('../supabase/functions/efm-campo/documentos.mjs');
  const {sha256}=await import('../supabase/functions/efm-campo/hoja-modelo.mjs');
  const pdfFixture=Buffer.from('%PDF-1.4\nARCHIVO FICTICIO PARA PRUEBA DE DESCARGA');

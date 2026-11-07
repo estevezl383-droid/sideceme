@@ -6,7 +6,7 @@ export const CONDICIONES={NORMAL:'REALIZA LAS PRUEBAS',CON_PAPELETA:'SOLICITUD D
 export const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
 export const puedeEvaluar=p=>p?.activo===true&&!p.es_suboficial&&!p.es_auxiliar&&!p.solo_lectura&&!/^S\d/.test(p.id)&&!/^(SOF|SGTO|SARG|CIV)/.test(norm(p.grado));
 export function validarPlan(p,roster,personal){
- if(!p||!String(p.nombre||'').trim()||p.nombre.length>100||!['1ER CICLO','2DO CICLO'].includes(p.ciclo)||!['PILOTO','EVALUACION'].includes(p.modo)||typeof p.habilitado!=='boolean'||!Array.isArray(p.grupos)||!p.grupos.length||p.grupos.length>12)return 'REVISAR NOMBRE, CICLO, MODO Y GRUPOS.';
+ if(!p||!String(p.nombre||'').trim()||p.nombre.length>100||!['1ER CICLO','2DO CICLO','POSTULANTES 2027'].includes(p.ciclo)||!['PILOTO','EVALUACION'].includes(p.modo)||typeof p.habilitado!=='boolean'||!Array.isArray(p.grupos)||!p.grupos.length||p.grupos.length>12)return 'REVISAR NOMBRE, CICLO, MODO Y GRUPOS.';
  const colors=new Set(),members=new Set(),ids=new Set();
  for(const g of p.grupos){
   if(!g.id||typeof g.id!=='string'||! /^[a-zA-Z0-9_-]{1,60}$/.test(g.id)||ids.has(g.id)||!COLORES[g.color]||colors.has(g.color)||!Array.isArray(g.alumnos)||!g.alumnos.length)return 'CADA GRUPO NECESITA ALUMNOS Y UN COLOR ÚNICO. NEGRO ES EXCLUSIVO DE EXCELENCIA.';

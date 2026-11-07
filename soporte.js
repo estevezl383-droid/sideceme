@@ -187,7 +187,7 @@
 })();
 
 // Carga aislada del piloto EFM. El acceso se valida también en el servidor.
-(()=>{if(document.getElementById?.('efmc-launcher'))return;const s=document.createElement('script');s.id='efmc-launcher';s.src='efm-campo/launcher.js?v=28';document.body.append(s);})();
+(()=>{if(document.getElementById?.('efmc-launcher'))return;const s=document.createElement('script');s.id='efmc-launcher';s.src='efm-campo/launcher.js?v=29';document.body.append(s);})();
 
 // Mantiene el acceso a postulantes también al reemplazar la portada del sistema.
 (()=>{if(document.getElementById?.('postulantes-launcher'))return;const s=document.createElement('script');s.id='postulantes-launcher';s.src='postulantes/integracion.js?v=2';document.body.append(s);})();

@@ -1,3 +1,4 @@
+import * as postulantesFisica from '../supabase/functions/efm-campo/postulantes.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -36,7 +37,7 @@ const tables={profesores:[profesor],cursantes,efmc_organizaciones:planes,efmc_re
 const sb={from(table){reads.push(table);let filters=[],from=0,to=Infinity;const q={select(){return q;},eq(k,v){filters.push(r=>r[k]===v);return q;},in(k,vs){filters.push(r=>vs.includes(r[k]));return q;},is(k,v){filters.push(r=>(r[k]??null)===v);return q;},order(){return q;},range(a,b){from=a;to=b;return q;},maybeSingle(){return Promise.resolve(result(true));},single(){return Promise.resolve(result(true));},then(a,b){return Promise.resolve(result()).then(a,b);}};
  function result(single=false){const session={token:'TEST',usuario_id:role==='evaluador'?'P099':profesor.id,usuario_ci:profesor.ci,usuario_tabla:role==='alumno'?'cursantes':'profesores',revocado:role==='revocado',es_master:false,expira_en:new Date(Date.now()+60000).toISOString()};const rows=table==='sesiones'?[session]:table==='profesores'?[{...profesor,id:session.usuario_id}]:tables[table]||[];const data=rows.filter(r=>filters.every(f=>f(r))).slice(from,to===Infinity?undefined:to+1);return {data:single?data[0]||null:data};}return q;}};
 const source=fs.readFileSync(new URL('../supabase/functions/efm-campo/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/:number|:any|:Request/g,'');
-vm.runInNewContext(source,{...org,...perfil,...baremos,...medidas,leerPaginas,indiceHistorial,createClient:()=>sb,console,Response,Date,Number,Deno:{env:{get:()=>''},serve:fn=>handler=fn}});
+vm.runInNewContext(source,{...postulantesFisica,...org,...perfil,...baremos,...medidas,leerPaginas,indiceHistorial,createClient:()=>sb,console,Response,Date,Number,Deno:{env:{get:()=>''},serve:fn=>handler=fn}});
 const call=b=>handler({method:'POST',json:async()=>({token:'TEST',...b})});
 let r=await call({accion:'historial'});assert.equal(r.status,200);assert.equal((await r.json()).evaluaciones.find(e=>e.organizacion_id===planId).alumnos,4);
 r=await call({accion:'historial_detalle',organizacion_id:planId});assert.equal(r.status,200);const detail=await r.json();assert.equal(detail.cursantes.length,4);assert(detail.cursantes.some(c=>c.activo===false));assert.equal(detail.registros.length,21);assert(detail.registros.find(r=>r.id===registros[1].id).conformidad);assert.equal(detail.registros.find(r=>r.id==='correccion').conformidad,null);
