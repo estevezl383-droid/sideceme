@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.473</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.474</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -48742,7 +48742,7 @@ function wgMaquetaCopiar(pid){
 // el puesto, el recuadro no queda vacío: encuadra solo lo que le toca a ese rol.
 // ============================================================
 const WG_MON_CAM={
-  cmte:{ nom:'VISTA PANORÁMICA', quien:'Comandante', pitch:50, giro:0,   tope:12.5, acerca:0,   calcos:['ae','clave','eje_log','via'] },
+  cmte:{ nom:'VISTA PANORÁMICA', quien:'Comandante', pitch:66, giro:0,   tope:11.8, acerca:-0.7, calcos:['ae','clave','eje_log','via'] },
   g3:  { nom:'VISTA G-3',        quien:'G-3',        pitch:62, giro:0,   tope:13.2, acerca:0.2, calcos:['ae','clave','minado','obstaculo','restringido','severo','via'] },
   g4:  { nom:'VISTA G-4',        quien:'G-4',        pitch:56, giro:-65, tope:13.2, acerca:0.2, calcos:['eje_log','via','poblado'] },
   g2:  { nom:'VISTA DRON',       quien:'G-2',        pitch:66, giro:0,   tope:12.0, acerca:0,   calcos:[] },
@@ -48751,6 +48751,7 @@ const WG_MON_ORDEN=['cmte','g3','g4','g2'];
 const WG_MON_ANCHO=1440;     // lo que «mide» cada puesto antes de achicarlo al recuadro
 const WG_MON_VIVO_MS=12000;  // sin noticias del oficial en este lapso, cámara automática
 const WG_MON_LECTURAS={ estado:1, pulso:1, historial:1, replay:1 };
+const WG_MON_SIN_MARGEN={ top:0, bottom:0, left:0, right:0 };
 // ------------------------------------------------------------
 // LA VENTANA MADRE: cuatro recuadros, cada uno con su nombre arriba y al centro
 // ------------------------------------------------------------
@@ -48812,7 +48813,7 @@ function _wgPantallasMontar(pid, lado){
       </div></div>
     <div id="pc-grid">${WG_MON_ORDEN.map(p=>`<section class="pc-cel" data-p="${p}">
         <iframe title="${_rgEsc(WG_MON_CAM[p].nom)}"></iframe>
-        <div class="pc-velo" ondblclick="wgPantallasAgrandar('${p}')" title="Doble clic: agrandar o volver a las cuatro"></div>
+        <div class="pc-velo" ondblclick="wgPantallasAgrandar('${p}')"></div>
         <div class="pc-rot">${_rgEsc(WG_MON_CAM[p].nom)}</div>
         <div class="pc-est" id="pc-est-${p}"><i></i><span>Conectando…</span></div>
         <button class="pc-max" onclick="wgPantallasAgrandar('${p}')" title="Agrandar esta pantalla / volver a las cuatro">⛶</button>
@@ -48860,7 +48861,7 @@ function _wgPantallasMensaje(ev){
   el.className='pc-est'+(d.error?' mal':(d.vivo?' vivo':''));
   el.querySelector('span').textContent = d.error ? d.error
     : (d.vivo ? 'EN VIVO · '+(d.quien||C.quien)
-      : (d.p==='g2' ? (d.vuela?'DRON EN VUELO':'DRON EN TIERRA') : 'CÁMARA AUTOMÁTICA'));
+      : 'SIN '+C.quien.toUpperCase()+' · '+(d.p==='g2' ? (d.vuela?'DRON EN VUELO':'DRON EN TIERRA') : 'AUTOMÁTICA'));
   if(d.sub){ const s=document.getElementById('pc-sub'); if(s) s.textContent=d.sub; }
 }
 // ------------------------------------------------------------
@@ -48878,7 +48879,12 @@ function _wgMonEntrar(pid, lado, puesto){
   st.textContent=`
     body.wg-mon #wg-tl, body.wg-mon #wg-zoom, body.wg-mon #wg-ayuda, body.wg-mon #version-marker,
     body.wg-mon #wg-hud-splash, body.wg-mon #wg-hud-marco, body.wg-mon #wg-camaras, body.wg-mon #wg-orient,
-    body.wg-mon .maplibregl-ctrl-top-right{ display:none !important; }
+    body.wg-mon #sideceme-soporte-bar, body.wg-mon .maplibregl-ctrl-top-right{ display:none !important; }
+    /* v2.9.474 — ⚠️ LAS FICHAS SE VEÍAN AL 20 %. MapLibre apaga la ficha que cree tapada por
+       el relieve, y para saberlo lee un mapa de profundidad que sale mal con pixelRatio 1 en
+       una pantalla Retina (devicePixelRatio 2): TODAS daban tapadas. Un monitor tiene que
+       mostrar siempre las unidades, así que acá ninguna se apaga. */
+    body.wg-mon .maplibregl-marker{ opacity:1 !important; }
     body.wg-mon #screen-wargame.wg-full #wg-game.wg-hud-on{ --top-h:46px; }
     body.wg-mon #wg-hud-dron{ top:46px !important; }`;
   document.head.appendChild(st);
@@ -48906,10 +48912,8 @@ async function _wgMonArrancar(){
   _wgMonCanal();
   _wgMonElegir(_wgMonFichaBase());
   WG.camAuto=false;   // el encuadre de arranque del 3D no sigue tironeando
+  if(WG.mon.puesto==='cmte') _wgMonPanoramica(true);
   _wgMonEncuadrar(true);
-  // ⚠️ Recién con el relieve cargado el mapa sabe la cota del centro. Encuadrando
-  // antes toma 0 m y sobre 4.000 m de altiplano la toma queda corrida para arriba.
-  WG.map3d.once('idle',()=>{ WG._monEncFirma=null; _wgMonEncuadrar(false); });
   clearInterval(WG._monT); WG._monT=setInterval(_wgMonLazo,1000);
   _wgMonLazo();
 }
@@ -48933,16 +48937,51 @@ function _wgMonPuntos(){
   if(puesto==='g2'){ const d=_wgDronBando(lado); return d&&d.portador?[xy(d.portador)]:us.map(xy); }
   return us.map(xy).concat(inst);
 }
+// ============================================================
+// v2.9.474 — LA CÁMARA DEL RECUADRO SE ESCRIBE CON `jumpTo`, NUNCA CON `easeTo`.
+// Medido: después de un `easeTo`, MapLibre deja la cota del centro congelada hasta
+// el próximo gesto de la mano. En un recuadro nadie lo toca, así que quedaba en 0 m
+// sobre un terreno de 6.187 m: la toma salía corrida hacia arriba y no coincidía con
+// la pantalla del oficial. `jumpTo` no la congela, así que acá el viaje se hace a mano.
+// ============================================================
+function _wgMonIr(d, ms){
+  const map=WG.map3d; if(!map) return;
+  const c=map.getCenter();
+  WG._monViaje={ d, t0:performance.now(), ms:Math.max(1,Number(ms)||1), c0:[c.lng,c.lat], z0:map.getZoom(),
+    p0:map.getPitch(), b0:map.getBearing(), m0:map.getPadding() };
+  WG._camManual=true;   // la órbita espera a que termine este viaje
+  if(!(ms>1)) _wgMonPaso();
+  else if(!WG._monRAF) WG._monRAF=requestAnimationFrame(_wgMonPaso);
+}
+function _wgMonPaso(){
+  WG._monRAF=0;
+  const v=WG._monViaje, map=WG.map3d; if(!v || !map) return;
+  const k=Math.min(1,(performance.now()-v.t0)/v.ms), e=v.d.parejo?k:k*k*(3-2*k);
+  const ir=(a,b)=>a+(b-a)*e, m=v.d.padding||WG_MON_SIN_MARGEN;
+  try{ map.jumpTo({ center:[ir(v.c0[0],v.d.center[0]), ir(v.c0[1],v.d.center[1])], zoom:ir(v.z0,v.d.zoom),
+    pitch:ir(v.p0,v.d.pitch), bearing:v.b0+(((v.d.bearing-v.b0)%360+540)%360-180)*e,
+    padding:{ top:ir(v.m0.top,m.top), bottom:ir(v.m0.bottom,m.bottom), left:ir(v.m0.left,m.left), right:ir(v.m0.right,m.right) } }); }catch(_e){}
+  if(k<1) WG._monRAF=requestAnimationFrame(_wgMonPaso);
+  else{ WG._monViaje=null; WG._camManual=false; }
+}
+// La vista panorámica del juego: la que barre sola el frente del bando (`_wgCamaraOrbita`).
+function _wgMonPanoramica(on){
+  WG.camara=on?1:0; WG.cine=!!on;
+  if(on){ _wgCamaraOrbita(); _wgHudPanoramica(true); }
+  else if(WG.dronVista==null){ WG._hudPanoOn=0; _wgHudDron(null); }
+}
 // Cada toma mira distinto: el G-3 de frente al enemigo, el G-4 desde el flanco.
 function _wgMonEncuadrar(primera){
   const map=WG.map3d; if(!map || !_wgEn3D() || !WG.mon) return;
   const C=WG_MON_CAM[WG.mon.puesto], pts=_wgMonPuntos();
   const caja=_wgCaja(pts, pts.length>1?0.02:0.06); if(!caja) return;
-  const firma=caja.flat().map(v=>v.toFixed(2)).join('|');
-  if(!primera && firma===WG._monEncFirma) return;
-  WG._monEncFirma=firma;
-  const eje=_wgEjeAproximacion(WG.mon.lado);
-  const rumbo=(((eje?eje.rumbo:0)+C.giro)%360+360)%360;
+  // Sólo si el dispositivo cambió de verdad: una ficha que anda no tiene por qué mover la toma.
+  const ant=WG._monCaja, tam=Math.max(caja[1][0]-caja[0][0], caja[1][1]-caja[0][1]);
+  if(!primera && ant && Math.max(Math.abs(caja[0][0]-ant[0][0]), Math.abs(caja[0][1]-ant[0][1]),
+    Math.abs(caja[1][0]-ant[1][0]), Math.abs(caja[1][1]-ant[1][1])) < Math.max(0.02,tam*0.12)) return;
+  WG._monCaja=caja;
+  const eje=_wgEjeAproximacion(WG.mon.lado), ms=primera?0:1800;
+  let rumbo=(((eje?eje.rumbo:0)+C.giro)%360+360)%360;
   // Lo que tapan la consola de abajo y el tablero de la derecha no cuenta como pantalla.
   const hud=document.getElementById('wg-hud'), abajo=(hud?hud.offsetHeight:0)+30;
   const hoja=document.getElementById('wg-hoja'), der=(WG.hoja&&hoja?hoja.offsetWidth:0)+70;
@@ -48951,11 +48990,10 @@ function _wgMonEncuadrar(primera){
   if(!cam || !Number.isFinite(cam.zoom)) return;
   // `cameraForBounds` calcula mirando desde arriba; inclinada, la profundidad se aplasta y entra más.
   const z=Math.min(C.tope, cam.zoom+Math.log2(1/Math.cos(C.pitch*Math.PI/180))+C.acerca);
-  // El centro va por `padding` y no corrido a mano: con la cámara inclinada, correrlo
-  // deja la toma pegada arriba, contra el nombre del recuadro.
-  try{ map.easeTo({ center:[(caja[0][0]+caja[1][0])/2,(caja[0][1]+caja[1][1])/2], zoom:z, bearing:rumbo,
-    pitch:Math.min(C.pitch,_wgTechoPitch(z)), padding:{ top:40, bottom:abajo, left:0, right:der-70 },
-    duration:primera?300:1800, essential:true }); }catch(_e){}
+  // Con la órbita andando se llega al rumbo que ella va a tener en ese momento: sin saltos.
+  if(Number(WG.camara)===1 && eje) rumbo=eje.rumbo+Math.sin((performance.now()+ms)/11000)*WG_OSCILA;
+  _wgMonIr({ center:[(caja[0][0]+caja[1][0])/2,(caja[0][1]+caja[1][1])/2], zoom:z, bearing:rumbo,
+    pitch:Math.min(C.pitch,_wgTechoPitch(z)), padding:{ top:40, bottom:abajo, left:0, right:der-70 } }, ms);
 }
 function _wgMonLazo(){
   if(!WG.mon) return;
@@ -48964,7 +49002,8 @@ function _wgMonLazo(){
   if(WG._monVivo && !vivo){   // se fue: vuelve la toma automática, con el tablero de ese puesto
     const hj=WG.mon.puesto==='g4'?'logistica':null;
     if((WG.hoja||null)!==hj) wgHoja(hj);
-    WG._monEncFirma=null; _wgMonElegir(_wgMonFichaBase());
+    if(WG.mon.puesto==='cmte') _wgMonPanoramica(true);
+    WG._monCaja=null; _wgMonElegir(_wgMonFichaBase());
   }
   WG._monVivo=vivo;
   // «Te están mirando»: recién con este aviso el oficial empieza a mandar su cámara.
@@ -48976,8 +49015,12 @@ function _wgMonLazo(){
   if(WG.mon.puesto==='g2'){
     const info=_wgDronBando(WG.mon.lado);
     vuela=!!(info && info.d);
-    if(vuela && WG.dronVista==null && _wgEn3D()) wgVistaDron(info.portador.id);
-    if(!vuela && WG.dronVista!=null){ WG.dronVista=null; _wgHudDron(null); WG._monEncFirma=null; }
+    if(vuela && WG.dronVista==null && _wgEn3D()){
+      WG._monViaje=null; WG._camManual=false;
+      try{ WG.map3d.setPadding(WG_MON_SIN_MARGEN); }catch(_e){}   // el visor mira al centro, como el del G-2
+      wgVistaDron(info.portador.id);
+    }
+    if(!vuela && WG.dronVista!=null){ WG.dronVista=null; _wgHudDron(null); WG._monCaja=null; }
   }
   if(!vivo && !(vuela && WG.dronVista!=null)) _wgMonEncuadrar(false);
   _wgMonAvisar({ vivo, vuela, quien:vivo?(q.nom||null):null });
@@ -49002,11 +49045,11 @@ function _wgMonRecibir(q){
   if(String(q.sel==null?'':q.sel)!==String(WG.sel==null?'':WG.sel)) _wgMonElegir(q.sel);
   if((q.hoja||null)!==(WG.hoja||null)) wgHoja(q.hoja||null);
   if(WG.mon.puesto==='g2' && WG.dronVista!=null) return;   // ahí escribe el lazo del dron (`_wgMonDronMira`)
+  if(WG.mon.puesto==='cmte' && Number(WG.camara)===1) _wgMonPanoramica(false);   // manda el Comandante
   if(!!q.d3!==_wgEn3D()){ if(q.d3) wgVista3D(); else wgCerrar3D(); }
   if(_wgEn3D() && WG.map3d){
     const map=WG.map3d, z=q.z+Math.log2(map.getCanvas().clientWidth/(q.w||WG_MON_ANCHO));
-    map.easeTo({ center:q.c, zoom:z, pitch:q.p, bearing:q.br, padding:{ top:0, bottom:0, left:0, right:0 },
-      duration:260, easing:(t)=>t, essential:true });
+    _wgMonIr({ center:q.c, zoom:z, pitch:q.p, bearing:q.br, parejo:true }, 260);
   }else if(WG.map){
     const z=q.z+Math.log2(WG.map.getSize().x/(q.w||WG_MON_ANCHO));
     WG.map.setView([q.c[1],q.c[0]], z, { animate:true, duration:0.25 });
