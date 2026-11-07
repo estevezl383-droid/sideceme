@@ -6,7 +6,7 @@ El 27 de noviembre de 2026 es una referencia de duración. El cierre y la reaper
 
 ## Acceso institucional
 
-Primero ingresar normalmente a SIDECEME y pulsar **POSTULANTES 2027**. El enlace directo `postulantes/?personal=1` prioriza la sesión institucional. Si todavía no hay sesión, el botón institucional lleva al ingreso habitual en la misma pestaña y regresa automáticamente a la relación nominal. En control de evaluación física también existe **POBLACIÓN / CICLO → POSTULANTES 2027** y un botón visible de relación nominal. Se conserva la protección de medidas, marcas, llegadas y temporizadores pendientes antes de cambiar de pantalla. El servidor utiliza la sesión personal existente, comprueba que sigue activa y consulta `post_permisos`. No acepta sesiones master ni sesiones de soporte heredadas.
+Primero ingresar normalmente a SIDECEME y pulsar **POSTULANTES 2027**. El enlace directo `postulantes/?personal=1` prioriza la sesión institucional. Si todavía no hay sesión, el botón institucional lleva al ingreso habitual en la misma pestaña y regresa automáticamente a la relación nominal. En control de evaluación física, **POBLACIÓN / CICLO → POSTULANTES 2027** carga la nómina dentro del propio control. El mismo selector aparece en el organizador. Los jefes de entrenamiento pueden crear grupos por colores, asignar evaluadores, guardar, reabrir y descargar la organización en Word. La opción ya no redirige a admisión. Se conserva la protección de medidas, marcas, llegadas y temporizadores pendientes antes de cambiar de pantalla. El servidor utiliza la sesión personal existente, comprueba que sigue activa y consulta `post_permisos`. No acepta sesiones master ni sesiones de soporte heredadas.
 
 | Cuenta | Alcance inicial confirmado |
 |---|---|
@@ -34,6 +34,10 @@ Incluye las seis materias indicadas por el solicitante, evaluación física, rev
 
 Las notas conservan la escala declarada en el acta, sin ponderación ni aprobación automática. Pendiente y ausente tienen nota nula; cero es una nota válida. Cada rectificación comprueba la revisión esperada y conserva el valor anterior, el nuevo, el evaluador, la fecha, el motivo y la referencia de respaldo. La conformidad corresponde a una revisión concreta.
 
+La organización de admisión se conserva en `post_ef_organizaciones`, con historial por versión, y referencia únicamente a postulantes de la convocatoria. Los perfiles confirmados, las marcas y las novedades de admisión se guardan en tablas privadas `post_ef_*` y generan auditoría del expediente. El evaluador recibe exclusivamente sus grupos y pruebas; las fotos se solicitan con autorización y no se incluyen en bloque con la nómina.
+
+Desde control físico se guardan las marcas originales, peso/talla y sus correcciones. Su nota queda pendiente de acta; el servidor no acepta una nota calculada por el cliente para sustituir el baremo de admisión. La calificación oficial se publica desde el expediente de postulante, que conserva las notas, detalles y documentos con QR.
+
 La evaluación física permite registrar pruebas, marcas, unidades, notas, escalas y observaciones del acta. Este módulo inicial **no aplica los baremos de cursantes a los postulantes**. La integración del cálculo automático con la plataforma física existente requiere cotejar primero el anexo correspondiente de la convocatoria completa.
 
 Los registros parciales identifican resultados pendientes y no acreditan aprobación. El certificado final requiere las nueve evaluaciones completas y publicadas, identidad verificada y revisión expresa de la convocatoria. La revisión registra la referencia y la huella SHA256 del PDF seleccionado, sin subir ese PDF al repositorio.
@@ -42,8 +46,8 @@ Los PDF se generan y archivan en el servidor con foto, identidad, evaluaciones p
 
 ## Instalación y comprobación
 
-1. Aplicar `supabase/postulantes/001_postulacion_2027.sql` y después `002_fotografias_originales.sql` una sola vez.
-2. Desplegar `supabase/functions/postulantes-ops/index.ts` y `documento.mjs`, con `verify_jwt=false`: la RPC comprueba la autenticación propia del sistema. La service role permanece en el servidor.
+1. Aplicar `supabase/postulantes/001_postulacion_2027.sql` y después `002_fotografias_originales.sql` una sola vez. Para organizar pruebas físicas de admisión, aplicar también `supabase/migrations/20261107004255_postulantes_grupos_fisicos.sql`.
+2. Desplegar los módulos de `supabase/functions/efm-campo/` (incluido `postulantes.mjs`) y `supabase/functions/postulantes-ops/index.ts` con `documento.mjs`, con `verify_jwt=false`: la RPC comprueba la autenticación propia del sistema. La service role permanece en el servidor.
 3. Publicar `index.html`, `soporte.js`, `efm-campo/` y `postulantes/` juntos en la misma raíz de SIDECEME. El verificador está fijado al origen institucional de GitHub Pages del repositorio.
 4. Comprobar acceso institucional con la cuenta personal y revisar las observaciones de carga. Las nuevas altas conservan el cotejo de foto, nombre y CI antes de habilitarse.
 
@@ -61,3 +65,5 @@ Las pruebas de navegador usan datos ficticios y no sustituyen una prueba de ingr
 ## Retirada de la interfaz
 
 Si fuera necesario retirar la interfaz, revertir el cambio de frontend y revocar las sesiones de `post_sesiones`. Conservar las tablas de expedientes, notas, historial y documentos. No se necesita borrar ni alterar cursantes, disciplina o el acceso habitual del sistema.
+
+Validación de la integración física: API real con 150 identidades ficticias, grupos rojo/amarillo, evaluadores por estación, rechazo de CI/ID de otra población, consulta sin escritura, concurrencia, carga fallida y reapertura de grupos guardados; SQL transaccional revertido para validación de miembros, auditoría y privacidad.

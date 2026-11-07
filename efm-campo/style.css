@@ -232,3 +232,5 @@ dialog.efmc-planner{width:min(1220px,96vw);max-width:1220px;padding:28px;backgro
 #efmc .efmc-conformidad.sin-calificar,#efmc .efmc-confirm-action.sin-calificar{color:#ffe3a1;border-color:#e9b74c;background:#493712}
 #efmc .efmc-record.sin-calificar{border-color:#e9b74c}
 #efmc .efmc-calculo-motivo{display:block;margin-top:6px}
+
+.efmc-post-avatar{display:inline-flex;align-items:center;justify-content:center;min-width:40px;min-height:52px}.efmc-post-avatar img{object-fit:contain}.plan-photo{display:flex;align-items:center;justify-content:center;min-width:40px;min-height:58px}.plan-photo img{width:42px;height:56px;object-fit:contain}.plan-photo+span{font-size:9px;max-width:110px;white-space:normal;line-height:1.2}

@@ -3,8 +3,10 @@ on:
   pull_request:
     paths:
       - 'postulantes/**'
-      - 'efm-campo/app.mjs'
-      - 'efm-campo/launcher.js'
+      - 'efm-campo/**'
+      - 'supabase/functions/efm-campo/**'
+      - 'supabase/migrations/*postulantes*'
+      - 'tests/efmc-*'
       - 'soporte.js'
       - 'index.html'
       - 'tests/efmc-conformidad-browser.cjs'
@@ -31,7 +33,17 @@ jobs:
           node --check efm-campo/app.mjs
           node --check efm-campo/launcher.js
           node --check postulantes/integracion.js
-          node --test tests/postulantes-endpoint.test.cjs
+          node --test tests/postulantes-endpoint.test.cjs tests/postulantes-fisica.test.mjs
+          node tests/efmc-organizacion.mjs
+          node tests/efmc-acceso.mjs
+          node tests/efmc-perfil.mjs
+          node tests/efmc-no-realizo.mjs
+          node tests/efmc-talla-servidor.mjs
+          node tests/efmc-conformidad.mjs
+          node tests/efmc-historial.mjs
+          node tests/efmc-borrado.mjs
+          node tests/efmc-documentos.mjs
+          node tests/efmc-teclado.mjs
           node tests/auth-soporte.test.cjs
           node tests/soporte-ui.test.cjs
       - name: Preparar pruebas de navegador y PDF
@@ -49,3 +61,4 @@ jobs:
           node tests/postulantes-ui.cjs
           node tests/postulantes-pdf.mjs
           node tests/efmc-conformidad-browser.cjs
+          node tests/postulantes-fisica-browser.cjs

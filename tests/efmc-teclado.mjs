@@ -1,3 +1,4 @@
+import {FotosNomina} from '../postulantes/nomina.mjs';
 import * as organizacion from '../efm-campo/organizacion.mjs';
 import * as conformidad from '../efm-campo/conformidad.mjs';
 import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
@@ -6,7 +7,7 @@ let root;class Element{constructor(dataset={}){this.dataset=dataset;this.events=
 const document={addEventListener(){},removeEventListener(){},getElementById(){return null;},createElement(){root=new Element();return root;},body:{append(){}}};
 const roster=['ALFA','BRAVO','CHARLIE'].map((name,i)=>({id:'T'+i,nombre_completo:name,ciclo:'1ER CICLO',grado:'MY.',arma:'INF.',paralelo:'A',fecha_nacimiento:'1986-01-01',sexo:'M'}));
 let source=fs.readFileSync(new URL('../efm-campo/app.mjs',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replaceAll('import.meta.url', '"file:///qa/app.mjs"').replace('export async function abrir','async function abrir');
-const ctx={...organizacion,...conformidad,...perfil,...informes,...ui,...baremos,...medidas,document,localStorage:{getItem:()=>null},window:{addEventListener(){},removeEventListener(){}},navigator:{},Intl,Date,Number,console,confirm:()=>true,setInterval:()=>1,clearInterval(){},crypto:{randomUUID:()=> '11111111-1111-1111-1111-111111111111'},descargar(){}};vm.createContext(ctx);vm.runInContext(source+';globalThis.openApp=abrir;',ctx);
+const ctx={FotosNomina,...organizacion,...conformidad,...perfil,...informes,...ui,...baremos,...medidas,document,localStorage:{getItem:()=>null},window:{addEventListener(){},removeEventListener(){}},navigator:{},Intl,Date,Number,console,confirm:()=>true,setInterval:()=>1,clearInterval(){},crypto:{randomUUID:()=> '11111111-1111-1111-1111-111111111111'},descargar(){}};vm.createContext(ctx);vm.runInContext(source+';globalThis.openApp=abrir;',ctx);
 await ctx.openApp({owner:'TEST',onClose(){},invoke:async()=>({cursantes:roster,registros:[]})});
 root.buttons['student:T0'].onclick();
 function key(k,target=root){let prevented=false;root.events.keydown({key:k,target,preventDefault(){prevented=true;}});return prevented;}
