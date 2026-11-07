@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.471</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.473</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8577,6 +8577,11 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
 @media (max-width:900px){ #wg-hud-cuerpo{grid-template-columns:minmax(190px,240px) minmax(220px,1fr) minmax(0,1fr)} #wg-hud-mini{display:none}
   #screen-wargame.wg-full #wg-game.wg-hud-on #wg-tabs .wg-tab span{display:none} }
 @media (max-width:700px){ #wg-hud-cuerpo{grid-template-columns:1fr 1fr} #wg-hud-bitcol{display:none} }
+/* v2.9.473: con la pestaña nueva, en una notebook el riel se iba de la pantalla. */
+@media (max-width:1800px){ .wg-tab{padding:0 8px;letter-spacing:.5px;gap:5px} }
+@media (max-width:1560px){ .wg-tab .lgo{display:none} }
+@media (max-width:1460px){ .wg-tab{padding:0 6px;letter-spacing:.2px;gap:4px} }
+@media (max-width:1420px){ .wg-tab.t-maq span,.wg-tab.t-pan span{display:none} }
 </style>
 <section id="screen-wargame" class="screen">
   <div class="app-header">
@@ -29894,6 +29899,11 @@ function _wgAnimando(){
   return true;
 }
 async function _wgInvoke(accion, extra){
+  // v2.9.473 — una pantalla de monitoreo sólo lee. El pulso va pelado: sin datos de vuelo.
+  if(WG.mon){
+    if(!WG_MON_LECTURAS[accion]) return {ok:false,error:'Pantalla de monitoreo: sólo mira.'};
+    if(accion==='pulso') extra={ partida_id:WG.partidaId, clave_acceso:WG.clave };
+  }
   const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
   // v2.9.274 — INVITADO POR ENLACE: no tiene cuenta ni token. Se identifica con
   // la clave de su bando (que ya viaja en `extra`) más su nombre. El servidor
@@ -29995,7 +30005,7 @@ function _wgEsG1(){ return _wgRol()==='g1'; }
 //  4) SIN NADA DE INTERFAZ. Lo único que se proyecta además del dispositivo es
 //     lo que una maqueta lleva: norte, escala y el recuadro de ubicación.
 // ============================================================
-function _wgEsMaqueta(){ return !!WG.maqueta; }
+function _wgEsMaqueta(){ return !!(WG.maqueta||WG.mon); }   // v2.9.473: los monitores tampoco ordenan
 // Las tres bases de la proyección. La maqueta arranca en SATÉLITE porque el
 // modelo físico es blanco y la proyección es la que le da el color.
 const WG_MAQ_BASES={
@@ -30003,6 +30013,85 @@ const WG_MAQ_BASES={
   carta: {nom:'🗺️ Carta',    url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'},
   negro: {nom:'⬛ Negro',     url:null},
 };
+// ============================================================
+// v2.9.472 — REGULADOR DE ZOOM DE LA MAQUETA.
+// Sergio (07-11-2026): «hago zoom con el mouse y es demasiado volátil o
+// impreciso, necesito regular y fijar».
+// La causa venía de fábrica: Leaflet salta de a NIVELES ENTEROS y cada nivel
+// duplica la escala, así que un toque de rueda pasaba de ver 80 km a ver 40.
+// Para calzar la proyección con el borde de un modelo físico eso no sirve.
+//  · La rueda acerca de a poco (unos 0,15 por muesca; antes 1).
+//  · La barra y los − / ＋ regulan de a centésimas; apretados, siguen solos.
+//  · 📌 FIJAR clava el zoom: el mínimo y el máximo del mapa quedan en ese valor,
+//    así que NADA lo cambia (ni la rueda, ni ⛶ Encuadrar, ni una cámara), y el
+//    encuadre queda guardado en esta computadora para la próxima vez.
+// ============================================================
+const WG_MAQ_ZOOM={ min:4, max:18, paso:0.02,
+  leaflet:{ zoomSnap:0.01, zoomDelta:0.1, wheelPxPerZoomLevel:300 } };
+function _wgMaqZoomClave(){ return 'wg_maq_zoom_'+WG.partidaId; }
+function _wgMaqZoomPintar(){
+  if(!WG.maqueta || !WG.map) return;
+  try{
+    const z=WG.map.getZoom(), c=WG.map.getCenter(), ancho=WG.map.getSize().x;
+    const km=156543.03392804097*Math.cos(c.lat*Math.PI/180)/Math.pow(2,z)*ancho/1000;
+    const barra=document.getElementById('maq-rz-barra'), val=document.getElementById('maq-rz-val');
+    if(barra) barra.value=z;
+    if(val) val.textContent=`Z ${z.toFixed(2)} · ${_wgFmtKm(km)}`;
+  }catch(_e){}
+}
+function wgMaquetaZoomA(z){
+  if(WG.maqZoomFijo || !WG.map) return;
+  const v=Math.max(WG_MAQ_ZOOM.min, Math.min(WG_MAQ_ZOOM.max, Number(z)));
+  if(!Number.isFinite(v)) return;
+  WG.map.setZoom(v,{animate:false});
+  _wgMaqZoomPintar();
+}
+// − / ＋: un toque es un paso chico; mantenerlos apretados sigue solo, parejo.
+function wgMaquetaZoomApretar(signo, ev){
+  if(ev) ev.preventDefault();
+  const dar=()=>{ if(WG.map) wgMaquetaZoomA(WG.map.getZoom()+signo*WG_MAQ_ZOOM.paso); };
+  dar();
+  clearTimeout(WG._maqRzT); clearInterval(WG._maqRzI);
+  WG._maqRzT=setTimeout(()=>{ WG._maqRzI=setInterval(dar,60); },320);
+  const soltar=()=>{ clearTimeout(WG._maqRzT); clearInterval(WG._maqRzI);
+    window.removeEventListener('pointerup',soltar); window.removeEventListener('pointercancel',soltar); };
+  window.addEventListener('pointerup',soltar); window.addEventListener('pointercancel',soltar);
+}
+function _wgMaqZoomTrabar(on){
+  const m=WG.map; if(!m) return;
+  const z=m.getZoom();
+  m.setMinZoom(on?z:0); m.setMaxZoom(on?z:WG_MAQ_ZOOM.max);
+  for(const h of [m.scrollWheelZoom,m.doubleClickZoom,m.touchZoom,m.boxZoom]){
+    try{ if(on) h.disable(); else h.enable(); }catch(_e){}
+  }
+  const caja=document.getElementById('maq-regz'), b=document.getElementById('maq-rz-fijar');
+  if(caja) caja.classList.toggle('fijo',on);
+  if(b){ b.textContent=on?'📌 Fijado — tocá para soltar':'📌 Fijar';
+    b.title=on?'El zoom no cambia con nada. Tocá para volver a regularlo.'
+              :'Clava este zoom: la rueda deja de moverlo y queda guardado para la próxima vez'; }
+}
+function _wgMaqZoomGuardar(){
+  if(!WG.maqZoomFijo || !WG.map) return;
+  try{ const c=WG.map.getCenter();
+    localStorage.setItem(_wgMaqZoomClave(), JSON.stringify({ z:WG.map.getZoom(), c:[c.lat,c.lng] }));
+  }catch(_e){}
+}
+function wgMaquetaZoomFijar(){
+  WG.maqZoomFijo=!WG.maqZoomFijo;
+  _wgMaqZoomTrabar(WG.maqZoomFijo);
+  if(WG.maqZoomFijo) _wgMaqZoomGuardar();
+  else{ try{ localStorage.removeItem(_wgMaqZoomClave()); }catch(_e){} }
+  _wgMaqZoomPintar();
+}
+// Vuelve al encuadre fijado en esta computadora. Devuelve true si había uno.
+function _wgMaqZoomRestaurar(){
+  let g=null;
+  try{ g=JSON.parse(localStorage.getItem(_wgMaqZoomClave())||'null'); }catch(_e){}
+  if(!g || !Number.isFinite(g.z) || !Array.isArray(g.c)) return false;
+  WG.map.setView(g.c, g.z, {animate:false});
+  WG.maqZoomFijo=true; _wgMaqZoomTrabar(true); _wgMaqZoomPintar();
+  return true;
+}
 // v2.9.460 — la ventana de la maqueta ocupa todo el proyector.
 function wgMaquetaPantalla(){
   try{
@@ -30045,7 +30134,23 @@ function _wgMaquetaMontar(){
     body.wg-maqueta #maq-hud .cj{ text-shadow:0 1px 4px #000, 0 0 10px #000;
       background:rgba(6,11,17,.55); padding:7px 9px; border-radius:9px;
       backdrop-filter:blur(2px); }
-    #maq-capas{ position:absolute; right:18px; top:56px; max-width:250px; pointer-events:auto;
+    /* v2.9.472 — el regulador va debajo de la fila de botones. Con el zoom fijado
+       se achica a su valor, y con 🔒 Trabar se va: lo que se proyecta es la maqueta. */
+    #maq-regz{ position:absolute; right:18px; top:54px; display:flex; align-items:center; gap:7px;
+      padding:6px 10px; border-radius:8px; background:rgba(8,13,19,.86); border:1px solid #ffffff44;
+      font-size:11px; letter-spacing:.5px; }
+    #maq-regz .rz-tit{ font-size:10px; letter-spacing:2px; opacity:.8; }
+    #maq-regz .rz-b{ width:26px; height:26px; border-radius:6px; font-size:15px; line-height:1;
+      background:rgba(255,255,255,.10); border:1px solid #ffffff55; color:#fff; cursor:pointer;
+      touch-action:none; user-select:none; }
+    #maq-regz input{ width:250px; margin:0; accent-color:#6bb6ff; cursor:pointer; }
+    #maq-rz-val{ min-width:112px; text-align:center; font-variant-numeric:tabular-nums; font-weight:700; }
+    #maq-rz-fijar{ font-size:11px; padding:4px 9px; border-radius:6px; cursor:pointer; color:#fff;
+      background:rgba(255,255,255,.10); border:1px solid #ffffff55; white-space:nowrap; }
+    #maq-regz.fijo .rz-tit, #maq-regz.fijo .rz-b, #maq-regz.fijo input{ display:none; }
+    #maq-regz.fijo #maq-rz-fijar{ background:rgba(46,204,113,.22); border-color:#2ecc71; }
+    body.wg-maqueta.maq-trabada #maq-regz{ display:none; }
+    #maq-capas{ position:absolute; right:18px; top:100px; max-width:250px; pointer-events:auto;
       background:rgba(8,13,19,.86); border:1px solid #ffffff44; border-radius:8px; padding:7px 9px;
       display:none; }
     #maq-capas.abierto{ display:block; }
@@ -30151,6 +30256,16 @@ function _wgMaquetaMontar(){
       <button id="maq-lock" onclick="wgMaquetaTrabar()" style="font-size:11px;padding:4px 9px;border-radius:6px;
         background:rgba(255,255,255,.10);border:1px solid #ffffff55;color:#fff;cursor:pointer">🔒 Trabar</button>
     </div>
+    <!-- v2.9.472 — REGULADOR DE ZOOM: regular fino y fijar -->
+    <div id="maq-regz" class="cj">
+      <span class="rz-tit">ZOOM</span>
+      <button class="rz-b" onpointerdown="wgMaquetaZoomApretar(-1,event)" title="Alejar de a poco. Mantené apretado para seguir.">−</button>
+      <input id="maq-rz-barra" type="range" min="${WG_MAQ_ZOOM.min}" max="${WG_MAQ_ZOOM.max}" step="0.01"
+        oninput="wgMaquetaZoomA(this.value)" title="Regulá el zoom. Con la barra elegida, las flechas ← → lo mueven de a centésimas.">
+      <button class="rz-b" onpointerdown="wgMaquetaZoomApretar(1,event)" title="Acercar de a poco. Mantené apretado para seguir.">＋</button>
+      <span id="maq-rz-val">—</span>
+      <button id="maq-rz-fijar" onclick="wgMaquetaZoomFijar()">📌 Fijar</button>
+    </div>
     <!-- v2.9.326 — LATIDO. Si la proyección se congela hay que poder verlo SIN
          mirar el reloj: el punto parpadea con cada refresco y el número dice
          hace cuánto llegó el último dato. En verde late, en rojo se quedó. -->
@@ -30180,6 +30295,8 @@ function _wgMaquetaMontar(){
   }catch(_e){} }, 300);
 
   WG.map.on('zoomend moveend', _wgMaquetaEscala);
+  WG.map.on('zoomend moveend', ()=>{ _wgMaqZoomPintar(); _wgMaqZoomGuardar(); });   // v2.9.472
+  _wgMaqZoomTrabar(false); _wgMaqZoomPintar();
   // Reintento hasta que el encuadre salga bien. El repintado del juego sólo
   // ocurre cuando algo cambia, así que si el primer intento cae antes de que el
   // contenedor mida, sin esto la proyección se queda mostrando el mundo entero
@@ -30238,6 +30355,8 @@ function wgMaquetaEncuadrar(){
     if(cont && cont.clientWidth>50 && cont.clientHeight>50) WG.map.invalidateSize();
     const tam=WG.map.getSize();
     if(!tam || tam.x<50 || tam.y<50) return;
+    // v2.9.472: lo fijado en esta computadora manda sobre el encuadre automático.
+    if(!WG._maqZoomVisto){ WG._maqZoomVisto=1; if(_wgMaqZoomRestaurar()){ _wgMaquetaEscala(); _wgMaquetaLoc(); return; } }
     WG.map.fitBounds(L.latLngBounds(pts).pad(0.28), {animate:false});
     _wgMaquetaEscala(); _wgMaquetaLoc();
   }catch(_e){}
@@ -30688,7 +30807,8 @@ async function wgAbrir(partidaId, clave){
   document.getElementById('wg-game').style.display='';
   await ensureLeaflet();
   if(!WG.map){
-    WG.map = L.map('wg-map',{ zoomControl:!WG.maqueta, attributionControl:!WG.maqueta })
+    WG.map = L.map('wg-map',Object.assign({ zoomControl:!WG.maqueta, attributionControl:!WG.maqueta },
+        (WG.maqueta||WG.mon) ? WG_MAQ_ZOOM.leaflet : {}))   // v2.9.472: zoom fino sólo en la maqueta
       .setView([-17,-65], 7);
     // ============================================================
     // v2.9.320 — LA MAQUETA VA A COLORES. (Corrige la 319, que la hizo negra.)
@@ -30717,6 +30837,7 @@ async function wgAbrir(partidaId, clave){
       _wgAnularCerca((c)=>{ try{ return WG.map.latLngToContainerPoint([c[1],c[0]]); }catch(_e){ return null; } }, pt.x, pt.y);
     });
     WG.map.on('zoomend moveend', wgActualizarZoomChip);  // v2.9.196
+    WG.map.on('move', _wgMonMovio);                       // v2.9.473
   }
   if(WG.maqueta) _wgMaquetaMontar();
   // v2.9.191: al entrar al juego, PANTALLA COMPLETA (el mapa ocupa todo y los
@@ -34019,6 +34140,7 @@ function _wgVolarDrones(){
               camara.zoom=zObj; v._zEscrito=zObj;
             }
           }
+          if(WG.mon) _wgMonDronMira(camara);   // v2.9.473
           map.jumpTo(camara);
         }catch(_e){}
         // El destino queda al día: si salís del dron, el próximo encuadre no
@@ -35229,6 +35351,7 @@ function _wgCanalIniciar(){
       // v2.9.461: cada paso del reloj, y ▶ / ⏸ / velocidad.
       .on('broadcast', { event:'tic' }, (m)=>{ try{ _wgTicRecibido(m && m.payload); }catch(e){ console.warn('tic:', e); } })
       .on('broadcast', { event:'reloj' }, (m)=>{ const q=m&&m.payload; if(q&&q.reloj){ WG.relojJuego=q.reloj; WG._ticVisto=Date.now(); _wgRelojTic(); } })
+      .on('broadcast', { event:'mon' }, (m)=>{ _wgMonPedido(m && m.payload); })   // v2.9.473
       // v2.9.332: cuando el G-5 declara un área restringida, el resto del Estado
       // Mayor la ve en su carta EN EL ACTO. Es exactamente para lo que se armó
       // el canal en la 329: lo que tiene que verse a la vez, se avisa.
@@ -35257,6 +35380,7 @@ function _wgCanalCivil(){
     payload:{ bando:_wgBandoLente()||WG.soy||null } }); }catch(_e){}
 }
 function _wgCanalParar(){
+  _wgMonSoltar();   // v2.9.473
   if(WG._canal){ try{ sb.removeChannel(WG._canal); }catch(_e){} }
   WG._canal=null; WG._canalOk=false; WG._canalPend=null;
   for(const ch of Object.values(WG._canalBandos||{})){ try{ sb.removeChannel(ch); }catch(_e){} }   // v2.9.455
@@ -35954,7 +36078,7 @@ async function wgEstado(silencioso){
   try{ _wgBitRender(); }catch(_e){}   // v2.9.445: los 📻 pedidos pendientes, al día con las fichas
   WG.relojJuego=r.reloj||null;          // v2.9.449
   try{ _wgRelojTic(); _wgG4AutoRender(); }catch(_e){}   // v2.9.451: y el 🤖 G-4 automático
-  if(r.partida && r.partida.estado==='finalizada' && WG._resVisto!==WG.partidaId){
+  if(r.partida && r.partida.estado==='finalizada' && WG._resVisto!==WG.partidaId && !WG.mon){
     WG._resVisto=WG.partidaId; setTimeout(()=>{ try{ wgResultados(); }catch(_e){} }, 400);
   }
   const esArb = r.soy==='arbitro';
@@ -38087,6 +38211,8 @@ async function wgVista3D(){
         ]},
       center:[-64.5,-16.5], zoom:6, pitch:62, maxPitch:85, maxZoom:19,
       attributionControl:{compact:true},
+      // v2.9.473: cuatro relieves a la vez: el recuadro se achica, no hace falta el doble de píxeles.
+      ...(WG.mon ? { pixelRatio:1 } : {}),
     });
   }catch(e){
     document.getElementById('wg-3d-cargando').style.display='none';
@@ -38094,6 +38220,7 @@ async function wgVista3D(){
     return;
   }
   WG.map3d=map; WG.marc3d=[];
+  map.on('move', _wgMonMovio);   // v2.9.473: si alguien mira este puesto, la cámara viaja
   // v2.9.219 — ÉSTA ERA LA CAUSA REAL DE QUE SHIFT+CLIC NO AGREGARA PUNTOS DE
   // PASO. MapLibre trae `boxZoom` prendido de fábrica y ese handler se queda con
   // Shift+mousedown para hacer zoom por recuadro: llama a preventDefault() y el
@@ -38631,7 +38758,7 @@ function _wg3dDatos(){
       // ============================================================
       const _lente3=_wgBandoLente();
       const _sabe3=_lente3 ? u.bando===_lente3 : (WG.soy==='arbitro' || u.bando===WG.soy);
-      if(_sabe3 && !_wgEsConvoy(u) && u.estado!=='fuera_combate' && !_wgEsMaqueta()){
+      if(_sabe3 && !_wgEsConvoy(u) && u.estado!=='fuera_combate' && !WG.maqueta){
         const esSel3=String(WG.sel)===String(u.id);
         const lt3=_wgLetrero(u,{ clic:true, todo:esSel3 });
         if(lt3){
@@ -44984,7 +45111,7 @@ function _wgRender(){
     // v2.9.457: cada dato se toca y abre el detalle; la elegida muestra los cinco;
     // con la lente del árbitro puesta, sólo los del bando que se está mirando.
     const _lenteL=_wgBandoLente();
-    if((_lenteL ? u.bando===_lenteL : mio) && !_wgEsConvoy(u) && u.estado!=='fuera_combate' && !_wgEsMaqueta()){
+    if((_lenteL ? u.bando===_lenteL : mio) && !_wgEsConvoy(u) && u.estado!=='fuera_combate' && !WG.maqueta){
       const lt=_wgLetrero(u,{ clic:true, todo:sel });
       if(lt){ const mL=L.marker([u.lat,u.lng],{ interactive:false, zIndexOffset:2500,
         icon:L.divIcon({ className:'', iconSize:[0,0], iconAnchor:[0,0], html:`<div class="wg-letrero">${lt}</div>` }) }).addTo(WG.capa);
@@ -46066,7 +46193,7 @@ async function wgJugar(btn){
 // servidor viejo (sin `c0/c1`) se estima con los km recorridos.
 // ============================================================
 function _wgCombVivoPrep(t){
-  const u=_wgUnidadPorId(t.id); if(!u || _wgEsMaqueta()) return null;
+  const u=_wgUnidadPorId(t.id); if(!u || WG.maqueta) return null;
   const lente=_wgBandoLente();
   if(!(lente ? u.bando===lente : (WG.soy==='arbitro' || u.bando===WG.soy))) return null;   // niebla
   const tanque=_wgTanqueDe(u); if(!(tanque>0) || !(Number(t.km)>0.05)) return null;
@@ -47010,7 +47137,7 @@ function _wgTicLatido(){
     if(!WG.partidaId || !WG.estado) return;
     WG._ticLat=(WG._ticLat||0)+1;
     if(WG._ticLat%4===0) _wgRelojTic();
-    if(!_wgCorre() || WG._ticEnVuelo) return;
+    if(!_wgCorre() || WG._ticEnVuelo || WG.mon) return;   // v2.9.473: un monitor mira el reloj, no lo pide
     const ahora=Date.now();
     // Lo último que se sabe del reloj: lo que llegó por el canal o lo que dijo el sondeo
     // (una pantalla sin canal no se pone a correr el tiempo por su cuenta).
@@ -47965,8 +48092,11 @@ function _wgHudTabs(){
       // ventana a propósito: ésa se lleva al proyector y acá sigue la consola del árbitro.
       { id:'maq', ico:'<i class="ic">🗺️</i>', nom:'VISTA MAQUETA',
         tip:'VISTA DE MAQUETA|Abre en OTRA VENTANA la proyección para la maqueta física: los dos bandos en vivo, sin consola.|Llevá esa ventana al proyector y apretá ⛶ Pantalla completa. Después ⛶ Encuadrar para calzarla con el modelo y 🔒 Trabar.' },
+      // v2.9.473 — 🖥️ las cuatro cámaras de un bando, en otra ventana (ver `_wgPantallasMontar`).
+      { id:'pan', ico:'<i class="ic">🖥️</i>', nom:'PANTALLAS<span class="lgo"> COMPARTIDAS</span>',
+        tip:'PANTALLAS COMPARTIDAS|Abre en OTRA VENTANA cuatro monitores del bando: panorámica, G-3, G-4 y dron, cada uno con su tablero.|Es sólo para mirar. Si el oficial de ese puesto está conectado, su recuadro sigue su cámara en vivo.' },
     ];
-    h=T.map(t=>`<button class="wg-tab t-${t.id}${v===t.id?' on':''}" onclick="${t.id==='maq'?`wgMaquetaLobby(${Number(WG.partidaId)})`:`wgVistaArbitro('${t.id}')`}" `
+    h=T.map(t=>`<button class="wg-tab t-${t.id}${v===t.id?' on':''}" onclick="${t.id==='maq'?`wgMaquetaLobby(${Number(WG.partidaId)})`:(t.id==='pan'?`wgPantallasAbrir(${Number(WG.partidaId)})`:`wgVistaArbitro('${t.id}')`)}" `
       +`data-tip="${_rgEsc(t.tip)}">${t.ico}<span>${t.nom}</span></button>`).join('');
   }else if(WG.soy==='azul' || WG.soy==='rojo'){
     const r=_wgRolNom();
@@ -48584,6 +48714,363 @@ function wgMaquetaCopiar(pid){
       +'iniciando sesión con TU cuenta (la proyección del ejercicio completo es del árbitro).\n\n'
       +'Ahí: ⛶ Encuadrar para calzarlo con el modelo y 🔒 Trabar para que no se mueva más.');
   }catch(_e){ prompt('Enlace de la maqueta:', u); }
+}
+// ============================================================
+// v2.9.473 — 🖥️ PANTALLAS COMPARTIDAS.
+//
+// Sergio (07-11-2026): «una opción donde pueda ver cuatro pantallas al mismo
+// tiempo de cada equipo: la vista panorámica, la del G-3 orientado a las
+// unidades de maniobra, la del G-4 orientado a las instalaciones logísticas y
+// los ejes de abastecimiento, y la del dron. Cada una con su propio tablero de
+// herramientas… si el G-4 está moviendo su cámara o sus unidades, eso se
+// sincroniza en esa imagen. Es sólo de monitoreo».
+//
+// Las cuatro pantallas son EL PUESTO DE VERDAD, no un dibujo aparte: cada
+// recuadro es la misma página del juego abierta en un marco con la lente del
+// bando y el rol de ese puesto, así que trae su niebla, sus fichas y su consola.
+// La ventana madre sólo acomoda los cuatro marcos y les pone el rótulo fijo.
+//
+// SÓLO MIRA, con tres seguros: un velo tapa el marco (no llega ningún clic ni
+// tecla), `_wgEsMaqueta()` da verdadero (no ordena, no maneja el reloj), y
+// `_wgInvoke` sólo deja salir lecturas. Ni por error toca la partida.
+//
+// LA CÁMARA VIVA: el recuadro le avisa a su puesto que lo están mirando (`mon`,
+// cada 15 s, por el canal de la partida). Recién ahí ese oficial abre un canal
+// propio de ese puesto y manda su cámara, su ficha elegida y su tablero abierto.
+// Sin monitor no sale ni un mensaje, y un canal por puesto evita repartirle a
+// toda la clase lo que sólo le interesa a un recuadro. Si nadie está sentado en
+// el puesto, el recuadro no queda vacío: encuadra solo lo que le toca a ese rol.
+// ============================================================
+const WG_MON_CAM={
+  cmte:{ nom:'VISTA PANORÁMICA', quien:'Comandante', pitch:50, giro:0,   tope:12.5, acerca:0,   calcos:['ae','clave','eje_log','via'] },
+  g3:  { nom:'VISTA G-3',        quien:'G-3',        pitch:62, giro:0,   tope:13.2, acerca:0.2, calcos:['ae','clave','minado','obstaculo','restringido','severo','via'] },
+  g4:  { nom:'VISTA G-4',        quien:'G-4',        pitch:56, giro:-65, tope:13.2, acerca:0.2, calcos:['eje_log','via','poblado'] },
+  g2:  { nom:'VISTA DRON',       quien:'G-2',        pitch:66, giro:0,   tope:12.0, acerca:0,   calcos:[] },
+};
+const WG_MON_ORDEN=['cmte','g3','g4','g2'];
+const WG_MON_ANCHO=1440;     // lo que «mide» cada puesto antes de achicarlo al recuadro
+const WG_MON_VIVO_MS=12000;  // sin noticias del oficial en este lapso, cámara automática
+const WG_MON_LECTURAS={ estado:1, pulso:1, historial:1, replay:1 };
+// ------------------------------------------------------------
+// LA VENTANA MADRE: cuatro recuadros, cada uno con su nombre arriba y al centro
+// ------------------------------------------------------------
+function _wgURLPantallas(pid, lado){
+  return location.origin+location.pathname+'?wg='+encodeURIComponent(pid)+'&pantallas='+(lado==='rojo'?'rojo':'azul');
+}
+function wgPantallasAbrir(pid){ window.open(_wgURLPantallas(pid, WG.vistaArb==='rojo'?'rojo':'azul'),'_blank'); }
+function _wgPantallasMontar(pid, lado){
+  const rojo=lado==='rojo';
+  document.title='Pantallas compartidas · '+(rojo?'ROJO':'AZUL');
+  const st=document.createElement('style');
+  st.textContent=`
+    #pc{ position:fixed; inset:0; z-index:2147483000; display:flex; flex-direction:column; background:#05080c;
+      --c:${rojo?'#ff5252':'#4b93ff'}; --c-rgb:${rojo?'255,82,82':'75,147,255'};
+      font-family:ui-monospace,Menlo,monospace; color:#dbe7f5; }
+    #pc-top{ flex:none; height:40px; display:flex; align-items:center; gap:12px; padding:0 12px;
+      background:#0a0f15; border-bottom:2px solid var(--c); }
+    #pc-top .tit{ font-size:13px; font-weight:800; letter-spacing:3px; color:#fff; white-space:nowrap; }
+    #pc-sub{ font-size:11px; opacity:.75; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+    #pc-top .solo{ font-size:9.5px; letter-spacing:1.5px; padding:3px 7px; border-radius:5px; white-space:nowrap;
+      border:1px solid #ffffff33; opacity:.8; }
+    #pc-top .der{ margin-left:auto; display:flex; gap:6px; flex:none; }
+    #pc-top button{ font:inherit; font-size:11px; font-weight:700; letter-spacing:1px; padding:5px 11px; border-radius:6px;
+      cursor:pointer; color:#dbe7f5; background:rgba(255,255,255,.07); border:1px solid #ffffff33; white-space:nowrap; }
+    #pc-top button.on{ color:#fff; background:rgba(var(--c-rgb),.32); border-color:var(--c); }
+    #pc-grid{ flex:1; min-height:0; display:grid; grid-template:1fr 1fr / 1fr 1fr; gap:3px; background:#000; padding:3px; }
+    #pc-grid.uno{ grid-template:1fr / 1fr; }
+    #pc-grid.uno .pc-cel:not(.max){ display:none; }
+    .pc-cel{ position:relative; overflow:hidden; min-width:0; min-height:0; background:#0a0f15; }
+    .pc-cel iframe{ position:absolute; left:0; top:0; border:0; transform-origin:0 0; }
+    .pc-velo{ position:absolute; inset:0; cursor:zoom-in; }
+    .pc-cel.max .pc-velo{ cursor:zoom-out; }
+    /* El nombre de la cámara: como el cartel de entrada, pero no se va. Arriba y al
+       centro, sobre el cielo, para no taparle el área de batalla a nadie. */
+    .pc-rot{ position:absolute; top:0; left:50%; transform:translateX(-50%); pointer-events:none;
+      padding:3px 34px 4px; white-space:nowrap; text-align:center; color:#fff; font-weight:800;
+      font-size:clamp(13px,1.9vw,27px); letter-spacing:.32em; text-indent:.32em;
+      font-family:Inter,system-ui,-apple-system,sans-serif; text-shadow:0 1px 6px rgba(0,0,0,.75);
+      background:linear-gradient(90deg,rgba(var(--c-rgb),0),rgba(var(--c-rgb),.62) 18%,rgba(var(--c-rgb),.62) 82%,rgba(var(--c-rgb),0));
+      border-bottom:1px solid rgba(var(--c-rgb),.9); }
+    .pc-est{ position:absolute; left:7px; top:6px; pointer-events:none; display:flex; align-items:center; gap:6px;
+      padding:3px 8px; border-radius:6px; font-size:10px; letter-spacing:.6px; max-width:32%;
+      background:rgba(6,11,17,.74); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pc-est i{ width:8px; height:8px; flex:none; border-radius:50%; background:#7f93a8; }
+    .pc-est.vivo i{ background:#2ecc71; box-shadow:0 0 7px #2ecc71; }
+    .pc-est.mal i{ background:#ff4d4d; }
+    .pc-max{ position:absolute; right:7px; top:6px; width:26px; height:26px; border-radius:6px; cursor:pointer; font-size:13px;
+      color:#fff; background:rgba(6,11,17,.74); border:1px solid #ffffff33; }
+    @media (max-width:760px){ #pc-sub,#pc-top .solo{ display:none; } .pc-est{ max-width:40%; } }`;
+  document.head.appendChild(st);
+  const m=document.createElement('div'); m.id='pc';
+  m.innerHTML=`<div id="pc-top">
+      <span class="tit">PANTALLAS COMPARTIDAS</span><span id="pc-sub">—</span>
+      <span class="solo">SÓLO MONITOREO</span>
+      <div class="der">
+        <button class="${rojo?'':'on'}" onclick="wgPantallasLado('azul')">🔵 AZUL</button>
+        <button class="${rojo?'on':''}" onclick="wgPantallasLado('rojo')">🔴 ROJO</button>
+        <button onclick="wgMaquetaPantalla()" title="Ocupa toda la pantalla (Esc para salir)">🖥️ Pantalla completa</button>
+      </div></div>
+    <div id="pc-grid">${WG_MON_ORDEN.map(p=>`<section class="pc-cel" data-p="${p}">
+        <iframe title="${_rgEsc(WG_MON_CAM[p].nom)}"></iframe>
+        <div class="pc-velo" ondblclick="wgPantallasAgrandar('${p}')" title="Doble clic: agrandar o volver a las cuatro"></div>
+        <div class="pc-rot">${_rgEsc(WG_MON_CAM[p].nom)}</div>
+        <div class="pc-est" id="pc-est-${p}"><i></i><span>Conectando…</span></div>
+        <button class="pc-max" onclick="wgPantallasAgrandar('${p}')" title="Agrandar esta pantalla / volver a las cuatro">⛶</button>
+      </section>`).join('')}</div>`;
+  document.body.appendChild(m);
+  WG._pcPid=pid; WG._pcLado=rojo?'rojo':'azul';
+  window.addEventListener('resize', _wgPantallasMedir);
+  document.addEventListener('fullscreenchange', _wgPantallasMedir);
+  window.addEventListener('message', _wgPantallasMensaje);
+  window.addEventListener('keydown',(e)=>{ if(e.key==='Escape' && document.querySelector('.pc-cel.max')) wgPantallasAgrandar(null); });
+  _wgPantallasMedir();
+  // De a una: cuatro relieves arrancando en el mismo segundo traban la máquina.
+  const base=location.origin+location.pathname;
+  WG_MON_ORDEN.forEach((p,i)=>setTimeout(()=>{
+    const f=m.querySelector(`.pc-cel[data-p="${p}"] iframe`);
+    if(f) f.src=`${base}?wg=${encodeURIComponent(pid)}&mon=${WG._pcLado}-${p}`;
+  }, i*1400));
+}
+function wgPantallasLado(lado){ if(lado!==WG._pcLado) location.href=_wgURLPantallas(WG._pcPid, lado); }
+// Cada puesto se dibuja a tamaño de pantalla y se achica entero al recuadro: así su
+// consola se ve como la de ese oficial y no apretada en un cuarto de pantalla.
+function _wgPantallasMedir(){
+  for(const c of document.querySelectorAll('.pc-cel')){
+    const f=c.querySelector('iframe'), r=c.getBoundingClientRect();
+    if(!f || r.width<40 || r.height<40) continue;
+    const s=Math.max(0.4, Math.min(1, r.width/WG_MON_ANCHO));
+    f.style.width=Math.ceil(r.width/s)+'px'; f.style.height=Math.ceil(r.height/s)+'px';
+    f.style.transform=`scale(${s})`;
+  }
+}
+function wgPantallasAgrandar(p){
+  const g=document.getElementById('pc-grid'); if(!g) return;
+  const c=p ? g.querySelector(`.pc-cel[data-p="${p}"]`) : null;
+  const ya=c && c.classList.contains('max');
+  for(const x of g.querySelectorAll('.pc-cel')) x.classList.remove('max');
+  g.classList.toggle('uno', !!c && !ya);
+  if(c && !ya) c.classList.add('max');
+  _wgPantallasMedir();
+}
+function _wgPantallasMensaje(ev){
+  if(ev.origin!==location.origin) return;
+  const d=ev.data; if(!d || !d.wgmon || !WG_MON_CAM[d.p]) return;
+  const el=document.getElementById('pc-est-'+d.p); if(!el) return;
+  const C=WG_MON_CAM[d.p];
+  el.className='pc-est'+(d.error?' mal':(d.vivo?' vivo':''));
+  el.querySelector('span').textContent = d.error ? d.error
+    : (d.vivo ? 'EN VIVO · '+(d.quien||C.quien)
+      : (d.p==='g2' ? (d.vuela?'DRON EN VUELO':'DRON EN TIERRA') : 'CÁMARA AUTOMÁTICA'));
+  if(d.sub){ const s=document.getElementById('pc-sub'); if(s) s.textContent=d.sub; }
+}
+// ------------------------------------------------------------
+// CADA RECUADRO: el puesto, en modo mirar
+// ------------------------------------------------------------
+function _wgMonEntrar(pid, lado, puesto){
+  WG.mon={ lado, puesto }; WG.vistaArb=lado; WG.rol=puesto;
+  WG._inv={ partida:pid, bando:lado, clave:'', rol:puesto };
+  // Un cartel del navegador congelaría el recuadro hasta que alguien lo cierre.
+  window.alert=(t)=>{ const m=String(t||'').split('\n')[0];
+    _wgMonAvisar({ error:/sesi[oó]n|enlace/i.test(m) ? 'Sin sesión de árbitro: abrí esta ventana desde su consola' : m.slice(0,70) }); };
+  window.confirm=()=>false; window.prompt=()=>null;
+  document.body.classList.add('wg-mon');
+  const st=document.createElement('style');
+  st.textContent=`
+    body.wg-mon #wg-tl, body.wg-mon #wg-zoom, body.wg-mon #wg-ayuda, body.wg-mon #version-marker,
+    body.wg-mon #wg-hud-splash, body.wg-mon #wg-hud-marco, body.wg-mon #wg-camaras, body.wg-mon #wg-orient,
+    body.wg-mon .maplibregl-ctrl-top-right{ display:none !important; }
+    body.wg-mon #screen-wargame.wg-full #wg-game.wg-hud-on{ --top-h:46px; }
+    body.wg-mon #wg-hud-dron{ top:46px !important; }`;
+  document.head.appendChild(st);
+  setTimeout(async()=>{
+    try{ showScreen('screen-wargame'); await wgAbrir(pid,''); await _wgMonArrancar(); }
+    catch(e){ _wgMonAvisar({ error:String((e&&e.message)||e).slice(0,70) }); }
+  },60);
+}
+function _wgMonAvisar(extra){
+  if(!WG.mon) return;
+  try{
+    const p=(WG.estado&&WG.estado.partida)||{};
+    parent.postMessage(Object.assign({ wgmon:1, p:WG.mon.puesto,
+      sub:(p.nombre?p.nombre+' · ':'')+_wgHoraTxt(_wgHoraJuego()) }, extra||{}), location.origin);
+  }catch(_e){}
+}
+async function _wgMonArrancar(){
+  if(!WG.mon || !WG.estado) return;
+  WG.cine=false; WG.camara=0; WG.seguir=false;
+  await wgVista3D();
+  for(let i=0;i<160 && !(WG.map3d && WG.map3d.getSource('wg-terr'));i++) await new Promise(r=>setTimeout(r,250));
+  const on=new Set(WG_MON_CAM[WG.mon.puesto].calcos);
+  WG.calcos={}; for(const c of WG_CALCOS) WG.calcos[c.id]=on.has(c.id);
+  WG.capaTerrenoFirma=null; _wgRenderTerreno(); if(WG.map3d) _wg3dCapas();
+  _wgMonCanal();
+  _wgMonElegir(_wgMonFichaBase());
+  WG.camAuto=false;   // el encuadre de arranque del 3D no sigue tironeando
+  _wgMonEncuadrar(true);
+  // ⚠️ Recién con el relieve cargado el mapa sabe la cota del centro. Encuadrando
+  // antes toma 0 m y sobre 4.000 m de altiplano la toma queda corrida para arriba.
+  WG.map3d.once('idle',()=>{ WG._monEncFirma=null; _wgMonEncuadrar(false); });
+  clearInterval(WG._monT); WG._monT=setInterval(_wgMonLazo,1000);
+  _wgMonLazo();
+}
+function _wgMonCanal(){
+  if(typeof sb==='undefined' || !sb || typeof sb.channel!=='function') return;
+  const { lado, puesto }=WG.mon;
+  try{ WG._monRx=sb.channel(`wg-${WG.partidaId}-cam-${lado}-${puesto}`, { config:{ broadcast:{ self:false } } })
+    .on('broadcast', { event:'cam' }, (m)=>{ try{ _wgMonRecibir(m && m.payload); }catch(e){ console.warn('cámara:', e); } })
+    .subscribe(); }catch(_e){ WG._monRx=null; }
+}
+// Lo que tiene que entrar en cuadro cuando el puesto está vacío.
+function _wgMonPuntos(){
+  const { lado, puesto }=WG.mon;
+  const us=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u.bando===lado && u.estado!=='fuera_combate'
+    && Number.isFinite(u.lng) && Number.isFinite(u.lat));
+  const xy=(u)=>[u.lng,u.lat];
+  const inst=_wgInstalaciones().map(it=>(it.geojson||{}).coordinates)
+    .filter(c=>Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1]));
+  if(puesto==='g3'){ const m=us.filter(u=>!_wgEsFichaDelG4(u)); return (m.length?m:us).map(xy); }
+  if(puesto==='g4'){ const l=us.filter(_wgEsFichaDelG4).map(xy).concat(inst); return l.length?l:us.map(xy); }
+  if(puesto==='g2'){ const d=_wgDronBando(lado); return d&&d.portador?[xy(d.portador)]:us.map(xy); }
+  return us.map(xy).concat(inst);
+}
+// Cada toma mira distinto: el G-3 de frente al enemigo, el G-4 desde el flanco.
+function _wgMonEncuadrar(primera){
+  const map=WG.map3d; if(!map || !_wgEn3D() || !WG.mon) return;
+  const C=WG_MON_CAM[WG.mon.puesto], pts=_wgMonPuntos();
+  const caja=_wgCaja(pts, pts.length>1?0.02:0.06); if(!caja) return;
+  const firma=caja.flat().map(v=>v.toFixed(2)).join('|');
+  if(!primera && firma===WG._monEncFirma) return;
+  WG._monEncFirma=firma;
+  const eje=_wgEjeAproximacion(WG.mon.lado);
+  const rumbo=(((eje?eje.rumbo:0)+C.giro)%360+360)%360;
+  // Lo que tapan la consola de abajo y el tablero de la derecha no cuenta como pantalla.
+  const hud=document.getElementById('wg-hud'), abajo=(hud?hud.offsetHeight:0)+30;
+  const hoja=document.getElementById('wg-hoja'), der=(WG.hoja&&hoja?hoja.offsetWidth:0)+70;
+  let cam=null;
+  try{ cam=map.cameraForBounds(caja,{ bearing:rumbo, padding:{ top:90, bottom:abajo, left:70, right:der } }); }catch(_e){}
+  if(!cam || !Number.isFinite(cam.zoom)) return;
+  // `cameraForBounds` calcula mirando desde arriba; inclinada, la profundidad se aplasta y entra más.
+  const z=Math.min(C.tope, cam.zoom+Math.log2(1/Math.cos(C.pitch*Math.PI/180))+C.acerca);
+  // El centro va por `padding` y no corrido a mano: con la cámara inclinada, correrlo
+  // deja la toma pegada arriba, contra el nombre del recuadro.
+  try{ map.easeTo({ center:[(caja[0][0]+caja[1][0])/2,(caja[0][1]+caja[1][1])/2], zoom:z, bearing:rumbo,
+    pitch:Math.min(C.pitch,_wgTechoPitch(z)), padding:{ top:40, bottom:abajo, left:0, right:der-70 },
+    duration:primera?300:1800, essential:true }); }catch(_e){}
+}
+function _wgMonLazo(){
+  if(!WG.mon) return;
+  const ahora=Date.now(), q=WG._monCam;
+  const vivo=!!(q && ahora-q._t<WG_MON_VIVO_MS);
+  if(WG._monVivo && !vivo){   // se fue: vuelve la toma automática, con el tablero de ese puesto
+    const hj=WG.mon.puesto==='g4'?'logistica':null;
+    if((WG.hoja||null)!==hj) wgHoja(hj);
+    WG._monEncFirma=null; _wgMonElegir(_wgMonFichaBase());
+  }
+  WG._monVivo=vivo;
+  // «Te están mirando»: recién con este aviso el oficial empieza a mandar su cámara.
+  if(WG._canal && WG._canalOk && ahora-(WG._monAviso||0)>15000){
+    WG._monAviso=ahora;
+    try{ WG._canal.send({ type:'broadcast', event:'mon', payload:{ b:WG.mon.lado, r:WG.mon.puesto } }); }catch(_e){}
+  }
+  let vuela=false;
+  if(WG.mon.puesto==='g2'){
+    const info=_wgDronBando(WG.mon.lado);
+    vuela=!!(info && info.d);
+    if(vuela && WG.dronVista==null && _wgEn3D()) wgVistaDron(info.portador.id);
+    if(!vuela && WG.dronVista!=null){ WG.dronVista=null; _wgHudDron(null); WG._monEncFirma=null; }
+  }
+  if(!vivo && !(vuela && WG.dronVista!=null)) _wgMonEncuadrar(false);
+  _wgMonAvisar({ vivo, vuela, quien:vivo?(q.nom||null):null });
+}
+// El tablero del G-3 son las órdenes y los fuegos, y ésos aparecen con una unidad elegida:
+// con el puesto vacío se muestra la unidad de maniobra más fuerte.
+function _wgMonFichaBase(){
+  if(WG.mon.puesto!=='g3') return null;
+  const m=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u.bando===WG.mon.lado && u.estado!=='fuera_combate' && !_wgEsFichaDelG4(u))
+    .sort((a,b)=>(Number(b.poder_actual)||0)-(Number(a.poder_actual)||0))[0];
+  return m ? m.id : null;
+}
+function _wgMonElegir(id){
+  WG.sel=(id==null)?null:id; WG.armaSel=null; WG.hudPop=null;
+  _wgRender(); if(WG.map3d) _wg3dDatos();
+  try{ wgBarraUnidades(); }catch(_e){}
+}
+// La cámara del oficial, en su recuadro.
+function _wgMonRecibir(q){
+  if(!WG.mon || !q || !Array.isArray(q.c) || !Number.isFinite(q.z)) return;
+  q._t=Date.now(); WG._monCam=q;
+  if(String(q.sel==null?'':q.sel)!==String(WG.sel==null?'':WG.sel)) _wgMonElegir(q.sel);
+  if((q.hoja||null)!==(WG.hoja||null)) wgHoja(q.hoja||null);
+  if(WG.mon.puesto==='g2' && WG.dronVista!=null) return;   // ahí escribe el lazo del dron (`_wgMonDronMira`)
+  if(!!q.d3!==_wgEn3D()){ if(q.d3) wgVista3D(); else wgCerrar3D(); }
+  if(_wgEn3D() && WG.map3d){
+    const map=WG.map3d, z=q.z+Math.log2(map.getCanvas().clientWidth/(q.w||WG_MON_ANCHO));
+    map.easeTo({ center:q.c, zoom:z, pitch:q.p, bearing:q.br, padding:{ top:0, bottom:0, left:0, right:0 },
+      duration:260, easing:(t)=>t, essential:true });
+  }else if(WG.map){
+    const z=q.z+Math.log2(WG.map.getSize().x/(q.w||WG_MON_ANCHO));
+    WG.map.setView([q.c[1],q.c[0]], z, { animate:true, duration:0.25 });
+  }
+}
+// Si el G-2 está en el visor manda él: el recuadro lleva la torreta adonde él la lleva, sin saltos.
+function _wgMonDronMira(cam){
+  const q=WG._monCam, map=WG.map3d;
+  if(!q || q.dv==null || !map || Date.now()-q._t>3000) return;
+  const k=0.18, c=map.getCenter(), b=map.getBearing(), p=map.getPitch(), zAct=map.getZoom();
+  const dB=((q.br-b)%360+540)%360-180, dP=q.p-p;
+  const dZ=(q.z+Math.log2(map.getCanvas().clientWidth/(q.w||WG_MON_ANCHO)))-zAct;
+  cam.center=[c.lng+(q.c[0]-c.lng)*k, c.lat+(q.c[1]-c.lat)*k];
+  cam.bearing=b+dB*k;
+  if(Math.abs(dP)>0.4) cam.pitch=p+dP*k;
+  if(Math.abs(dZ)>0.05) cam.zoom=zAct+dZ*k;
+}
+// ------------------------------------------------------------
+// DEL LADO DEL OFICIAL: manda su cámara sólo si alguien mira su puesto
+// ------------------------------------------------------------
+function _wgMonPuesto(){
+  if(WG.mon || WG.maqueta) return null;
+  const r=_wgRol();
+  const b=(WG.soy==='azul'||WG.soy==='rojo') ? WG.soy : (r && WG._inv && WG._inv.bando) || null;
+  return b ? { b, r:r||'cmte' } : null;
+}
+function _wgMonPedido(q){
+  const yo=_wgMonPuesto();
+  if(!yo || !q || q.b!==yo.b || q.r!==yo.r) return;
+  WG._monHasta=Date.now()+45000;
+  if(WG._monTx) return;
+  try{
+    WG._monTx=sb.channel(`wg-${WG.partidaId}-cam-${yo.b}-${yo.r}`, { config:{ broadcast:{ self:false } } })
+      .subscribe((e)=>{ WG._monTxOk=(e==='SUBSCRIBED'); if(WG._monTxOk) _wgMonEmitir(); });
+    clearInterval(WG._monI); WG._monI=setInterval(_wgMonLatir,1000);
+  }catch(_e){ WG._monTx=null; }
+}
+function _wgMonSoltar(){
+  clearInterval(WG._monI); clearTimeout(WG._monMovT); WG._monMovT=0;
+  if(WG._monTx){ try{ sb.removeChannel(WG._monTx); }catch(_e){} }
+  WG._monTx=null; WG._monTxOk=false;
+}
+function _wgMonLatir(){
+  if(Date.now()>(WG._monHasta||0)){ _wgMonSoltar(); return; }
+  const f=[WG.sel,WG.hoja,WG.dronVista].join('|');
+  if(f!==WG._monFirma || Date.now()-(WG._monUlt||0)>4000) _wgMonEmitir();
+}
+function _wgMonMovio(){
+  if(!WG._monTxOk) return;
+  const falta=180-(Date.now()-(WG._monUlt||0));
+  if(falta<=0) _wgMonEmitir();
+  else if(!WG._monMovT) WG._monMovT=setTimeout(()=>{ WG._monMovT=0; _wgMonEmitir(); }, falta);
+}
+function _wgMonEmitir(){
+  if(!WG._monTx || !WG._monTxOk) return;
+  try{
+    const d3=_wgEn3D(), m=d3?WG.map3d:WG.map; if(!m) return;
+    const c=m.getCenter();
+    WG._monUlt=Date.now(); WG._monFirma=[WG.sel,WG.hoja,WG.dronVista].join('|');
+    WG._monTx.send({ type:'broadcast', event:'cam', payload:{ c:[c.lng,c.lat], z:m.getZoom(),
+      p:d3?m.getPitch():0, br:d3?m.getBearing():0, w:d3?m.getCanvas().clientWidth:m.getSize().x, d3:d3?1:0,
+      sel:WG.sel==null?null:WG.sel, hoja:WG.hoja||null, dv:WG.dronVista==null?null:WG.dronVista,
+      nom:WG.invitado||null } });
+  }catch(_e){}
 }
 async function wgPuestoLobby(ev, bando, partidaId, rol){
   if(ev && ev.shiftKey){ wgInvitarBando(bando, partidaId, false, rol); return; }
@@ -53961,6 +54448,10 @@ function detectarInvitacionWargameEnURL(){
   // que ve ese Estado Mayor; abierta por el árbitro (sin clave, con su sesión)
   // proyecta el ejercicio completo, que es lo que se usa en la sala.
   WG.maqueta = (p.get('maqueta')==='1');
+  // v2.9.473 — la ventana de las cuatro pantallas, y cada una de ellas adentro.
+  if(id && p.get('pantallas')){ _wgPantallasMontar(Number(id), p.get('pantallas')); return true; }
+  const mon=String(p.get('mon')||'').split('-');
+  if(id && (mon[0]==='azul'||mon[0]==='rojo') && WG_MON_CAM[mon[1]]){ _wgMonEntrar(Number(id), mon[0], mon[1]); return true; }
   if(id && WG.maqueta && !clave){
     // Sin clave: sólo sirve si quien abre es el árbitro y tiene sesión.
     setTimeout(async()=>{ try{ showScreen('screen-wargame'); await wgAbrir(Number(id),''); }catch(_e){} }, 60);
