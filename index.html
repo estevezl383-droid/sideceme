@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.469</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.470</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8073,6 +8073,12 @@ body.wg-jugando{overflow:hidden}
 .wg-bit-f.nuevo{background:rgba(255,255,255,.06)}
 .wg-bit-f.pedido{background:rgba(224,138,44,.15);color:#ffe2bf}
 .wg-bit-f.arranque{background:rgba(74,163,224,.14);color:#d6ecff}
+/* v2.9.470 — ⚙️ Configurar: poco texto, y el que queda se lee. */
+.wg-cfg-txt{font-size:13px;line-height:1.45;color:var(--text-muted);margin-bottom:6px}
+.wg-cfg-txt details{margin-top:4px}
+.wg-cfg-txt summary{cursor:pointer}
+.wg-ia-caja{font-size:13px;line-height:1.45}
+.wg-ia-caja .rg-meta{font-size:12px}
 .wg-bit-f .t{font-size:9.5px;opacity:.55;margin-right:5px}
 .wg-bit-f .mas{display:none;opacity:.8;font-size:10.5px;margin-top:2px}
 .wg-bit-f.abierto .mas{display:block}
@@ -8822,13 +8828,7 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
      (restringido / severo / clave) y las unidades ya colocadas. Sin terreno
      cargado todos los bonos defensivos valen 1 y el combate sale parejo. -->
 <div class="section-label">🌄 Traer escenario del Generador de Calcos</div>
-<div style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-bottom:6px">
-  Elegí el <b>ejercicio.json</b> de la carpeta del ejercicio<br>
-  (<code style="font-size:10px">Documentos › GeneradorCalcos-Ejercicios › &lt;nombre&gt;</code>).<br>
-  Trae el <b>CMOC</b> (terreno restringido, severo y clave) y las unidades:
-  las <b>propias</b> entran como <span style="color:#1f6dff">🔵 AZUL</span> y las
-  <b>enemigas</b> como <span style="color:#e23b3b">🔴 ROJO</span>.
-</div>
+<div class="wg-cfg-txt">Elegí el <b>ejercicio.json</b> de la carpeta del ejercicio.</div>
 <!-- v2.9.352 — VARIOS ARCHIVOS A LA VEZ. Sergio: «¿puedo cargar 2 o más
      archivos JSON a la vez?». Sí, y es lo que pide el método de trabajo POR
      CAPAS: cada G baja la suya del Generador (el G-3 la maniobra, el G-4 la
@@ -8838,23 +8838,11 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
 <input type="file" id="wg-imp-file" accept=".json,application/json" multiple style="display:none" onchange="wgImportarEscenario(this,false)">
 <input type="file" id="wg-imp-file-add" accept=".json,application/json" multiple style="display:none" onchange="wgImportarEscenario(this,true)">
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-  <button class="rg-doc" onclick="document.getElementById('wg-imp-file').click()">📂 Cargar escenario (reemplaza)</button>
-  <button class="rg-doc" onclick="document.getElementById('wg-imp-file-add').click()">➕ Agregar capa (suma)</button>
+  <button class="rg-doc" onclick="document.getElementById('wg-imp-file').click()" title="Podés elegir varios archivos a la vez (Cmd+clic): se combinan en un solo escenario.">📂 Cargar escenario (reemplaza)</button>
+  <button class="rg-doc" onclick="document.getElementById('wg-imp-file-add').click()" title="Suma sin borrar lo que ya está cargado: cada G sube la suya cuando la tiene lista.">➕ Agregar capa (suma)</button>
   <button class="rg-doc" onclick="wgVaciarEscenario(this)">🧹 Vaciar escenario</button>
 </div>
-<div style="font-size:10.5px;color:var(--text-muted);line-height:1.45;margin-bottom:6px">
-  Podés elegir <b>varios archivos de una vez</b> (Cmd+clic): se combinan en un solo
-  escenario. <b>Agregar capa</b> suma sin borrar lo que ya está cargado — así cada G
-  sube la suya cuando la tiene lista.
-</div>
-<!-- v2.9.437 — ⚔️ El evento crítico de la Matriz de sincronización (F4·P6-7): las dos fases enfrentadas. -->
-<div style="font-size:10.5px;color:var(--text-muted);line-height:1.45;margin-bottom:6px;border-left:3px solid #e23b3b;padding-left:6px">
-  ⚔️ <b>Evento crítico</b>: en la Mesa, <b>G-3 → F4·P6-7 Matriz de sincronización</b> se elige la fase
-  <span style="color:#1f6dff">🔵 del CAP</span> y la <span style="color:#e23b3b">🔴 del CAE</span> que se enfrentan.
-  Al cargar ese ejercicio aparece primero <b>⚔️ EVENTO CRÍTICO</b>, con los dos bandos en el tablero; o armá otra pareja
-  con <b>⚔️ Enfrentar una fase 🔵 con una fase 🔴</b>.
-</div>
-<div id="wg-imp-estado" style="font-size:11px;color:var(--text-muted);margin-bottom:10px"></div>
+<div id="wg-imp-estado" class="wg-cfg-txt" style="margin-bottom:10px"></div>
 
 <!-- v2.9.441 — EL PLAN DE BARRERAS, CONSTRUIDO O PROYECTADO, EN CUALQUIER TURNO.
      Sergio, en «ZAPATO II»: el blindado rojo cruzó el campo minado «como si fuera
@@ -8862,7 +8850,7 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
      importación hasta la v2.9.438): se dibuja, no frena. Reimportar lo
      arreglaba pero reiniciaba la partida; esto lo cambia sin tocar nada más. -->
 <div class="section-label">🛡️ Plan de barreras</div>
-<div id="wg-barreras-estado" style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-bottom:6px"></div>
+<div id="wg-barreras-estado" class="wg-cfg-txt"></div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
   <button class="rg-doc" onclick="wgPlanBarreras('construido',this)"
     title="El campo minado detiene (con sus detonaciones y bajas); la zanja, la demolición y el bloqueo cortan el paso a los vehículos; la alambrada y la concertina frenan. Siempre al enemigo: el dueño conoce sus pasos.">🧱 Construido — detiene y frena al enemigo</button>
@@ -8870,49 +8858,12 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
     title="Las obras vuelven a ser plan: se ven punteadas y no frenan a nadie.">📐 Proyectado — sólo se ve</button>
 </div>
 
-<!-- v2.9.443 — LOS MEDIOS DE LAS FICHAS (azul y rojo) Y LA CARTA, SIN REINICIAR.
-     Sergio: «que se cargue bien lo que las fichas tienen, de azul como de rojo».
-     Las partidas importadas antes de la v2.9.439 no traen los medios de cada
-     ficha (armas, dotación en UF, autonomía, medio, poder por arma) ni la capa de
-     cada camino y río. Reimportar vuelve al turno 0; esto los actualiza en su
-     lugar: posición, munición gastada, combustible, órdenes y turno no cambian. -->
-<div class="section-label">🔄 Medios de las fichas y carta</div>
-<div id="wg-medios-estado" style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-bottom:6px">
-  Recalcula los <b>sistemas de armas, la dotación en UF, la autonomía, el medio y el poder</b> de TODAS las fichas
-  (las del azul y las del rojo, con las mismas reglas), sin reiniciar la partida.
-  Con el <b>archivo del ejercicio</b> (el mismo de «Cargar escenario») usa además el COE de la biblioteca y lo
-  planificado en el Anexo de Logística, y actualiza la carta: cada camino y cada río con su capa (sendas, ferrocarril, quebradas).
-</div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-  <button class="rg-doc" onclick="wgActualizarMedios(null,this)"
-    title="Con la dotación de referencia del Juego para el arma y el escalón de cada ficha.">🔄 Recalcular medios</button>
-  <label class="rg-doc" style="cursor:pointer" title="El ejercicio.json bajado de la Mesa (⬇️ Bajar para el Juego de Guerra).">📂 Con el archivo del ejercicio (medios + carta)
-    <input type="file" accept=".json,application/json" style="display:none" onchange="wgActualizarMedios(this)"></label>
-</div>
-
-<!-- v2.9.447 — 🧭 EL DESGASTE DE ARRANQUE, SIN REIMPORTAR. Para la partida que ya
-     está cargada: se elige la pareja de fases y la intensidad, y se aplica cómo
-     llegan las fichas (poder, combustible, munición, raciones, heridos) con su
-     parte en la bitácora. Posición, órdenes y turno no cambian. -->
-<div class="section-label">🧭 Desgaste de arranque</div>
-<!-- v2.9.454 — la explicación queda fija y el resultado va en su propio cuadro; la pareja
-     de fases se detecta sola por la posición de las fichas (antes salía «cancelado»). -->
-<div style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-bottom:6px">
-  <b>Cómo llegan las unidades</b> al momento que se juega: lo que pasó en las fases anteriores (marchas, fuegos,
-  contacto, obstáculos, raciones). Elegí el <b>ejercicio.json</b> con que cargaste el escenario: la pareja de fases
-  se <b>detecta sola</b> por la posición de las fichas.<br>
-  <b>🤖 Con IA</b> arma un pedido completo (situación, terreno, altura, clima, fuerzas, logística y anexos del Estado
-  Mayor) para pegar en Claude, ChatGPT o Gemini; pegás su respuesta, la revisás en una tabla y se aplica: poder,
-  bajas, combustible, munición, raciones, el <b>parte</b> de cada bando y los <b>pedidos</b> al G-4, al G-1 y al G-3.
-  Ninguna ficha baja del 25 %.
-</div>
-<div id="wg-arranque-estado" style="font-size:11px;line-height:1.45;margin-bottom:6px"></div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-  <label class="rg-doc" style="cursor:pointer" title="Elegí el ejercicio.json: se arma el pedido para tu IA (Claude, ChatGPT, Gemini), pegás su respuesta, la revisás y se aplica.">🤖 Con IA (copiar y pegar)
-    <input type="file" accept=".json,application/json" style="display:none" onchange="wgArranqueIA(this)"></label>
-  <label class="rg-doc" style="cursor:pointer" title="Elegí el ejercicio.json: la plataforma calcula sola un desgaste aproximado (fuegos y contacto de la llegada).">📂 Cálculo de la plataforma
-    <input type="file" accept=".json,application/json" style="display:none" onchange="wgDesgasteArranque(this)"></label>
-</div>
+<!-- v2.9.470 — 🤖 EL DESGASTE DE ARRANQUE: el título y la caja de la IA, nada más. Sergio
+     (06-11-2026): acá sobraba texto y los botones de elegir archivo «no funcionan para
+     nada». La caja la arma wgPanelDesgaste al abrir ⚙️ Configurar, con el ejercicio que
+     quedó guardado al cargar el escenario. -->
+<div class="section-label">🤖 Desgaste de arranque con IA</div>
+<div id="wg-arranque-estado" class="wg-cfg-txt" style="margin-bottom:12px"></div>
 
 <!-- v2.9.449 — 🎖️ EL JUEGO DEL ESTADO MAYOR: cada célula con su enlace. -->
 <div class="section-label">🎖️ Puestos del Estado Mayor (juego del COA)</div>
@@ -30821,6 +30772,7 @@ function wgHoja(cual){
   clearInterval(WG._regT); WG._regT=null;
   if(WG.hoja==='config') wgPanelBarreras();   // v2.9.441
   if(WG.hoja==='config' && WG.soy==='arbitro'){
+    wgPanelDesgaste();   // v2.9.470
     wgRegistroEM();
     WG._regT=setInterval(()=>{ if(WG.hoja==='config') wgRegistroEM(); else { clearInterval(WG._regT); WG._regT=null; } }, 20000);
   }
@@ -39885,38 +39837,52 @@ function _wgArranque(d, par, unidades, intensidad){
 // La app no gasta plata (regla de SIDECEME): la IA es la de cada uno, por copiar y pegar.
 // ============================================================
 const WG_PISO_IA=25;   // % de poder mínimo: el motor da por perdida a la ficha en el 20 %
-// El ejercicio.json: el que se eligió ahora o, si no, el de esta sesión para esta partida.
+// v2.9.470 — EL EJERCICIO QUEDA GUARDADO EN ESTE NAVEGADOR, POR PARTIDA. El pedido para la IA
+// necesita el ejercicio.json entero (fases, anexos, carta) y sólo vivía en la memoria de la
+// sesión: al recargar la página había que volver a elegir el archivo, y eso era lo que
+// parecía no funcionar. Se usa IndexedDB porque pesa varios MB (localStorage no alcanza).
+function _wgEjBase(){
+  return new Promise((ok,no)=>{
+    const q=indexedDB.open('wg_ejercicios',1);
+    q.onupgradeneeded=()=>q.result.createObjectStore('ejercicios');
+    q.onsuccess=()=>ok(q.result); q.onerror=()=>no(q.error);
+  });
+}
+async function _wgEjGuardar(x){
+  try{
+    const b=await _wgEjBase();
+    await new Promise((ok,no)=>{ const t=b.transaction('ejercicios','readwrite');
+      t.objectStore('ejercicios').put({ d:x.d, nombre:x.nombre }, x.partida);
+      t.oncomplete=ok; t.onerror=t.onabort=()=>no(t.error); });
+    b.close();
+  }catch(e){ console.warn('no se pudo guardar el ejercicio:', e); }
+}
+async function _wgEjLeer(partida){
+  try{
+    const b=await _wgEjBase();
+    const x=await new Promise((ok,no)=>{ const q=b.transaction('ejercicios').objectStore('ejercicios').get(partida);
+      q.onsuccess=()=>ok(q.result); q.onerror=()=>no(q.error); });
+    b.close();
+    return (x&&x.d)?x:null;
+  }catch(e){ console.warn('no se pudo leer el ejercicio:', e); return null; }
+}
+function _wgTraeFases(d){
+  const B=_wgFasesBandos(d);
+  return B.azules.some(a=>(a.f.unidades||[]).length) && B.rojas.some(r=>(r.f.unidades||[]).length);
+}
+// El ejercicio.json: el que se eligió ahora o, si no, el guardado para esta partida.
 async function _wgEjercicioDe(inp, poner){
   const f=inp && inp.files && inp.files[0];
   if(inp) inp.value='';
-  let d=null;
+  let d=null, nuevo=null;
   if(f){
-    try{ d=JSON.parse(await f.text()); }
+    try{ nuevo={ d:JSON.parse(await f.text()), nombre:f.name, partida:WG.partidaId }; d=nuevo.d; }
     catch(_e){ poner('❌ Ese archivo no es un JSON válido: elegí el <b>ejercicio.json</b> de la Mesa.'); return null; }
-    WG._ejercicio={ d, nombre:f.name, partida:WG.partidaId };
   }else if(WG._ejercicio && WG._ejercicio.partida===WG.partidaId) d=WG._ejercicio.d;
   if(!d) return null;
-  const B=_wgFasesBandos(d);
-  if(!B.azules.some(a=>(a.f.unidades||[]).length) || !B.rojas.some(r=>(r.f.unidades||[]).length)){
-    poner('❌ Ese ejercicio no trae fases 🔵 y 🔴 para enfrentar.'); return null;
-  }
+  if(!_wgTraeFases(d)){ poner('❌ Ese ejercicio no trae fases 🔵 y 🔴 para enfrentar.'); return null; }
+  if(nuevo){ WG._ejercicio=nuevo; _wgEjGuardar(nuevo); }
   return d;
-}
-async function wgDesgasteArranque(inp){
-  const est=document.getElementById('wg-arranque-estado');
-  const poner=(t)=>{ if(est) est.innerHTML=t; };
-  if(WG.soy!=='arbitro'){ if(inp) inp.value=''; poner('❌ Sólo el árbitro aplica el desgaste de arranque.'); return; }
-  const d=await _wgEjercicioDe(inp, poner); if(!d) return;
-  const e=await _wgElegirPar(d, est, 'plataforma');
-  if(!e){ poner('Cancelado: la partida sigue como estaba.'); return; }
-  const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
-  _wgParGuardar(e.par);
-  if(e.desgaste==='ia') return _wgArranqueIAMostrar(est, d, e.par, uds);
-  const arr=_wgArranque(d, e.par, uds, e.desgaste||'medio');
-  if(!arr){ poner('Sin desgaste (intensidad «ninguno»).'); return; }
-  if(!confirm(`Aplicar el desgaste de arranque a ${uds.length} ficha(s)?\n\n${arr.resumen}\n\nLa posición, las órdenes y el turno no cambian.`)){ poner('Cancelado.'); return; }
-  poner('⏳ Aplicando…');
-  poner(await _wgAplicarArranque(arr));
 }
 // ------------------------------------------------------------
 // LA PAREJA DE FASES, DETECTADA POR LA POSICIÓN DE LAS FICHAS
@@ -39988,18 +39954,21 @@ function _wgParRecordado(d){
   }catch(_e){ return null; }
 }
 // El cuadro: SÓLO la pareja de fases (y la intensidad, si calcula la plataforma).
-function _wgElegirPar(d, cont, modo){
+function _wgParDe(d, uds){
+  const det=_wgParDetectado(d, uds);
+  const rec=_wgParRecordado(d);
+  // Lo que el árbitro eligió antes vale si las fichas siguen cerca de esas fases.
+  const recOk=!!(rec && det && (_wgDistFase(rec.azul.f, uds, false)||{km:99}).km<=det.km.azul+3
+    && (_wgDistFase(rec.rojo.f, uds, true)||{km:99}).km<=det.km.rojo+3);
+  return { det, rec, recOk, sel:recOk?rec:(det||rec), segura:recOk?rec:((det&&!det.dudoso)?det:null) };
+}
+function _wgElegirPar(d, cont){
   return new Promise((resolve)=>{
     if(!cont) return resolve(null);
     const B=_wgFasesBandos(d);
     const az=B.azules.filter(a=>(a.f.unidades||[]).length), ro=B.rojas.filter(r=>(r.f.unidades||[]).length);
     const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
-    const det=_wgParDetectado(d, uds);
-    const rec=_wgParRecordado(d);
-    // Lo que el árbitro eligió antes vale si las fichas siguen cerca de esas fases.
-    const recOk=rec && det && (_wgDistFase(rec.azul.f, uds, false)||{km:99}).km<=det.km.azul+3
-      && (_wgDistFase(rec.rojo.f, uds, true)||{km:99}).km<=det.km.rojo+3;
-    const sel=recOk?rec:(det||rec);
+    const { det, recOk, sel }=_wgParDe(d, uds);
     // Por número de fase (cada llamada a _wgFasesBandos arma objetos nuevos: indexOf no los encuentra).
     const ia=Math.max(0, sel?az.findIndex(x=>x.cap===sel.azul.cap && x.idx===sel.azul.idx):0);
     const ir=Math.max(0, sel?ro.findIndex(x=>x.idx===sel.rojo.idx):ro.findIndex(r=>r.coa!=='peligroso'));
@@ -40014,35 +39983,70 @@ function _wgElegirPar(d, cont, modo){
       +`<b>⚔️ ¿Qué enfrentamiento se juega?</b><br><span class="rg-meta">${como}</span>`
       +`<div style="margin-top:6px"><span style="color:#1f6dff">🔵</span> <select id="wg-par-azul" style="max-width:100%">${opc(az,ia)}</select></div>`
       +`<div style="margin-top:4px"><span style="color:#e23b3b">🔴</span> <select id="wg-par-rojo" style="max-width:100%">${opc(ro,ir)}</select></div>`
-      +(modo==='plataforma'
-        ? `<div style="margin-top:6px;font-size:11px">Intensidad: `+['bajo','medio','alto'].map(k=>`<label style="margin-right:8px;white-space:nowrap"><input type="radio" name="wg-par-int" value="${k}"${k==='medio'?' checked':''}> ${k}</label>`).join('')
-          +`<br><span class="rg-meta">El cálculo de la plataforma es aproximado: sólo mide los fuegos y el contacto de la llegada. Para un desgaste realista, usá 🤖 Con IA.</span></div>`
-        : `<div class="rg-meta" style="margin-top:6px">Con esa pareja se arma el pedido: lo que pasó en las fases anteriores de cada bando y en la llegada a estas posiciones.</div>`)
       +`<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="rg-doc" data-par="ok">✅ Seguir</button>`
       +`<button class="rg-doc" data-par="no">✖️ Cancelar</button></div></div>`;
     cont.querySelectorAll('button[data-par]').forEach(b=>{ b.onclick=()=>{
       if(b.getAttribute('data-par')!=='ok') return resolve(null);
       const a=az[Number(document.getElementById('wg-par-azul').value)||0], r=ro[Number(document.getElementById('wg-par-rojo').value)||0];
-      const dg=modo==='plataforma' ? (((cont.querySelector('input[name="wg-par-int"]:checked')||{}).value)||'medio') : 'ia';
-      resolve({ par:{ azul:a, rojo:r }, desgaste:dg });
+      resolve({ par:{ azul:a, rojo:r } });
     }; });
   });
 }
 // ------------------------------------------------------------
 // 🤖 LA OPCIÓN IA: pedido → respuesta → revisión → aplicar
 // ------------------------------------------------------------
+// v2.9.470 — ⚙️ Configurar arma la caja sola, sin pedir archivo: con el ejercicio guardado y
+// la pareja de fases recordada o detectada. Si la detección duda, primero pregunta la pareja.
+// Lo único que puede faltar es el ejercicio (partida cargada antes de esta versión o desde
+// otra computadora): entonces queda un solo botón para elegirlo, una vez.
+function _wgBotonEjercicio(){
+  return `<div style="display:flex"><label class="rg-doc" style="cursor:pointer;text-align:center">📂 Elegir el ejercicio.json`
+    +`<input type="file" accept=".json,application/json" style="display:none" onchange="wgArranqueIA(this)"></label></div>`;
+}
+async function wgPanelDesgaste(){
+  const est=document.getElementById('wg-arranque-estado');
+  if(!est || WG.soy!=='arbitro' || WG._armandoIA) return;
+  if(est.querySelector('#wg-par-azul')) return;   // está preguntando la pareja
+  if(WG._ia && WG._ia.partida===WG.partidaId && est.querySelector('.wg-ia-caja')) return;   // no pisar lo que ya pegó
+  const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
+  if(!uds.length){ est.textContent='Cargá primero el escenario.'; return; }
+  WG._armandoIA=true;
+  try{
+    if(!WG._ejercicio || WG._ejercicio.partida!==WG.partidaId){
+      const x=await _wgEjLeer(WG.partidaId);
+      WG._ejercicio=x?{ d:x.d, nombre:x.nombre, partida:WG.partidaId }:null;
+    }
+    let aviso='';
+    const d=await _wgEjercicioDe(null, t=>{ aviso=t; });
+    if(!d){ est.innerHTML=(aviso?aviso+'<br>':'')+_wgBotonEjercicio(); return; }
+    const par=_wgParDe(d, uds).segura;
+    if(par) await _wgArranqueIAMostrar(est, d, par, uds);
+    else _wgArranqueFases(est, d, uds, null);
+  }finally{ WG._armandoIA=false; }
+}
+async function _wgArranqueFases(est, d, uds, previa){
+  const e=await _wgElegirPar(d, est);
+  if(e){ _wgParGuardar(e.par); return _wgArranqueIAMostrar(est, d, e.par, uds); }
+  if(previa) return _wgArranqueIAMostrar(est, d, previa, uds);
+  est.innerHTML=`<div style="display:flex"><button class="rg-doc" onclick="wgArranqueCambiarFases()">⚔️ Elegir las fases</button></div>`;
+}
+function wgArranqueCambiarFases(){
+  const est=document.getElementById('wg-arranque-estado');
+  const x=WG._ejercicio; if(!est || !x || x.partida!==WG.partidaId) return;
+  const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
+  return _wgArranqueFases(est, x.d, uds, WG._ia&&WG._ia.par);
+}
 async function wgArranqueIA(inp){
   const est=document.getElementById('wg-arranque-estado');
-  const poner=(t)=>{ if(est) est.innerHTML=t; };
-  if(WG.soy!=='arbitro'){ if(inp) inp.value=''; poner('❌ Sólo el árbitro aplica el desgaste de arranque.'); return; }
-  const d=await _wgEjercicioDe(inp, poner); if(!d) return;
-  const e=await _wgElegirPar(d, est, 'ia');
-  if(!e){ poner('Cancelado: la partida sigue como estaba.'); return; }
-  _wgParGuardar(e.par);
-  const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
-  await _wgArranqueIAMostrar(est, d, e.par, uds);
+  if(WG.soy!=='arbitro'){ if(inp) inp.value=''; return; }
+  let aviso='';
+  const d=await _wgEjercicioDe(inp, t=>{ aviso=t; });
+  if(!d){ if(est) est.innerHTML=(aviso?aviso+'<br>':'')+_wgBotonEjercicio(); return; }
+  WG._ia=null;
+  if(est) est.innerHTML='';
+  await wgPanelDesgaste();
 }
-// Los tres pasos, en el cuadro que se le pase (⚙️ Configurar o el de la importación).
+// Los tres pasos, en la caja de ⚙️ Configurar.
 async function _wgArranqueIAMostrar(cont, d, par, uds){
   if(!cont) return;
   document.querySelectorAll('.wg-ia-caja').forEach(c=>{ if(!cont.contains(c)) c.remove(); });
@@ -40056,15 +40060,16 @@ async function _wgArranqueIAMostrar(cont, d, par, uds){
   const nomPart=String((WG.estado&&WG.estado.partida&&WG.estado.partida.nombre)||('partida '+WG.partidaId));
   const archivo=('Desgaste_IA_'+nomPart+'_'+String(par.azul.nombre).replace(/—.*$/,'')+'_vs_'+String(par.rojo.nombre).replace(/—.*$/,''))
     .normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,90)+'.md';
-  WG._ia={ uds, par, prompt, corto, conAnexos:true, archivo, revisada:null };
+  WG._ia={ uds, par, prompt, corto, conAnexos:true, archivo, revisada:null, partida:WG.partidaId };
   const nU=uds.filter(u=>Number(u.poder_max)>0).length;
   const lk=(u,t)=>`<a href="${u}" target="_blank" rel="noopener" style="color:#9fd0ff">${t}</a>`;
   cont.innerHTML=`<div class="wg-ia-caja" style="border:1px solid rgba(159,208,255,.45);border-radius:8px;padding:8px;margin:4px 0">`
-    +`<b>🤖 Desgaste de arranque con IA</b><br><span class="rg-meta">🔵 ${_rgEsc(par.azul.nombre)}<br>🔴 ${_rgEsc(par.rojo.nombre)}</span>`
+    +`<span class="rg-meta">🔵 ${_rgEsc(par.azul.nombre)}<br>🔴 ${_rgEsc(par.rojo.nombre)}</span> `
+    +`<a href="#" style="color:#9fd0ff;font-size:12px;white-space:nowrap" onclick="wgArranqueCambiarFases();return false">cambiar fases</a>`
     +`<div style="margin-top:8px"><b>1.</b> <button class="rg-doc" onclick="wgArranqueIACopiar()">📋 Copiar el pedido</button> `
     +`<button class="rg-doc" onclick="wgArranqueIABajar()">⬇️ Bajar el pedido (.md)</button><br>`
     +(corto.length<prompt.length
-      ? `<label style="font-size:11px;white-space:nowrap"><input type="checkbox" id="wg-ia-anexos" checked onchange="wgArranqueIAAnexos(this.checked)"> con los anexos del Estado Mayor</label> `
+      ? `<label style="font-size:12px;white-space:nowrap"><input type="checkbox" id="wg-ia-anexos" checked onchange="wgArranqueIAAnexos(this.checked)"> con los anexos del Estado Mayor</label> `
       : '')
     +`<span class="rg-meta" id="wg-ia-tam">${_wgIATam(prompt, nU, true)}</span></div>`
     +`<div style="margin-top:6px"><b>2.</b> Pegalo en ${lk('https://claude.ai','Claude')}, ${lk('https://chatgpt.com','ChatGPT')} o ${lk('https://gemini.google.com','Gemini')}. `
@@ -40075,8 +40080,7 @@ async function _wgArranqueIAMostrar(cont, d, par, uds){
     +`<div id="wg-ia-res" style="margin-top:6px"></div></div>`;
 }
 function _wgIATam(t, nU, anexos){
-  return `${t.length.toLocaleString('es')} caracteres · ${nU} unidades · situación, fases anteriores, terreno, altura, clima, logística, referencias doctrinarias`
-    +(anexos?' y anexos del Estado Mayor.':'. Sin anexos: más corto, para la IA que no acepta textos largos.');
+  return `${t.length.toLocaleString('es')} caracteres · ${nU} unidades`+(anexos?'':' · sin anexos, para la IA que no acepta textos largos');
 }
 function _wgIATexto(){ const x=WG._ia; return x ? ((x.conAnexos===false && x.corto) ? x.corto : x.prompt) : ''; }
 function wgArranqueIAAnexos(on){
@@ -40938,20 +40942,6 @@ function _wgPreguntarFase(fases, poner, archivo){
         +`<div style="margin-top:4px"><span style="color:#e23b3b">🔴</span> <select id="wg-enf-rojo" style="max-width:100%">${opc(ro,sel.rojo)}</select></div>`
         +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-top:6px" data-fase="enfrentar">⚔️ Jugar este enfrentamiento</button></div>`
       : '';
-    // v2.9.447 — cómo llegan las unidades a esas fases (lo anterior se calcula).
-    // v2.9.454 — vale para LO QUE SE ELIJA: el enfrentamiento, el evento crítico y la
-    // fase sola que trae a los dos bandos (antes sólo para «⚔️ Jugar», y la fase sola
-    // entraba al 100 %). Y con 🤖 IA, por defecto: el cálculo propio es aproximado.
-    const desgaste=(az.length&&ro.length)
-      ? `<div style="border:1px solid rgba(159,208,255,.45);border-radius:8px;padding:8px;margin:8px 0;font-size:11px;line-height:1.6">`
-        +`🧭 <b>Desgaste de arranque</b> <span class="rg-meta">— lo que pasó ANTES del momento que se juega (fases anteriores, marchas, fuegos, contacto). `
-        +`Vale para el enfrentamiento, el evento crítico y la fase sola que trae a los dos bandos.</span><br>`
-        +`<label style="white-space:nowrap"><input type="radio" name="wg-desgaste" value="ia" checked> 🤖 <b>con IA</b></label> `
-        +`<span class="rg-meta">(recomendado: al terminar de cargar aparece el pedido para copiar en tu IA y pegar su respuesta)</span><br>`
-        +`<span class="rg-meta">Cálculo de la plataforma (aproximado):</span> `
-        +['bajo','medio','alto','ninguno'].map(k=>`<label style="margin-right:8px;white-space:nowrap"><input type="radio" name="wg-desgaste" value="${k}"> ${k}</label>`).join('')
-        +`</div>`
-      : '';
     // v2.9.439 — ¿EL PLAN DE BARRERAS YA ESTÁ CONSTRUIDO EN LA FASE QUE SE JUEGA?
     // De entrada sí cuando el evento crítico es de la FASE III en adelante (la
     // organización del terreno ya se hizo); el árbitro lo cambia acá.
@@ -40975,7 +40965,6 @@ function _wgPreguntarFase(fases, poner, archivo){
       +(ev?`<br><span class="rg-meta">⚔️ El <b>evento crítico</b> lo eligió el Estado Mayor en la Matriz de sincronización (F4·P6-7): la fase 🔵 del CAP contra la fase 🔴 del CAE.</span>`:'')
       +`<div style="margin-top:8px">`
       +barreras
-      +desgaste
       +filasEv
       +enfrentar
       +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px" data-fase="viva">📍 Estado actual del ejercicio (como quedó abierto)`
@@ -40990,7 +40979,7 @@ function _wgPreguntarFase(fases, poner, archivo){
         const rb=cont.querySelector('input[name="wg-barreras"]:checked');
         fases._barreras = rb ? rb.value : porDefecto;
         if(v==='no') return resolve(undefined);
-        const dg=((cont.querySelector('input[name="wg-desgaste"]:checked')||{}).value)||'ia';   // v2.9.447 · v2.9.454: IA por defecto
+        const dg='ia';   // v2.9.470: el desgaste de arranque es sólo con IA
         if(v==='enfrentar'){
           const a=az[Number(document.getElementById('wg-enf-azul').value)||0];
           const r=ro[Number(document.getElementById('wg-enf-rojo').value)||0];
@@ -41946,12 +41935,8 @@ function _wgEscenarioDesde(d, fase, op){
       nom:(WG_ABREV_INSTAL[z.zona]||'Área logística') } });
     visuales++;
   }
-  // v2.9.447 — 🧭 el desgaste de arranque de la pareja de fases elegida.
-  // Si el cálculo fallara, la importación sigue igual (sin desgaste): nunca la corta.
-  let arranque=null;
-  if(fase && fase._par){ try{ arranque=_wgArranque(d, fase._par, unidades, fase._desgaste||'medio'); }catch(e){ console.warn('desgaste de arranque:', e); } }
   return { unidades, terreno, visuales, instalaciones, sinEfecto, ejes,
-    obstaculos, obsMecanicos, agrupaciones, medios, arranque,
+    obstaculos, obsMecanicos, agrupaciones, medios,
     nombre:(d&&d.nombre)||'', fase:(fase?fase.nombre:null) };
 }
 // ============================================================
@@ -42047,9 +42032,9 @@ async function wgImportarEscenario(inp, sumar){
       faseElegida = await _wgPreguntarFase(fases, poner, files.length>1?f.name:null);
       if(faseElegida===undefined){ poner('Importación cancelada.'); return; }
     }
-    partes.push({ nombre:f.name, esc:_wgEscenarioDesde(d, faseElegida, { barreras: fases._barreras||'proyectado' }) });
+    partes.push({ nombre:f.name, d, esc:_wgEscenarioDesde(d, faseElegida, { barreras: fases._barreras||'proyectado' }) });
     if(faseElegida && faseElegida._par){
-      if(!iaPend) iaPend={ d, par:faseElegida._par, nombre:f.name, ia:faseElegida._desgaste==='ia' };
+      if(!iaPend) iaPend={ d, par:faseElegida._par, nombre:f.name };
     }else if(faseElegida && faseElegida._desgaste && faseElegida._desgaste!=='ninguno') sinPar=true;
   }
   // 2) Combinar en UN escenario. Cada capa aporta lo suyo y nada se pisa.
@@ -42069,7 +42054,6 @@ async function wgImportarEscenario(inp, sumar){
       for(const [k,n] of Object.entries(e.medios.porFuente||{})) esc.medios.porFuente[k]=(esc.medios.porFuente[k]||0)+n;
       esc.medios.pcs.push(...(e.medios.pcs||[]));
       esc.medios.fichas.push(...(e.medios.fichas||[]));   // v2.9.446
-      if(e.arranque && !esc.arranque) esc.arranque=e.arranque;   // v2.9.447
       esc.medios.nCoe=Math.max(esc.medios.nCoe, e.medios.nCoe||0);
       const pl=e.medios.plan;
       if(pl && !esc.medios.plan && (Object.keys(pl.tad||{}).length || pl.consumo || pl.nivelDias)) esc.medios.plan=pl;
@@ -42102,8 +42086,7 @@ async function wgImportarEscenario(inp, sumar){
         :` — todas PROYECTADAS: se ven pero no frenan`)
       +`. El enemigo no las ve hasta tenerlas a la vista.`:'')
     +_wgResumenMedios(esc.medios)
-    +(esc.arranque?`\n• ${esc.arranque.resumen}`:'')   // v2.9.447
-    +((iaPend&&iaPend.ia&&!sumar)?`\n• 🧭 Desgaste de arranque: 🤖 con IA — al terminar de cargar aparece el pedido para copiar en tu IA.`:'')   // v2.9.454
+    +((iaPend&&!sumar)?`\n• 🧭 Desgaste de arranque: 🤖 con IA — al terminar de cargar aparece el pedido para copiar en tu IA.`:'')   // v2.9.454
     +((sinPar&&!iaPend)?`\n• 🧭 Sin desgaste de arranque: la fase elegida no trae a los dos bandos.`:'')
     +(esc.agrupaciones.length
       ? `\n\nNO se cargan ${esc.agrupaciones.length} agrupación(es) de la organización para el combate (${esc.agrupaciones.slice(0,8).join(', ')}${esc.agrupaciones.length>8?'…':''}): sus piezas ya están en las unidades del tablero.`
@@ -42208,16 +42191,19 @@ async function wgImportarEscenario(inp, sumar){
   // un defecto de su validación (pide 3 letras después de «log_» y «pc» tiene 2).
   const detalleFallos = Object.keys(tiposFallados).length
     ? Object.entries(tiposFallados).map(([t,n])=>`${t} (${n})`).join(', ') : '';
-  poner(`✅ Escenario cargado: <b>${totU}</b> unidades · <b>${nCmoc}</b> de CMOC · <b>${cartaGuardada}</b> de carta (${totT} en total).`
-    +(nInst?`<br>🏭 <b>${okInst}</b> de ${nInst} instalación(es) del Estado Mayor ubicadas.`:'')
+  // v2.9.470 — una línea y los avisos de lo que salió mal; el detalle, plegado.
+  const detalleCarga=[
+    nInst?`🏭 <b>${okInst}</b> de ${nInst} instalación(es) del Estado Mayor ubicadas.`:'',
+    (esc.ejes||0)?`↔️ <b>${esc.ejes}</b> eje(s) de control en la carta (EPA, EPE, evacuación).`:'',
+    (esc.obstaculos||0)?`🛡️ <b>${esc.obstaculos}</b> obra(s) del plan de barreras`
+      +(esc.obsMecanicos?` (<b>${esc.obsMecanicos}</b> construida(s), con efecto sobre el enemigo).`:` — todas proyectadas, sin efecto.`):'',
+    _wgResumenMedios(esc.medios)?`<span style="white-space:pre-line">${_rgEsc(_wgResumenMedios(esc.medios).trim())}</span>`:'',
+  ].filter(Boolean).join('<br>');
+  poner(`✅ Escenario cargado: <b>${totU}</b> unidades · <b>${nCmoc}</b> de CMOC · <b>${cartaGuardada}</b> de carta.`
     +(falloInst?`<br>⚠️ No entraron: <b>${_rgEsc(detalleFallos)}</b> — ${_rgEsc(falloInst)}`
       +(tiposFallados.log_pc?`<br><span style="opacity:.85">El tipo <code>log_pc</code> (Puesto de Comando) lo rechaza la Edge Function por un defecto propio de su validación; se arregla cambiando <code>{3,20}</code> por <code>{2,20}</code> en <code>wargame-ops</code>.</span>`:''):'')
-    +((esc.ejes||0)?`<br>↔️ <b>${esc.ejes}</b> eje(s) de control en la carta (EPA, EPE, evacuación).`:'')
-    +((esc.obstaculos||0)?`<br>🛡️ <b>${esc.obstaculos}</b> obra(s) del plan de barreras`
-      +(esc.obsMecanicos?` (<b>${esc.obsMecanicos}</b> construida(s), con efecto sobre el enemigo).`:` — todas proyectadas, sin efecto.`):'')
     +avisoBarreras
     +(avisoMedios?`<br><br>⚠️ <b>Medios de las unidades:</b> ${_rgEsc(avisoMedios)}`:'')
-    +(_wgResumenMedios(esc.medios)?`<br><span class="rg-meta" style="white-space:pre-line">${_rgEsc(_wgResumenMedios(esc.medios).trim())}</span>`:'')
     // v2.9.359 — SIN CAMINOS NO HAY LOGÍSTICA. Se avisa ACÁ, que es cuando
     // todavía se puede agregar la capa, y no cuando el convoy ya se clavó.
     +(_wgSinCaminos(esc)
@@ -42225,23 +42211,25 @@ async function wgImportarEscenario(inp, sumar){
         +`sobre camino y <b>los convoyes no salen</b>: andan sólo por camino. `
         +`Volvé al Generador, bajá la capa de vías y sumala acá con <b>➕ Agregar capa</b>.`
       : '')
-    +`<br>Si la partida estaba en curso, quedó en <b>planificación</b>: acomodá lo que haga falta y tocá <b>Iniciar partida</b>.`);
+    +(detalleCarga?`<details><summary>Ver el detalle</summary>${detalleCarga}</details>`:''));
   WG.terreno=null; WG.capaTerrenoFirma=null; // forzar recarga y redibujo del CMOC
   await wgEstado();
   _wgEncuadrar();
-  // v2.9.447 — 🧭 cómo llegan las unidades a las fases elegidas: estado y parte.
-  if(esc.arranque && !sumar){
-    const t=await _wgAplicarArranque(esc.arranque);
-    if(est) est.innerHTML+=t;
-  }
   // v2.9.454 — 🤖 el pedido para la IA, ahí mismo; y la pareja queda recordada.
-  if(iaPend && !sumar){
-    WG._ejercicio={ d:iaPend.d, nombre:iaPend.nombre, partida:WG.partidaId };
-    _wgParGuardar(iaPend.par);
-    if(iaPend.ia && est){
-      const caja=document.createElement('div'); est.appendChild(caja);
-      const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
-      await _wgArranqueIAMostrar(caja, iaPend.d, iaPend.par, uds);
+  // v2.9.470 — en su sección, y el ejercicio queda guardado aunque se recargue la página.
+  if(!sumar){
+    const parte=iaPend||partes.find(p=>_wgTraeFases(p.d));
+    WG._ejercicio=parte?{ d:parte.d, nombre:parte.nombre, partida:WG.partidaId }:null;
+    _wgEjGuardar(WG._ejercicio||{ d:null, nombre:'', partida:WG.partidaId });
+    if(iaPend) _wgParGuardar(iaPend.par);
+    WG._ia=null;
+    const caja=document.getElementById('wg-arranque-estado');
+    if(caja){
+      caja.innerHTML='';
+      if(iaPend){
+        const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
+        await _wgArranqueIAMostrar(caja, iaPend.d, iaPend.par, uds);
+      }else await wgPanelDesgaste();
       try{ caja.scrollIntoView({ block:'nearest' }); }catch(_e){}
     }
   }
@@ -42256,7 +42244,9 @@ async function wgVaciarEscenario(btn){
   if(!r.ok){ if(est) est.innerHTML='❌ '+_rgEsc(r.error); return; }
   if(est) est.innerHTML='🧹 Escenario vaciado.';
   WG.terreno=null; WG.capaTerrenoFirma=null; WG.sel=null; WG.ordenes={};
+  WG._ia=null; const caja=document.getElementById('wg-arranque-estado'); if(caja) caja.innerHTML='';   // v2.9.470
   await wgEstado();
+  wgPanelDesgaste();
 }
 // ============================================================
 // v2.9.441 — 🛡️ EL PLAN DE BARRERAS: ¿CONSTRUIDO O PROYECTADO?
@@ -42283,109 +42273,13 @@ function wgPanelBarreras(){
   const el=document.getElementById('wg-barreras-estado'); if(!el) return;
   const c=_wgPlanBarrerasCuenta();
   if(!c.total){
-    el.innerHTML='Esta partida no tiene plan de barreras de la Mesa. Llega con el escenario '
-      +'(<b>📂 Cargar escenario</b>) si el G-3 lo dibujó en el calco.';
+    el.textContent='Esta partida no tiene plan de barreras.';
     return;
   }
   const est = !c.proyectadas ? '<b style="color:#2fbf71">🧱 CONSTRUIDO</b> — detiene y frena al enemigo'
-    : !c.construidas ? '<b style="color:#e8c33a">📐 PROYECTADO</b> — se ve punteado y <b>no frena a nadie</b>: el enemigo lo cruza como campo abierto'
+    : !c.construidas ? '<b style="color:#e8c33a">📐 PROYECTADO</b> — no frena a nadie'
     : `<b>${c.construidas} construida(s)</b> y <b>${c.proyectadas} proyectada(s)</b>`;
-  el.innerHTML=`${c.total} obra(s)${c.campos?` · 💣 ${c.campos} campo(s) minado(s)`:''}: ${est}.`
-    +`<br>Construido, el campo minado <b>detiene</b>: la vanguardia entra, saltan las minas una tras otra y la `
-    +`unidad queda detenida al borde, con bajas. Se cambia en cualquier turno, sin reimportar.`;
-}
-// ============================================================
-// v2.9.443 — 🔄 LOS MEDIOS DE LAS FICHAS (azul y rojo) Y LA CARTA, SIN REINICIAR.
-// Sergio: «que se cargue bien lo que las fichas tienen, de azul como de rojo».
-// En «ZAPATO II» las 20 fichas entraron antes de la v2.9.439: sin sus medios, con
-// el PC del CE-1 en 150 de poder y la DIV MEC-2 como motorizada; y la carta sin
-// la capa de cada camino y cada río. Se recalcula con la MISMA función que usa la
-// importación (`_wgMediosImport`) y se guarda en su lugar (`actualizar_medios`):
-// posición, munición gastada, combustible, órdenes, bitácora y turno no cambian.
-// Con el archivo del ejercicio, además: el COE de la biblioteca, lo planificado en
-// el Anexo de Logística y la carta de fondo con su capa (`actualizar_carta`).
-// ============================================================
-function _wgMesaDe(u, mesa){
-  // La ficha de la Mesa que corresponde a la del Juego (por bando y designación).
-  if(!mesa || !mesa.length) return null;
-  const k=_wgClaveDesig(u.designacion);
-  if(!k) return null;
-  const rojo=u.bando==='rojo';
-  return mesa.find(m=>m && m.tipo!=='instalacion' && _wgClaveDesig(m.designacion)===k && (!!_wgEsRoja(m))===rojo) || null;
-}
-async function wgActualizarMedios(inp, btn){
-  if(WG.soy!=='arbitro'){ _wgAviso('Sólo el árbitro actualiza los medios de las fichas.',4000); return; }
-  const est=document.getElementById('wg-medios-estado');
-  const poner=(t)=>{ if(est) est.innerHTML=t; };
-  let d=null;
-  const f=inp && inp.files && inp.files[0];
-  if(inp) inp.value='';
-  if(f){
-    try{ d=JSON.parse(await f.text()); }
-    catch(_e){ poner('❌ Ese archivo no es un JSON válido: elegí el <b>ejercicio.json</b> que baja la Mesa.'); return; }
-  }
-  const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
-  if(!uds.length){ poner('No hay fichas en esta partida.'); return; }
-  const plan = d ? _wgPlanLogistico(d) : { tad:{} };
-  const coes = (d && Array.isArray(d.bibliotecaCOE)) ? d.bibliotecaCOE : [];
-  const armas = d ? _wgArmasDelEjercicio(d) : null;   // v2.9.446: efectivos y calidad del armamento
-  const mesa = d ? [ ...((d.unidades)||[]) ] : [];
-  const lista=[]; const porFuente={};
-  for(const u of uds){
-    const m=_wgMesaDe(u, mesa);
-    // La ficha de la Mesa trae su COE, sus datos del G-4 y su diseño; si no está, la del Juego.
-    const base=Object.assign({}, m||{}, { designacion:u.designacion, arma:u.arma||(m&&m.arma), escalon:u.escalon||(m&&m.escalon),
-      bando:u.bando, tipo:(m&&m.tipo)||(u.arma==='ninguna'?'pc':undefined) });
-    if(!m && u.bando==='rojo') base.lado='enemigo';
-    const M=_wgMediosImport(base, { plan, coes, armas });
-    // Lo que la importación guardó de la ficha (su símbolo, su tarea) se conserva.
-    const viejo=(u.medios&&typeof u.medios==='object')?u.medios:{};
-    for(const k of ['simbolo','tarea','proposito']) if(viejo[k] && !M.medios[k]) M.medios[k]=viejo[k];
-    porFuente[M.medios.fuente]=(porFuente[M.medios.fuente]||0)+1;
-    lista.push({ id:u.id, medios:M.medios, medio:M.medio, poder_max:M.poder, obs_km:M.obs });
-  }
-  if(btn) btn.disabled=true;
-  poner(`⏳ Actualizando los medios de ${lista.length} ficha(s)…`);
-  let r;
-  try{ r=await _wgInvoke('actualizar_medios',{ partida_id:WG.partidaId, clave_acceso:WG.clave, unidades:lista }); }
-  finally{ if(btn) btn.disabled=false; }
-  if(!r || !r.ok){
-    const vieja=/no reconocida/i.test((r&&r.error)||'');
-    poner(vieja ? '⚠️ La Edge Function <b>wargame-ops</b> todavía es la anterior: desplegala (v2.9.443) para actualizar los medios.'
-      : '❌ No se pudieron actualizar los medios: '+_rgEsc((r&&r.error)||''));
-    return;
-  }
-  const pf=[]; if(porFuente.coe) pf.push(`${porFuente.coe} con su COE`); if(porFuente.g4) pf.push(`${porFuente.g4} con los datos del G-4`);
-  if(porFuente.catalogo) pf.push(`${porFuente.catalogo} con la dotación de referencia`);
-  // v2.9.446: el balance de poder con efectivo y calidad.
-  const _fichas=lista.map(x=>{ const u=uds.find(y=>y.id===x.id)||{}; return { b:u.bando, p:x.poder_max, d:String(u.designacion||'?'), c:(x.medios&&x.medios.calidad)||null, pc:!!(x.medios&&x.medios.pc) }; });
-  let txt=`✅ <b>${r.actualizadas}</b> ficha(s) con sus medios (${pf.join(' · ')}).`+_wgBalancePoder(_fichas, true)
-    +(Object.keys(plan.tad||{}).length?` Lo planificado en ${_rgEsc(plan.fuente||'el Anexo de Logística')} vale para los dos bandos.`:'')
-    +(r.aviso?`<br>⚠️ ${_rgEsc(r.aviso)}`:'');
-  // La carta, con su capa (sólo si vino el archivo).
-  if(d){
-    const esc=_wgEscenarioDesde(d, null, {});
-    const CAPAS=['via','hidro','vegetacion','poblado','elevacion','jurisdiccion'];
-    const carta=(esc.terreno||[]).filter(t=>t && CAPAS.includes(t.tipo) && !t.bando);
-    if(carta.length){
-      const TOPE=600000, tandas=[]; let actual=[], peso=0;
-      for(const t of carta){ const n=JSON.stringify(t).length; if(actual.length && peso+n>TOPE){ tandas.push(actual); actual=[]; peso=0; } actual.push(t); peso+=n; }
-      if(actual.length) tandas.push(actual);
-      let ok=0, fallo=null;
-      for(let i=0;i<tandas.length;i++){
-        poner(txt+`<br>⏳ Actualizando la carta… tanda ${i+1} de ${tandas.length}`);
-        const rc=await _wgInvoke('actualizar_carta',{ partida_id:WG.partidaId, clave_acceso:WG.clave, limpiar:i===0, terreno:tandas[i] });
-        if(!rc || !rc.ok){ fallo=(rc&&rc.error)||'error'; break; }
-        ok+=(rc.insertadas||0);
-      }
-      txt += fallo ? `<br>⚠️ La carta no se actualizó entera: ${_rgEsc(fallo)} — volvé a intentarlo.`
-        : `<br>🗺️ Carta actualizada: <b>${ok}</b> elementos con su capa (caminos, sendas, ríos, quebradas, lagunas…).`;
-      WG.terreno=null; WG._terrenoN=null; WG._terrenoFirma=null; WG.capaTerrenoFirma=null;
-    }
-  }
-  poner(txt);
-  await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos(); wgBarraUnidades();
-  _wgAviso(txt, 9000);
+  el.innerHTML=`${c.total} obra(s)${c.campos?` · 💣 ${c.campos} campo(s) minado(s)`:''}: ${est}.`;
 }
 async function wgPlanBarreras(estado, btn){
   if(WG.soy!=='arbitro'){ _wgAviso('Sólo el árbitro decide si el plan de barreras está construido.',4000); return; }
@@ -68571,4 +68465,3 @@ window.eemEscritoAbrir=grupo=>{document.getElementById('eem-escrito-modal')?.rem
 <script src="evaluaciones/anexo-a-proyectos.js?v=20261022b"></script>
 </body>
 </html>
-<!-- v2.9.469 · reintento de publicación 12:30 -->
