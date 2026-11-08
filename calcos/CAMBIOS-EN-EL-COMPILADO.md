@@ -5,6 +5,42 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-11-08 (4) — 🎖️ La decisión del Comandante (CAP 1 o CAP 2) en la F4·P6-7 (`index-decision-cap-20261108.js`)
+
+Parte de `index-tareas-verdes-20261108.js` + `pruebas/reemplazos-2026-11-08-decision-cap.js` (18 reemplazos;
+`construir-decision-cap.js`; `reemplazos-compilado.js` lo deshace byte por byte). Sergio, con la F4·P6-7 Matriz de
+sincronización abierta: «después de sometido a juego de guerra el comandante se decidió por el CAP 1 o CAP 2, para que
+en base a eso ya se desarrolle el resto del planeamiento y recién se rellene» la matriz; «resaltar esta hoja»; «reducir
+tanto texto… que sea sólo de ejecución… que no haya tanto texto pequeño que no se lee». Ver `evento-critico/README.md`.
+
+- **Qué pasaba**: la hoja sólo enfrentaba fases (el evento crítico); no había dónde decir qué CAP eligió el Comandante,
+  la matriz se llenaba con el CAP que estuviera a la vista y la hoja tenía tres párrafos de explicación en letra chica.
+- **Fuera del compilado**: `evento-critico/v1/decision.mjs` (nuevo), `evento-critico/v1/panel.js` (en tres pasos:
+  ① Juego de guerra, ② ¿Qué CAP decidió el Comandante?, ③ la matriz), `textoCorto` en `modelo.mjs`;
+  `orden-preparatoria/v1/prep.mjs` (`capAprobado`: primero la decisión, después la F5·P1, después el activo; con
+  `decidido`); `orden-operaciones/v1/ogo.mjs` y `estado-mayor/v8/campos/cmte.js` (lo dicen); `cap-propios/v1/panel.js`
+  (🎖️ en el botón del CAP decidido).
+- **En el compilado**: el panel con versión nueva y el import de `decision.mjs`; el panel recibe `onAccion` (la acción
+  de los CAP de la Mesa, `I.SIDcap`) y `onG3` (el setState del G-3: la decisión se guarda con una función DESPUÉS del
+  cambio de CAP, que hace setG3 con el G-3 entero); 🌱, la IA y la rejilla de la F4·P6-7 sólo con
+  `matrizAbierta(...)`; el pedido de la IA pasa por `pedidoDecision`; una línea con el CAP decidido en las hojas que
+  siguen (las dos vistas de hoja); la F4·P6-7 resaltada en la lista (`filaDocumento`); sin la nota larga de la
+  F4·P6-7, su entrega corta, «Lo que entregó el G-2» plegado (`details`) y su guía plegada con un estado propio
+  (`SIDgs`: las demás hojas siguen con la guía abierta, como la F3·P1 y la F3·P3 la esperan); en todo el Tablero del
+  G-3: la nota de la IA en una línea y la letra de la entrega, la nota, el G-2, el número de hoja y el pie, un punto más
+  grande; `cap-propios/v1/panel.js?v=decision20261108`.
+- **Cómo se comprobó**: `pruebas/decision-cap.mjs` (12 casos: decidir el CAP a la vista y el otro, la matriz guardada y
+  devuelta, ↺, la decisión después de cambiar de CAP, `capAprobado`, la Guía Final, las líneas de las hojas que siguen,
+  la lista, el pedido de la IA); `pruebas/e2e/decision-cap.cjs` en la Mesa real con Chrome (también `DPR=2`): la lista
+  resaltada, la hoja cerrada sin decisión, CAP 2 → la Mesa pasa al CAP 2 con sus 2 columnas y la matriz del CAP 1
+  guardada, 📝, la F4·P7 con la línea, el F3·P6 con 🎖️, el CAP 1 a la vista cierra la matriz y «Volver al CAP 2» la
+  abre, ↺ y CAP 1 devuelve su matriz; sin errores JS. `e2e/evento-critico.cjs` (con la decisión antes de 📝),
+  `reemplazos-compilado.js` y las pruebas de los CAP, las órdenes y la Guía. El caso conocido de `guia-inicial.mjs`
+  pasa de 17 a 23 ganchos a propósito: los 6 que este cambio retoca (el import y el montaje del panel, el import de
+  `cap-propios/v1/panel.js`, el pedido de la IA, la rejilla y el import de la Guía de Planificación que va pegado).
+- **Si se recompila desde el fuente**: el fuente de GENERADOR_CALCOS no tiene todavía ni el evento crítico ni los dos
+  CAP: llevar `evento-critico/v1` y estos ganchos cuando se los lleve.
+
 ## 2026-11-08 (3) — ✂️💾 «Guardar área cortada como…» ejercicio aparte (`index-cortada-20261108.js`)
 
 Parte de `index-fichas-to-20261108.js` + `pruebas/reemplazos-2026-11-08-cortada.js` (2 reemplazos; `construir-cortada.js`;
