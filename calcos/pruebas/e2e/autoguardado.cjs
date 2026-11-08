@@ -97,6 +97,22 @@ fs.mkdirSync(SALIDAS, { recursive: true })
     await esperarEstado('al-dia')
     assert.equal(calcos[0].payload.nombre, 'FABBLE 1.0')
 
+    // 08-11-2026: con la página de error 520 de Cloudflare el aviso es UNA línea (sin HTML) y se
+    // borra solo cuando el reintento guarda bien.
+    srv.fallar('520')
+    await sello.click()
+    await esperarEstado('error')
+    const cuerpo = () => page.evaluate(() => document.body.innerText)
+    assert.ok(!/DOCTYPE|<html|cf-wrapper/i.test(await cuerpo()), 'no se pega el HTML de Cloudflare')
+    assert.ok(!/⚠️ ⚠️/.test(await cuerpo()), 'un solo ⚠️')
+    assert.match(await cuerpo(), /No se pudo autoguardar: el servidor de SIDECEME no respondió( \(error 520\))?\. Se reintenta solo/)
+    await foto('3b-error-520')
+    srv.fallar(false)
+    await sello.click()
+    await esperarEstado('al-dia')
+    await page.waitForTimeout(300)
+    assert.ok(!/No se pudo autoguardar/.test(await cuerpo()), 'al volver a guardar bien, el aviso se borra')
+
     // Recargar con un cambio sin guardar: el navegador pregunta y lo pendiente se manda.
     const ficha2 = page.locator('.leaflet-marker-icon').nth(1)
     const b2 = await ficha2.boundingBox()

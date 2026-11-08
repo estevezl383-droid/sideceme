@@ -32,6 +32,8 @@ async function servidorFalso(page, calcos, log = [], { tokens = null } = {}) {
       return ok({ calco: c })
     }
     if (b.accion === 'guardar') {
+      // fallar('520'): como el 08-11-2026, Cloudflare devuelve su PÁGINA de error en HTML.
+      if (falla === '520') return r.fulfill({ status: 520, contentType: 'text/html', headers: cors, body: '<!DOCTYPE html> <html class="no-js" lang="en-US"> <head> <title>supabase.co | 520: Web server is returning an unknown error</title> </head> <body> <h1><span class="code-label">Error code 520</span></h1> ' + '<div class="cf">x</div>'.repeat(300) + '</body></html>' })
       if (falla) return json(r, { ok: false, error: 'El servidor no responde (prueba)' }, 500)
       const c = calcos.find((x) => x.id === b.calco_id)
       c.payload = b.payload
@@ -40,7 +42,7 @@ async function servidorFalso(page, calcos, log = [], { tokens = null } = {}) {
     }
     return ok({})
   })
-  return { fallar: (si) => (falla = !!si) }
+  return { fallar: (si) => (falla = si === '520' ? '520' : !!si) }
 }
 
 // Abre un ejercicio de la lista como el usuario (📁 Ejercicio → Abrir guardados → Abrir).
