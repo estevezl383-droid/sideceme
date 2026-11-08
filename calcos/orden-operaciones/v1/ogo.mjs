@@ -1936,7 +1936,7 @@ export function datosParaIA(ctx = {}) {
   const g3 = g3De(ctx)
   add('La misión aprobada (F2·P12)', ['QUIÉN', 'QUÉ', 'CUÁNDO', 'DÓNDE', 'PROPÓSITO', 'ENUNCIADO COMPLETO'].map((k) => [k, sinCuentas(casilla(g3.mision, k))]).filter(([, x]) => x).map(([k, x]) => `- ${k}: ${plano(x)}`).join('\n'))
   const { C, fases } = fasesDelCAP(ctx)
-  add(`El CAP aprobado: CAP ${C.n}${C.recomendado ? ' (RECOMENDADO AL COMANDANTE en la F5·P1)' : ''} — F3·P6 y F3·P4`, [...Object.entries(C.coa || {}), ...Object.entries(C.concepto || {})].filter(([k, x]) => !k.startsWith('_') && typeof x === 'string' && !vacio(sinCuentas(x))).map(([k, x]) => `- ${k}: ${plano(sinCuentas(x))}`).join('\n'))
+  add(`El CAP aprobado: CAP ${C.n}${C.decidido ? ' (DECIDIDO POR EL COMANDANTE después del Juego de Guerra, F4·P6-7)' : ''}${C.recomendado ? ' (RECOMENDADO AL COMANDANTE en la F5·P1)' : ''} — F3·P6 y F3·P4`, [...Object.entries(C.coa || {}), ...Object.entries(C.concepto || {})].filter(([k, x]) => !k.startsWith('_') && typeof x === 'string' && !vacio(sinCuentas(x))).map(([k, x]) => `- ${k}: ${plano(sinCuentas(x))}`).join('\n'))
   add(
     'Las fases del CAP aprobado en la carta: lo que hace CADA unidad (tarea y propósito de su ficha, y dónde)',
     fases
