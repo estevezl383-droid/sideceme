@@ -34,6 +34,17 @@ export function horaDe(ms) {
   }
 }
 
+// 2026-11-08 — Cuando la base no responde, Cloudflare devuelve su PÁGINA de error (HTML
+// entero) y la Mesa la pegaba en rojo en el panel. Se muestra una sola línea.
+export function errorLegible(e) {
+  const t = String(e == null ? '' : e).trim()
+  if (/<!doctype|<html|<head|<body/i.test(t)) {
+    const cod = (t.match(/Error code\s*(\d{3})/i) || t.match(/\|\s*(\d{3})\s*:/) || t.match(/\b([45]\d\d)\b/) || [])[1]
+    return 'el servidor de SIDECEME no respondió' + (cod ? ` (error ${cod})` : '')
+  }
+  return t.length > 200 ? t.slice(0, 200) + '…' : t
+}
+
 // El motor, sin React (se prueba en Node con un reloj falso).
 //   foto()        → el ejercicio como se guarda (objeto), tal como está ahora
 //   guardar(d)    → Promise<{ ok, error, vacio }> (ok === false es error)
@@ -41,12 +52,14 @@ export function horaDe(ms) {
 //                   abrir o crear un ejercicio para que se guarde de nuevo
 //   alCambiar(e)  → cada vez que cambia el estado del sello
 //   avisar(r)     → cuando un guardado falla (la Mesa muestra el error como siempre)
+//   recuperado()  → cuando vuelve a guardar bien después de un error (la Mesa borra el aviso)
 export function crearGuardador({
   foto,
   guardar,
   ultimo = { current: '' },
   alCambiar,
   avisar,
+  recuperado,
   reloj = () => Date.now(),
   programar = (f, ms) => setTimeout(f, ms),
   cancelar = (t) => clearTimeout(t),
@@ -127,14 +140,17 @@ export function crearGuardador({
     enCurso = null
     if (r.ok === false) {
       fallos++
+      r.error = errorLegible(r.error) || 'error desconocido'
       poner({ fase: 'error', error: r.error || 'error desconocido', vacio: !!r.vacio })
       if (avisar) avisar(r)
       // «vacío» es el candado que no deja pisar un ejercicio con trabajo con una pantalla en
       // blanco: reintentar no sirve, hay que abrir el ejercicio de nuevo.
       if (!r.vacio && activo) programarEn(reintentos[Math.min(fallos - 1, reintentos.length - 1)])
     } else {
+      const veniaDeError = fallos > 0
       fallos = 0
       ultimo.current = json
+      if (veniaDeError && recuperado) recuperado()
       poner({ fase: 'al-dia', hora: horaDe(reloj()), error: '', vacio: false })
     }
     if (otraVez) {
@@ -205,6 +221,7 @@ export function usarAutoguardado(R, op) {
         ultimo: op.ultimo,
         alCambiar: (e) => setEstado(e),
         avisar: (r) => ref.current.avisar && ref.current.avisar(r),
+        recuperado: () => ref.current.recuperado && ref.current.recuperado(),
       }),
     [],
   )
