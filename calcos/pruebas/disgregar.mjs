@@ -3,7 +3,7 @@
 // quiere que el CE-I quede como Puesto Comando con DIV MEC-2, DIV-1 y DIV-6 alrededor.
 //   node disgregar.mjs
 import assert from 'node:assert/strict'
-import { leerDependientes, inmediatas, fuenteDependientes, disgregar, reagrupar, accionDisgregar, puedeDisgregarse, clasificar, mismaUnidad, filasMovimientos, sinSuperior, mismaUnidadOSuperior } from '../disgregar/v1/disgregar.mjs'
+import { leerDependientes, inmediatas, fuenteDependientes, disgregar, reagrupar, accionDisgregar, puedeDisgregarse, clasificar, mismaUnidad, filasMovimientos, sinSuperior, mismaUnidadOSuperior, organizacionDeDocumentos } from '../disgregar/v1/disgregar.mjs'
 
 let n = 0
 const caso = (nombre, fn) => { fn(); n++; console.log('  ✔ ' + nombre) }
@@ -119,6 +119,34 @@ caso('fichas de Google Earth con el superior pegado («DIV MEC-2 – CE-I»): no
   assert.equal(sinSuperior('1ª Brig. «X» – Chungará'), '1ª Brig. «X» – Chungará')
   assert.ok(mismaUnidadOSuperior('AGRP. LOG. – CE-I', 'AGRP LOG'))
   assert.ok(!mismaUnidadOSuperior('DIV-1', 'DIV-12'))
+})
+
+caso('los apéndices de un tema base: COE con «Dependencia orgánica», «Dependencias del…», «… comprenden …» (08-11-2026)', () => {
+  const docs = [
+    { nombre: 'APENDICE_01.docx', texto: 'APÉNDICE “1” (Organigrama del CTO) AL ANEXO “C”\nDependencias del CTO: FF.TT.TO., CATO (FAB), CNTO (Armada) y DIV. VANTS. «Cóndor».' },
+    { nombre: 'APENDICE_02.docx', texto: 'APÉNDICE “2” (Organigrama de las FF.TT.TO.)\nLas FF.TT.TO. comprenden los CE-I, CE-II, CE-III y CE-IV, y las UU.FF.EE. Cada cuerpo de ejército comprende tres divisiones.' },
+    { nombre: 'APENDICE_03.docx', texto: 'APÉNDICE “3” (Organigrama del CE-I)\nI.- ORGANIGRAMA DEL CE-I.\nLa agrupación logística depende del cuerpo de ejército.' }, // el organigrama era una imagen
+    { nombre: 'APENDICE_08.docx', texto: 'APÉNDICE “8” (COE de la DIV-3) AL ANEXO “C”\nDependencia orgánica: CE-I.  Dotación del modelo.\nGRUPO\nCLASE\nCMDO.\nCOMP. CYS\nRI-A/3 *\nERM-3\nRAC-3\nSECC. AA-3\nTOTAL\nPERSONAL' },
+    { nombre: 'APENDICE_09.docx', texto: 'APÉNDICE “9” (COE de la DIV-9)\nDependencia orgánica: CE-I.\nGRUPO\nCLASE\nCMDO.\nRI-33\nTOTAL' },
+  ]
+  const org = Object.fromEntries(organizacionDeDocumentos(docs).map((o) => [o.de, o.hijos]))
+  assert.deepEqual(org['CE-I'], ['DIV-3', 'DIV-9'])
+  assert.deepEqual(org['FF.TT.TO'], ['CE-I', 'CE-II', 'CE-III', 'CE-IV', 'UU.FF.EE'])
+  assert.deepEqual(org['DIV-3'], ['COMP. CYS', 'RI-A/3 *', 'ERM-3', 'RAC-3', 'SECC. AA-3'])
+  assert.ok(org.CTO.includes('CATO'))
+  // CE-I: los COE + la ficha de Google Earth que dice depender de él («AGRP. LOG. – CE-I», sin número).
+  const carta = [ce, { id: 20, bando: 'propias', tipo: 'unidad', escalon: 'division', arma: 'logistica', designacion: 'AGRP. LOG. – CE-I', lat: -18, lng: -68 }]
+  const f = fuenteDependientes({ madre: ce, ordenSup: {}, documentos: docs, unidades: carta })
+  assert.deepEqual(f.lista.map((u) => u.designacion), ['DIV-3', 'DIV-9', 'AGRP. LOG. – CE-I'])
+  assert.match(f.de, /2 documentos del ejercicio .* y las fichas de la carta/)
+  // DIV-3 (como viene de Google Earth): su COE, con compañías, escuadrón y sección clasificados.
+  const d3 = { id: 21, bando: 'propias', tipo: 'unidad', escalon: 'division', arma: 'infanteria', designacion: 'DIV-3 – CE-I', lat: -18, lng: -68 }
+  const g = fuenteDependientes({ madre: d3, documentos: docs, unidades: [d3] })
+  assert.deepEqual(g.lista.map((u) => `${u.designacion}:${u.escalon}`), ['RI-A/3:regimiento', 'ERM-3:compania', 'RAC-3:regimiento', 'SECC. AA-3:seccion'])
+  // Sin nada que leer, el aviso explica lo del organigrama como imagen.
+  let msg = ''
+  accionDisgregar({ unidades: [ce], id: 1, documentos: [docs[2]], preguntar: (m) => { msg = m; return null } })
+  assert.match(msg, /IMAGEN en el Word/)
 })
 
 console.log(`disgregar: ${n} casos ✔`)
