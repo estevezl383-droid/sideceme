@@ -123,6 +123,12 @@ export function textoMedida(m) {
   const t = m.enContacto ? `${m.enContacto} unidad(es) enemiga(s) a menos de ${RADIO_KM} km` : `ninguna unidad enemiga a menos de ${RADIO_KM} km`
   return `${t}; las más cercanas: ${m.par[0]} y ${m.par[1]} a ${fmtKm(m.km)}${m.relacion != null ? `; relación enemigo/propio en contacto ${String(m.relacion).replace('.', ',')} : 1` : ''}`
 }
+// La misma medida en una línea, para el panel (08-11-2026, Sergio: «que no haya tanto texto»). La larga va a la matriz.
+export function textoCorto(m) {
+  if (!m || !m.rojas || !m.azules) return m && !m.rojas ? 'sin fichas rojas en esa fase' : 'sin fichas propias en esa fase'
+  const t = m.enContacto ? `🔴 ${m.enContacto} a menos de ${RADIO_KM} km` : 'sin contacto'
+  return `${t} · la más cerca a ${fmtKm(m.km)}${m.relacion != null && m.enContacto ? ` · relación ${String(m.relacion).replace('.', ',')} : 1` : ''}`
+}
 
 // La fase 🔴 que le toca a cada fase 🔵: la que eligió el oficial (la del 🎬 C.A. por fases, `contra`, si es del mismo
 // CAE); si no, las dos listas ALINEADAS POR EL FINAL (25-10-2026, Sergio: «fase IV de azul contra fase III de rojo»):
