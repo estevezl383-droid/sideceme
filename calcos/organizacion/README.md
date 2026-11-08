@@ -122,3 +122,22 @@ por su operación, o la unidad de la que salen sus piezas; la RES, la de la rese
 fase. La tarea táctica se ve sólo en la FASE III, con su unidad al lado; en las demás fases la fase la guarda en
 `ops.tareasOcultas` (`cap-propios/v1/tareas-fase.mjs`) y su rótulo igual va con la unidad. Con la hoja abierta, los
 rótulos vuelven junto a su tarea, como siempre. Prueba: `pruebas/e2e/itinerario.cjs`.
+
+## Sólo las unidades del mando, la unidad en la carta y en la forma gráfica — 08-11-2026
+
+Lo pidió Sergio con el ejercicio del CE-I («CE-I AO»): en el calco estaban también el CTO., la DIV. VANTS., las FF.TT.T.O.,
+las FF.EE., el CE-II, el CE-III, el CE-IV y la DIV. MEC.-5, y la hoja los ofrecía en «Quién la cumple» (la OD había quedado
+con 1 brigada del CE-II + la DIV. MEC.-5) y mandaba 8 brigadas del CE-II a la reserva. «No son dependientes del CE, por lo
+tanto no deberían ni aparecer en las opciones.»
+
+- `v1/mando.js` (`delMando`): la hoja, la carta, el Word y 🌱 trabajan con la unidad propia y lo que depende de ella
+  (`dependeDe`, a cualquier profundidad). La unidad propia es la que nombra la Orden del superior (`ordenSup.unidad`,
+  «CE - I» = CE-I) o, si no, la única cabeza con dependientes; puede ser un **PC** (⊞ Disgregar deja así a la unidad
+  madre). Sin dependencias en el calco, nada cambia. La hoja dice cuáles quedan afuera y, si una tarea tenía piezas de
+  una de ellas, avisa que se sacaron.
+- En la carta, con unidades enteras, la sigla cerrada ya dice la unidad: «OD · DIV. MEC.-1» (antes había que tocarla).
+- En la forma gráfica, con unidades enteras, cada operación muestra **la unidad** (su símbolo, el escalón —XX— y su
+  nombre), no las piezas genéricas; la reserva igual.
+- El compilado (`pruebas/reemplazos-2026-11-08-tareas-verdes.js`) pasa `ordenSup` a la capa de la carta y pinta las
+  tareas tácticas en **verde fluorescente** (#39ff14) con borde negro, en 2D y en 3D.
+- Prueba: `pruebas/e2e/organizacion-mando.cjs` (el ejercicio del CE-I reproducido).
