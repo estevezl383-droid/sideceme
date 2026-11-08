@@ -59,6 +59,7 @@ import {
   proponerPuras,
 } from './modelo.js'
 import { graficaHTML, abrirParaImprimir } from './grafica.js'
+import { delMando, rotuloUnidad } from './mando.js'
 import { useState, useEffect, useMemo, jsx, jsxs, simb, svgPieza, svgTarea, catalogoTareas, armas } from './runtime.js'
 import { datosPuente, editorAbierto, colocar, cancelarColocar, centroVista } from './carta.js'
 
@@ -130,7 +131,11 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
   const ops = ctx.ops || {}
   // Las unidades del calco SIN descontar las piezas ya consolidadas (las mismas que usa la
   // Organización de la Tarea): con las descontadas, los id de las piezas no coinciden.
-  const unidades = ctx.SIDdn || ctx.unidades || []
+  // 08-11-2026: sólo la unidad propia y lo que depende de ella (organizacion/v1/mando.js).
+  const todas = ctx.SIDdn || ctx.unidades || []
+  const nombrePropia = String(ctx.ordenSup?.unidad || ctx.ordenSup?.unidadPropia || ctx.unidad || '')
+  const mando = useMemo(() => delMando(todas, nombrePropia), [todas, nombrePropia])
+  const unidades = mando.unidades
   const g3 = ctx.g3 || {}
   const orgTarea = ctx.orgTarea || []
   const P = datosPuente()
@@ -193,6 +198,8 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
   const ods = bal.tareas.filter((x) => x.op.id === 'od').length
   const puras = bal.flujo.puras
   const listaPuras = unidadesPuras(bal, unidades, simb)
+  // Las piezas guardadas en las tareas que eran de unidades de afuera del mando (se dejan de contar).
+  const perdidasMando = mando.fuera.length ? [...new Set(bal.perdidas.map((p) => mando.fuera.find((u) => String(u.id) === String(p.de))).filter(Boolean).map(rotuloUnidad))] : []
   const listo = {
     1: !!g2.probable && objetivos.length > 0 && propias.length > 0,
     2: bal.tareas.length > 0,
@@ -649,6 +656,8 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
       ? h('div', { style: E.fila }, ...tipos.map((tp) => h('span', { key: tp.simbolo, style: { ...E.tipo, padding: '2px 6px' }, title: tp.nom }, svg(svgPieza(tp.simbolo, 24, '#0e1320'), E.simbolo), h('span', { style: { fontSize: 11 } }, `${tp.corto || tp.nom} ${tp.libres.length}/${tp.total}`))))
       : h('div', { style: E.aviso }, 'No hay unidades propias en el calco.'),
     h('div', { style: E.ayuda }, propias.map((u) => `${simb.rotulo(u)} (${simb.piezasDe(u).length})`).join(' · ')),
+    mando.fuera.length > 0 && h('div', { style: E.ayuda, className: 'oi-fuera-mando' }, `Sólo las que dependen del ${rotuloUnidad(mando.cabeza)}. No se ofrecen (no dependen de él): ${mando.fuera.map(rotuloUnidad).join(' · ')}.`),
+    perdidasMando.length > 0 && h('div', { style: E.aviso, className: 'oi-perdidas-mando' }, `⚠️ Se sacaron de las tareas unidades que no dependen del ${rotuloUnidad(mando.cabeza)} (${perdidasMando.join(', ')}). Asigná a esas tareas una unidad del ${rotuloUnidad(mando.cabeza)}.`),
     !hayInfanteria && propias.length > 0 && h('div', { style: E.aviso }, '⚠️ No hay INFANTERÍA entre las unidades del calco. Si la Orden la tiene (RIM, RIAT…), traela: ', h('button', { style: E.btnChico, onClick: () => setTraer((v) => v || { lista: null }) }, '📄 Traer las unidades de la Orden')),
     !traer && (hayInfanteria || !propias.length) && h('div', { style: E.fila }, h('button', { style: E.btnChico, onClick: () => setTraer({ lista: null }) }, '📄 ¿Falta alguna unidad? Traerla de la Orden')),
     panelOrden,

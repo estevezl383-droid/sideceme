@@ -4,12 +4,13 @@
 import { balance, formaGrafica, COLUMNAS } from './modelo.js'
 import { simb } from './runtime.js'
 import { graficaSVG } from './grafica.js'
+import { delMando } from './mando.js'
 
 export const TITULO_GRAFICA = 'ORGANIZACIÓN DE LA TAREA (FORMA GRÁFICA)'
 const ANCHOS = [14, 20, 22, 18, 18, 10]
 
 export function formaDe(ctx = {}, g3 = {}) {
-  const unidades = ctx.SIDdn || ctx.unidades || []
+  const unidades = delMando(ctx.SIDdn || ctx.unidades || [], ctx.ordenSup?.unidad || ctx.ordenSup?.unidadPropia || ctx.unidad || '').unidades
   const bal = balance({ ops: ctx.ops || {}, g3: g3 || {}, unidades }, simb)
   return formaGrafica(bal, { unidades, orgTarea: ctx.orgTarea || [] }, simb)
 }

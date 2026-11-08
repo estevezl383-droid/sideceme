@@ -18,6 +18,7 @@
 // ops.tareasOcultas (cap-propios/v1/tareas-fase.mjs) y igual tienen su rótulo con la unidad.
 import { balance, oiDe, flujoNormal, CLAVE_FLUJO, RESERVA, cantidad, esManiobra, nombresDeFuerza } from './modelo.js'
 import { leaflet, simb, svgPieza } from './runtime.js'
+import { delMando } from './mando.js'
 import { duenoDeTarea, duenoDeReserva } from '../../cap-propios/v1/tareas-fase.mjs?v=iti20261025'
 
 let puente = null
@@ -39,7 +40,8 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 
 export const datosPuente = () => puente || {}
 export function sincronizarCarta(d) {
-  puente = d || null
+  // 08-11-2026: sólo la unidad propia y lo que depende de ella (mando.js), como en la hoja.
+  puente = d ? { ...d, unidades: delMando(d.unidades || [], d.ordenSup?.unidad || d.ordenSup?.unidadPropia || '').unidades } : null
   dibujar()
 }
 // El editor de la hoja avisa que está abierto (rótulos arrastrables y líneas al enemigo).
@@ -60,7 +62,11 @@ function unidadesHTML(piezas) {
     .join('')
 }
 // El rótulo cerrado: sólo su sigla, para que se vea el terreno.
-function siglaHTML({ corto, color, texto, arrastrable }) {
+function siglaHTML({ corto, color, texto, arrastrable, piezas = [], puras }) {
+  // 08-11-2026 (Sergio: «esa unidad ya debería aparecer en los calcos»): con unidades enteras, la
+  // sigla cerrada ya lleva la unidad que cumple la tarea —su símbolo y su nombre—, sin tocarla.
+  if (puras && piezas.length)
+    return `<div class="oi-bloque-caja oi-sigla-unidad" data-oi-rotulo="${esc(corto)}" title="${esc(texto)} — tocá para ver más" style="display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.92);border:2px solid ${color};border-radius:4px;padding:1px 5px 1px 1px;box-shadow:0 1px 4px rgba(0,0,0,.5);font:700 11px/1.3 Arial,Helvetica,sans-serif;color:#000;width:max-content;white-space:nowrap;cursor:${arrastrable ? 'move' : 'pointer'}"><span style="background:${color};color:#fff;border-radius:2px;padding:0 4px">${esc(corto)}</span><span style="padding-right:2px">${esc(nombresDeFuerza(piezas, puente?.unidades || [], simb).join(' + '))}</span></div>`
   return `<div class="oi-bloque-caja" data-oi-rotulo="${esc(corto)}" title="${esc(texto)} — tocá para ver las unidades" style="background:${color};color:#fff;border:1.5px solid #fff;border-radius:4px;padding:0 5px;box-shadow:0 1px 4px rgba(0,0,0,.45);font:700 11px/1.35 Arial,Helvetica,sans-serif;width:max-content;white-space:nowrap;cursor:${arrastrable ? 'move' : 'pointer'}">${esc(corto)}</div>`
 }
 function bloqueHTML({ corto, color, texto, piezas, pie, arrastrable, puras }) {

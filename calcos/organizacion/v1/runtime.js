@@ -3,6 +3,7 @@
 // disgrega cada unidad en piezas, el nombre de cada unidad y Leaflet. El compilado llama a
 // configurarOrgInicial() antes del primer render.
 import { filasCuadro } from './modelo.js'
+import { delMando } from './mando.js'
 
 let entorno = {}
 export function configurarOrgInicial(v) {
@@ -34,7 +35,7 @@ export const catalogoTareas = () => entorno.zg || []
 // Para la siembra 🌱 de la hoja (l3e del compilado): el cuadro sale de la carta.
 export function filasDeLaHoja(ctx) {
   try {
-    return filasCuadro({ ops: ctx?.ops || {}, g3: ctx?.g3 || {}, unidades: ctx?.unidades || [] }, simb)
+    return filasCuadro({ ops: ctx?.ops || {}, g3: ctx?.g3 || {}, unidades: delMando(ctx?.unidades || [], ctx?.ordenSup?.unidad || ctx?.ordenSup?.unidadPropia || '').unidades }, simb)
   } catch {
     return []
   }

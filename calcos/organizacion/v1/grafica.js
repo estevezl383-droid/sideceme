@@ -25,17 +25,20 @@ ${marca ? `<div style="position:absolute;top:-17px;left:50%;transform:translateX
 ${nombre ? `<div style="font:700 12px Arial,Helvetica,sans-serif;max-width:110px;word-break:break-word">${esc(nombre)}</div>` : ''}</div>`
 }
 
+// Con unidades enteras (08-11-2026): las unidades de la caja, cada una con su símbolo y su nombre.
+const enteras = (c, tam = 64) =>
+  `<div style="display:flex;flex-direction:column;gap:6px;align-items:center">${c.unidades.map((u) => caja({ escalon: u.escalon, simbolo: u.simbolo, nombre: u.nombre }, tam)).join('')}</div>${c.nombre && !c.unidades.some((u) => u.nombre === c.nombre) && c.nombre !== 'RESERVA' ? `<div style="font:700 12px Arial,Helvetica,sans-serif;text-align:center">${esc(c.nombre)}</div>` : ''}`
 export function graficaHTML(forma) {
   const bloques = forma.cajas.map(
     (c) => `<div style="break-inside:avoid">
 <div style="font:800 14px Arial,Helvetica,sans-serif;text-align:center;margin-bottom:2px">${esc(c.titulo)}</div>
-${caja({ escalon: c.escalon, piezas: c.piezas, nombre: c.nombre || '……………' })}
+${c.unidades?.length ? enteras(c) : caja({ escalon: c.escalon, piezas: c.piezas, nombre: c.nombre || '……………' })}
 ${c.tarea ? `<div style="font:10.5px Arial,Helvetica,sans-serif;text-align:center;margin-top:3px">Tarea: ${esc(c.tarea)}</div>` : ''}</div>`,
   )
   if (forma.bajo.length)
     bloques.push(`<div style="break-inside:avoid">
 <div style="font:800 14px Arial,Helvetica,sans-serif;text-align:center;margin-bottom:2px">BAJO CONTROL</div>
-<div style="display:flex;flex-direction:column;gap:8px;align-items:center">${forma.bajo.map((c) => caja({ escalon: c.escalon, piezas: c.piezas, simbolo: c.simbolo, nombre: c.nombre }, 28)).join('')}</div></div>`)
+<div style="display:flex;flex-direction:column;gap:8px;align-items:center">${forma.bajo.map((c) => (c.unidades?.length ? `<div style="font:700 11px Arial,Helvetica,sans-serif">${esc(c.nombre)}</div>${enteras(c)}` : caja({ escalon: c.escalon, piezas: c.piezas, simbolo: c.simbolo, nombre: c.nombre }, 28))).join('')}</div></div>`)
   if (!bloques.length) return '<div style="font:12px Arial,Helvetica,sans-serif;color:#555;padding:10px">Todavía no hay tareas con operación (OD / OC) ni unidades repartidas.</div>'
   return `<div style="background:#fff;color:#000;padding:12px 10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px 14px;align-items:start">${bloques.join('')}</div>`
 }
@@ -134,8 +137,10 @@ function bloqueSVG(x0, y0, b) {
   return { svg: partes.join(''), alto: y - y0 }
 }
 export function graficaSVG(forma) {
-  const bloques = forma.cajas.map((c) => ({ titulo: c.titulo, items: [{ escalon: c.escalon, piezas: c.piezas, nombre: c.nombre || '……………', tarea: c.tarea }] }))
-  if (forma.bajo.length) bloques.push({ titulo: 'BAJO CONTROL', items: forma.bajo.map((c) => (c.simbolo ? { escalon: c.escalon, simbolo: c.simbolo, nombre: c.nombre } : { escalon: c.escalon, piezas: c.piezas, nombre: c.nombre })) })
+  // Con unidades enteras, cada unidad va con su símbolo y su nombre (como «bajo control»).
+  const items = (c, tarea) => (c.unidades?.length ? c.unidades.map((u, i) => ({ escalon: u.escalon, simbolo: u.simbolo, nombre: u.nombre, tarea: i === c.unidades.length - 1 ? tarea : '' })) : null)
+  const bloques = forma.cajas.map((c) => ({ titulo: c.titulo, items: items(c, c.tarea) || [{ escalon: c.escalon, piezas: c.piezas, nombre: c.nombre || '……………', tarea: c.tarea }] }))
+  if (forma.bajo.length) bloques.push({ titulo: 'BAJO CONTROL', items: forma.bajo.flatMap((c) => items(c, '') || [c.simbolo ? { escalon: c.escalon, simbolo: c.simbolo, nombre: c.nombre } : { escalon: c.escalon, piezas: c.piezas, nombre: c.nombre }]) })
   if (!bloques.length) return ''
   const partes = []
   let y = MARGEN

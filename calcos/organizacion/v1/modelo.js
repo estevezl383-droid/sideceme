@@ -495,6 +495,17 @@ export function bajoControl(bal, unidades, simb) {
 }
 
 // ─── La forma gráfica (las cajas por operación, como el ejemplo de la Escuela) ──────
+// Con unidades enteras: cada unidad de donde salen las piezas, con su símbolo, su escalón y su
+// nombre («DIV-3»; si sólo va una parte, «DIV-1 (2 X)»).
+export function unidadesDeCaja(piezas, unidades, simb) {
+  const madres = [...new Set((piezas || []).map((p) => p.de))]
+  const nombres = nombresDeFuerza(piezas, unidades, simb)
+  return madres.map((de, i) => {
+    const u = (unidades || []).find((x) => x && x.id === de)
+    const p = (piezas || []).find((x) => x.de === de)
+    return { simbolo: p.simbolo, escalon: u ? escalonNormal(u.escalon) || u.escalon || '' : '', nombre: nombres[i] || (u ? simb.rotulo(u) : String(p.madre || de)) }
+  })
+}
 export function formaGrafica(bal, { unidades, orgTarea }, simb) {
   const nombreAg = (agId) => String(((orgTarea || []).find((a) => a.id === agId) || {}).nombre || '').trim()
   const cajas = bal.tareas.map((x) => ({
@@ -506,9 +517,11 @@ export function formaGrafica(bal, { unidades, orgTarea }, simb) {
     nombre: nombreAg(x.oi.agId),
     tarea: simb.nombreTarea(x.t.tarea),
     piezas: [...x.piezas.filter(esManiobra), ...x.piezas.filter((p) => !esManiobra(p))],
+    // 08-11-2026: con unidades enteras la caja muestra LA UNIDAD (DIV-9, DIV-3…), no piezas genéricas.
+    unidades: bal.flujo.puras ? unidadesDeCaja(x.piezas, unidades, simb) : null,
   }))
   const bajo = []
-  if (bal.reserva.length) bajo.push({ clave: 'reserva', titulo: RESERVA.titulo, corto: RESERVA.corto, color: RESERVA.color, escalon: bal.agrupacionEscalon, nombre: nombreAg(bal.flujo.reserva.agId) || 'RESERVA', piezas: bal.reserva })
+  if (bal.reserva.length) bajo.push({ clave: 'reserva', titulo: RESERVA.titulo, corto: RESERVA.corto, color: RESERVA.color, escalon: bal.agrupacionEscalon, nombre: nombreAg(bal.flujo.reserva.agId) || 'RESERVA', piezas: bal.reserva, unidades: bal.flujo.puras ? unidadesDeCaja(bal.reserva, unidades, simb) : null })
   for (const c of bajoControl(bal, unidades, simb)) bajo.push({ clave: `bc-${c.unidad.id}`, titulo: '', corto: '', color: '#9fb0c8', escalon: c.entera ? c.escalon : '', nombre: c.nombre, simbolo: c.entera ? c.simbolo : null, piezas: c.entera ? [] : c.piezas })
   return { cajas, bajo }
 }
