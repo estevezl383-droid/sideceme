@@ -88,7 +88,19 @@ export function clasificar(designacion) {
   else if (/^RC/.test(t)) (escalon = 'regimiento'), (arma = /TQ|^RCB/.test(t) ? 'blindada' : /^RCM/.test(t) ? 'cabmec' : 'caballeria')
   else if (/^RI/.test(t)) (escalon = 'regimiento'), (arma = /^RIM(?!T|OT)/.test(t) ? 'mecanizada' : /^RIMT|^RIMOT/.test(t) ? 'motorizada' : /^RIA(?!T)|^RIAN/.test(t) ? 'andina' : /^RIS/.test(t) ? 'selva' : /^RIAT/.test(t) ? 'aerotransportada' : 'infanteria')
   else if (/^R[A-Z]?\b|^R[ -]?\d/.test(t)) (escalon = 'regimiento'), (arma = 'infanteria')
+  // Los elementos de un COE (08-11-2026): BAT. AA, COMP., CÍA., ERM, SECC./SEC.
+  else if (/^B(AT)? ?A ?A\b|^BAA/.test(t)) (escalon = 'batallon'), (arma = 'antiaerea')
+  else if (/^(COMP|CIA|CA)\b|^COMP |^CIA |^CIA-/.test(t) || /^COMP/.test(t)) (escalon = 'compania'), (arma = armaElemento(t))
+  else if (/^ER[MC]?\b|^ESC(UADRON)?\b|^ER[MC]?-?\d/.test(t)) (escalon = 'compania'), (arma = 'caballeria')
+  else if (/^SECC?\b|^SEC(C)? /.test(t)) (escalon = 'seccion'), (arma = armaElemento(t))
   return { escalon, arma }
+}
+
+// El arma de una compañía o sección por lo que dice después: «COMP. ING. COMB-3», «SECC. AA-3»…
+function armaElemento(t) {
+  return /\bA ?A\b/.test(t) ? 'antiaerea' : /\bING/.test(t) ? 'ingenieria' : /\bCOM\b|\bCOM-|\bCOM \d/.test(t) ? 'comunicaciones'
+    : /\bPM\b|\bPM-/.test(t) ? 'policiamilitar' : /\bI ?CIA|\bINT/.test(t) ? 'inteligencia' : /\bLOG|\bCYS\b|\bIM\b|\bIM-/.test(t) ? 'logistica'
+    : /\bAT\b|\bAT-/.test(t) ? 'antitanque' : /\bMORT/.test(t) ? 'artilleria' : 'infanteria'
 }
 
 const RELACIONES = [
@@ -98,18 +110,23 @@ const RELACIONES = [
   [/APOYO GENERAL|\bAG\b/, 'en apoyo general'],
   [/EN APOYO/, 'en apoyo'],
 ]
-const ES_SIGLA = /^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ. ]{0,14}?(?:[ .-]*\d{1,3}|[ .-]+[IVXL]{1,5})\b/i
+// «RI-A/3» (identificador provisional de un regimiento de la DIV-3) también es una sigla.
+const ES_SIGLA = /^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ. ]{0,14}?(?:[ .-]*\d{1,3}|[ .-]+[IVXL]{1,5}|[ .-]+[A-Z]\/\d{1,3})\b/i
 
 // Lee la lista de dependientes: «CE-I: DIV MEC-2, DIV-1, DIV-6; GALM-1 en refuerzo», o una por renglón
 // («- DIV-1», «• GALM-1 (en refuerzo)»). `madre` es la designación de la unidad que se disgrega: no se
 // cuenta a sí misma.
-export function leerDependientes(texto, madre = '') {
+// `conocidas` (opcional): las fichas de la carta; una que coincida entra con su designación, escalón y
+// arma tal cual («AGRP. LOG. – CE-I», que no tiene número), así ⊞ Disgregar la vincula y no la duplica.
+export function leerDependientes(texto, madre = '', conocidas = []) {
   const lista = []
   const crudo = String(texto || '')
     .replace(/[“”«»„‟]/g, '"')
     .replace(/"[^"]{0,40}"/g, (m) => m.replace(/[,;]/g, ' '))
   for (let trozo of crudo.split(/\r?\n|[;,]|\s+y\s+|\s+e\s+/)) {
     trozo = trozo.replace(/^[\s\-–—•*·>]+|^\s*(\d+|[a-z])[.)-]+\s+/gi, '').trim()
+    // «los CE-I», «la DIV-3», «del RI-33»: sin el artículo.
+    trozo = trozo.replace(/^(los|las|la|el|del|de la|de los|de)\s+(?=\S)/i, '').replace(/\s*\*+\s*$/, '').trim()
     // «CE-I: DIV MEC-2» → lo que va después de los dos puntos, si lo de antes es la madre (o un título).
     const dos = trozo.indexOf(':')
     if (dos >= 0) {
@@ -117,6 +134,14 @@ export function leerDependientes(texto, madre = '') {
       if (!madre || mismaUnidad(antes, madre) || /ORGANIZ|MEDIOS|DEPENDIENTES/i.test(sinAcentos(antes))) trozo = trozo.slice(dos + 1).trim()
     }
     if (!trozo) continue
+    const conocida = (conocidas || []).find((u) => u && u.designacion && mismaUnidadOSuperior(u.designacion, trozo.replace(/\(.*?\)/g, '').trim(), madre))
+    if (conocida && !(madre && mismaUnidad(conocida.designacion, madre))) {
+      if (!lista.some((u) => mismaUnidad(u.designacion, conocida.designacion))) {
+        const rel = (RELACIONES.find(([re]) => re.test(sinAcentos(trozo).toUpperCase())) || [null, ''])[1]
+        lista.push({ designacion: conocida.designacion, escalon: conocida.escalon || clasificar(conocida.designacion).escalon || 'batallon', arma: conocida.arma || clasificar(conocida.designacion).arma || 'infanteria', relacion: rel })
+      }
+      continue
+    }
     const mayus = sinAcentos(trozo).toUpperCase()
     const relacion = (RELACIONES.find(([re]) => re.test(mayus)) || [null, ''])[1]
     const nombre = (/"[^"]+"/.exec(trozo) || [''])[0]
@@ -152,7 +177,7 @@ export function inmediatas(lista, escalonMadre) {
 
 // De dónde sale la lista: la organización de la tarea de MESA EM, si es de esta unidad; si no, la línea
 // («CE-I: …») o el bloque («CE-I» y debajo «- DIV-1»…) de la unidad en los documentos del ejercicio.
-export function fuenteDependientes({ madre, ordenSup, documentos } = {}) {
+export function fuenteDependientes({ madre, ordenSup, documentos, unidades } = {}) {
   const sm = sigla(madre?.designacion || '')
   const org = String(ordenSup?.organizacionTarea || '').trim()
   if (org) {
@@ -186,7 +211,79 @@ export function fuenteDependientes({ madre, ordenSup, documentos } = {}) {
       }
     }
   }
+  // Los documentos que dicen la organización de otra forma (los apéndices de un tema base):
+  // «(COE de la DIV-3) … Dependencia orgánica: CE-I.», «Dependencias del CTO: …», «Las FF.TT.TO.
+  // comprenden los CE-I, CE-II…», y el cuadro del COE (CMDO., COMP. CYS, RI-33… hasta TOTAL).
+  const orgDocs = organizacionDeDocumentos(documentos)
+  // «DIV MEC -1 – CE-I» (de Google Earth) se busca también como «DIV MEC-1».
+  const siglas = new Set([sm, sigla(sinSuperior(madre?.designacion || ''))].filter(Boolean))
+  const deDocs = orgDocs.find((o) => siglas.has(sigla(o.de))) || { hijos: [], docs: [] }
+  // Las fichas de la carta que dicen de quién dependen («DIV MEC -1 – CE-I», de Google Earth) o que ya
+  // quedaron como sus dependientes.
+  const deCarta = (unidades || []).filter((u) => u && u.id !== madre?.id && esPropia(u) && u.tipo !== 'pc' &&
+    (u.dependeDe === madre?.id || (madre?.designacion && sinSuperior(u.designacion, madre.designacion) !== u.designacion)))
+  const lista = leerDependientes(deDocs.hijos.join('\n'), madre?.designacion, unidades)
+  for (const u of deCarta) {
+    if (lista.some((x) => mismaUnidadOSuperior(u.designacion, x.designacion, madre.designacion))) continue
+    lista.push({ designacion: u.designacion, escalon: u.escalon || clasificar(u.designacion).escalon || 'batallon', arma: u.arma || clasificar(u.designacion).arma || 'infanteria', relacion: u.relacion || '' })
+  }
+  if (lista.length) {
+    const fuentes = [deDocs.hijos.length ? (deDocs.docs.length === 1 ? `«${deDocs.docs[0]}»` : `${deDocs.docs.length} documentos del ejercicio (${deDocs.docs.slice(0, 3).join(', ')}${deDocs.docs.length > 3 ? '…' : ''})`) : '', deCarta.length ? 'las fichas de la carta que dicen depender de ella' : ''].filter(Boolean)
+    return { lista, de: fuentes.join(' y ') }
+  }
   return { lista: [], de: '' }
+}
+
+// La organización escrita en los documentos del ejercicio, como la escriben los apéndices de un tema
+// base (08-11-2026, «DIAMANTE»): [{ de: 'CE-I', hijos: ['DIV. MEC.-1', 'DIV-3', …], docs: [nombres] }].
+//   · el título dice de quién es el documento: «(COE de la DIV-3)», «(Organigrama del CE-I)»;
+//   · «Dependencia orgánica: CE-I.» → ese documento es de un dependiente del CE-I;
+//   · «Dependencias del CTO: A, B, C» / «Las FF.TT.TO. comprenden los CE-I, CE-II…» → sus dependientes;
+//   · el cuadro del COE: los renglones entre «CLASE» (o «GRUPO») y «TOTAL» son sus unidades (sin CMDO.).
+// Un organigrama pegado como IMAGEN no se puede leer: no tiene texto.
+export function organizacionDeDocumentos(documentos) {
+  const mapa = new Map()
+  const agregar = (de, hijo, doc) => {
+    de = String(de || '').replace(/[.\s]+$/, '').trim()
+    hijo = String(hijo || '').trim()
+    if (!de || !hijo || !sigla(de) || mismaUnidad(de, hijo)) return
+    const k = sigla(de)
+    if (!mapa.has(k)) mapa.set(k, { de, hijos: [], docs: [] })
+    const o = mapa.get(k)
+    if (!o.hijos.some((h) => mismaUnidad(h, hijo))) o.hijos.push(hijo)
+    if (doc && !o.docs.includes(doc)) o.docs.push(doc)
+  }
+  for (const d of documentos || []) {
+    const texto = String(d?.texto || '')
+    if (!texto) continue
+    const nombreDoc = String(d?.nombre || 'documento').replace(/\.[a-z]{2,4}$/i, '').slice(0, 50)
+    const lineas = texto.split(/\r?\n/).map((l) => l.replace(/\s+/g, ' ').trim())
+    const titulo = lineas.slice(0, 8).join(' ')
+    const mt = /\((?:C\.?\s?O\.?\s?E\.?|COE|cuadro de organizaci[oó]n[^)]*?|organigrama|organizaci[oó]n|org\.)\s+(?:de\s+(?:la|el|las|los)\s+|del\s+|de\s+)?([^)]{2,40})\)/i.exec(titulo)
+    const sujeto = mt ? mt[1].trim() : ''
+    for (let i = 0; i < lineas.length; i++) {
+      const l = lineas[i]
+      let m
+      if ((m = /dependencia\s+org[aá]nica\s*:\s*([^.;\n]{2,30})/i.exec(l)) && sujeto) agregar(m[1], sujeto, nombreDoc)
+      if ((m = /^dependencias?\s+(?:del?|de la|de los|de las)\s+([^:]{2,30}):\s*(.+)$/i.exec(l))) {
+        for (const h of String(m[2]).split(/,|;|\s+y\s+|\s+e\s+/)) agregar(m[1], h.replace(/\(.*?\)/g, '').replace(/^(los|las|la|el)\s+/i, ''), nombreDoc)
+      }
+      if ((m = /^(?:[Ll]as|[Ll]os|[Ll]a|[Ee]l)?\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9.\- ]{1,24}?)\s+comprenden?\s+(.+)$/.exec(l))) {
+        // Hasta el fin de la oración («… y las UU.FF.EE. Cada cuerpo de ejército comprende…»).
+        for (const h of String(m[2]).split(/\.\s+(?=[A-ZÁÉÍÓÚÑ][a-záéíóúñ])/)[0].split(/,|;|\s+y\s+|\s+e\s+/)) agregar(m[1], h.replace(/\(.*?\)/g, '').replace(/^(los|las|la|el)\s+/i, '').replace(/[.]+$/, ''), nombreDoc)
+      }
+      // El cuadro del COE: «GRUPO» / «CLASE» y debajo una unidad por renglón, hasta «TOTAL».
+      if (sujeto && /^CLASE$/i.test(l) && /^GRUPO$/i.test(lineas[i - 1] || '')) {
+        for (let j = i + 1; j < lineas.length && j < i + 60; j++) {
+          const c = lineas[j]
+          if (/^TOTAL$/i.test(c) || !c) break
+          if (/^(CMDO|COMANDO)\.?$/i.test(c)) continue
+          agregar(sujeto, c, nombreDoc)
+        }
+      }
+    }
+  }
+  return [...mapa.values()]
 }
 
 // Alrededor de la madre, en círculo (arrancando al norte), a una distancia según su escalón.
@@ -283,14 +380,18 @@ export function accionDisgregar({ unidades, id, ordenSup, documentos, preguntar,
     return { unidades: r.unidades, aviso: `⊟ ${nombre(madre)} volvió a ser una sola unidad (${r.quitadas.length} ficha(s) quitadas). «↶ Deshacer» de la barra la vuelve a disgregar.` }
   }
   if (!puedeDisgregarse(madre)) return null
-  const { lista, de } = fuenteDependientes({ madre, ordenSup, documentos })
+  const { lista, de } = fuenteDependientes({ madre, ordenSup, documentos, unidades })
   const propuesta = inmediatas(lista, madre.escalon).map(conRelacion).join(', ')
   const msg =
     `⊞ Disgregar ${nombre(madre)}: queda en la carta como su PUESTO COMANDO y aparecen sus unidades dependientes (un nivel abajo), alrededor del PC, para que las arrastres a su lugar.\n\n` +
-    (propuesta ? `Las leí de ${de}. Revisalas (separadas por coma; «(en refuerzo)» después de la que corresponda):` : 'No encontré su organización en la Orden ni en los documentos del ejercicio. Escribí sus dependientes, separadas por coma (ej.: DIV MEC-2, DIV-1, DIV-6, GALM-1 (en refuerzo)):')
+    (propuesta
+      ? `Las leí de ${de}. Revisalas (separadas por coma; «(en refuerzo)» después de la que corresponda):`
+      : `No encontré la organización de ${nombre(madre)} en la Orden, ni en los documentos del ejercicio, ni en las fichas de la carta.\n` +
+        `(Si el organigrama está pegado como IMAGEN en el Word, la Mesa no lo puede leer: necesita texto, por ejemplo «${nombre(madre)}: DIV MEC-1, DIV-3, DIV-9» o los COE con «Dependencia orgánica: ${nombre(madre)}».)\n\n` +
+        'Escribí sus dependientes, separadas por coma (ej.: DIV MEC-2, DIV-1, DIV-6, GALM-1 (en refuerzo)):')
   const texto = ask(msg, propuesta)
   if (texto == null) return null
-  const elegidas = leerDependientes(texto, madre.designacion)
+  const elegidas = leerDependientes(texto, madre.designacion, (unidades || []).filter((u) => u.id !== id && esPropia(u)))
   if (!elegidas.length) return { unidades: null, aviso: `⊞ No reconocí ninguna unidad en «${String(texto).slice(0, 80)}». Escribilas con su sigla: DIV MEC-2, DIV-1, GALM-1…` }
   const r = disgregar(unidades, id, elegidas)
   if (!r) return null
