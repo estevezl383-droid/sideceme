@@ -5,6 +5,29 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-11-08 (2) — 🔎 Fichas visibles al ver todo el TO y 🧩 Superponer KMZ/KML (`index-fichas-to-20261108.js`)
+
+Parte de `index-kmz-20261108.js` + `pruebas/reemplazos-2026-11-08-fichas-to.js` (1 reemplazo; `construir-fichas-to.js`;
+`reemplazos-compilado.js` lo deshace byte por byte). Sergio, con la captura de las AO PUMA y ZORRO abiertas desde KMZ: «las
+fichas de rojo salen extremadamente pequeñas… agrandarlas del tamaño normal» y «en superponer no me da la opción de
+superponer un KMZ».
+
+- **Qué pasaba**: la carta 2D (`hve`) achica las fichas con el zoom, `2^((zoom−12)/1.5)` entre 0,28 y 1,3 (`vF()`). Al ver
+  el TO (zoom 6–11) quedaban en el piso: 9 px de alto contra 43 de cerca. No era cosa del KMZ: les pasa a todas. Y el
+  tablero 🧩 sólo leía JSON/GeoJSON.
+- **En el compilado**: `hve` usa `vF(.9)`: 30 px de alto al ver el TO (siete décimos del tamaño de cerca).
+- **Fuera del compilado**: `superponer/superponer.js` (`?v=20261108-kmz` en `index.html`) acepta `.kmz/.kml`: pide
+  `areas-operaciones/abrir-kmz.mjs` (`superposicionDeArchivo`) recién al elegir uno. Un grupo por carpeta de Google
+  Earth; fichas con símbolo (inf/mec/aéreo/aeromóvil) y escalón, rojas si dicen enemigo/rojo/SATURNO; áreas, líneas y
+  puntos; los grupos de calcos del terreno entran APAGADOS (miles de trazos). Sigue sin tocar el ejercicio.
+- **Cómo se comprobó**: `pruebas/e2e/superponer-kmz.cjs` con los KMZ reales (`CARPETA_KMZ=…`): las 4 AO + las fichas de
+  SATURNO de «LIMPIO PARA PASAR» → a zoom 7 y 8 la ficha más chica mide 30 px de alto (antes 9); 060700NOV26.kmz
+  superpuesto → 6349 elementos en 81 grupos, 24 prendidos, 57 de calcos apagados, 90 marcas; sin errores JS. Además
+  `e2e/abrir-kmz.cjs`, `e2e/abrir-archivo.cjs`, `reemplazos-compilado.js` y `npm test` (el caso conocido de
+  `guia-inicial.mjs` pasa de 12 a 13 ganchos a propósito: `vF(.9)` cae dentro de lo que insertó la lista del
+  2026-10-23 «suelo» en `hve`).
+- **Si se recompila desde el fuente**: el piso del achique de las fichas en 0,9.
+
 ## 2026-11-08 — 🌍 Abrir KMZ / KML de Google Earth en 📁 Ejercicios (`index-kmz-20261108.js`)
 
 Parte de `index-ogo-20261030.js` + `pruebas/reemplazos-2026-11-08-kmz.js` (5 reemplazos; `construir-kmz.js`;

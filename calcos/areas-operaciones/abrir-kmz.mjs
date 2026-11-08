@@ -97,7 +97,7 @@ function coordenadas(n) {
 }
 
 // Cada Placemark con su camino de carpetas: { nombre, desc, estilo, camino[], tipo, coords }.
-export function placemarks(arbol) {
+export function placemarks(arbol, { conLineas = false } = {}) {
   const salida = []
   const recorrer = (n, camino) => {
     for (const h of n.hijos) {
@@ -109,7 +109,7 @@ export function placemarks(arbol) {
           const ext = buscar(hijo(poli, 'outerBoundaryIs') || poli, 'coordinates')
           salida.push({ ...base, tipo: 'poligono', coords: coordenadas(ext) })
         } else if (punto) salida.push({ ...base, tipo: 'punto', coords: coordenadas(buscar(punto, 'coordinates')) })
-        else if (linea) salida.push({ ...base, tipo: 'linea', coords: [] })
+        else if (linea) salida.push({ ...base, tipo: 'linea', coords: [], ...(conLineas ? { lineaCoords: coordenadas(buscar(linea, 'coordinates')) } : {}) })
       } else if (h.tag !== 'Style' && h.tag !== 'StyleMap') recorrer(h, camino)
     }
   }
@@ -295,4 +295,67 @@ export async function leerArchivoMesa(f) {
   }
   throw new Error(`«${f.name}» no trae áreas de operaciones ni fichas de unidades${nota ? ` (tiene ${nota})` : ''}. ` +
     'Las áreas se reconocen por el nombre («AO …», «Área de Operaciones», «Subteatro…») y las fichas por la descripción «Escalón: …» o el nombre (CE, DIV, BRIG…).')
+}
+
+// ── 🧩 Superponer un KMZ/KML (08-11-2026) ──────────────────────────────────────────
+// Sergio: «quise superponer algo más pero en superponer no me da la opción de superponer un KMZ».
+// Superponer sólo MUESTRA encima de la carta (no entra al ejercicio), así que acá va TODO lo del
+// KMZ: áreas, líneas, fichas (con su símbolo y color rojo/azul) y puntos, un grupo por carpeta de
+// Google Earth para prenderlas y apagarlas en el tablero 🧩. Formato 'sideceme-superposicion'.
+const MARCA_ESC = { equipo: '', escuadra: '•', seccion: '•••', compania: 'I', batallon: 'II', regimiento: 'III', brigada: 'X', division: 'XX', cuerpo: 'XXX', ejercito: 'XXXX' }
+const SIMBOLO_SUP = { blindada: 'mec', mecanizada: 'mec', cabmec: 'mec', aviacion: 'air', aerotransportada: 'aeromov' }
+const MAX_SUP = 25000
+
+export function superposicionDeKml(lista, { nombre = '' } = {}) {
+  const grupos = new Map(), ll = p => [p[1], p[0]]
+  let total = 0, fuera = 0
+  for (const pm of lista) {
+    if (total >= MAX_SUP) { fuera++; continue }
+    const camino = pm.camino.filter(Boolean)
+    // El grupo: la carpeta de arriba (sin la raíz del KMZ) y, si es de calcos, también la de abajo.
+    const util = camino.length > 1 ? camino.slice(1) : camino
+    const sinTemp = util[0] && /^sitios temporales$/i.test(util[0]) ? util.slice(1) : util
+    const iCalco = sinTemp.findIndex(c => CALCO.test(c))
+    const partes = iCalco >= 0 ? [...sinTemp.slice(0, iCalco), sinTemp[iCalco], sinTemp[sinTemp.length - 1]] : sinTemp.slice(0, 2)
+    const clave = [...new Set(partes)].join(' › ') || nombre || 'Elementos'
+    if (!grupos.has(clave)) grupos.set(clave, [])
+    const el = grupos.get(clave)
+    const nom = sinTildes(pm.nombre).toUpperCase(), ruta = sinTildes(camino.join(' ')).toUpperCase()
+    const enemigo = ENEMIGO.test(`${ruta} ${nom} ${sinTildes(pm.estilo).toUpperCase()}`)
+    const color = enemigo ? '#e0443a' : '#4f9cf0'
+    if (pm.tipo === 'poligono') {
+      const c = abrirAnillo(pm.coords)
+      if (c.length < 3) continue
+      el.push({ tipo: 'area', coords: c.map(ll), rotulo: iCalco >= 0 ? '' : pm.nombre.slice(0, 80), color })
+    } else if (pm.tipo === 'linea') {
+      if (pm.lineaCoords?.length > 1) el.push({ tipo: 'linea', coords: pm.lineaCoords.map(ll), info: pm.nombre, color: iCalco >= 0 ? '#5b7a99' : color })
+      else continue
+    } else if (pm.coords.length) {
+      const lineaEsc = (pm.desc.match(/Escal[oó]n\s*:\s*([^\n]*)/i) || [])[1] || ''
+      const unidad = !!(lineaEsc || UNIDAD.test(nom))
+      const info = [pm.nombre, pm.desc.split('\n').slice(1, 4).join(' · ')].filter(Boolean).join(' — ').slice(0, 400)
+      if (unidad) {
+        const escalon = escalonDe(pm.nombre, lineaEsc), arma = armaDe(`${pm.nombre} ${lineaEsc}`)
+        el.push({ tipo: 'unidad', ll: ll(pm.coords[0]), simbolo: SIMBOLO_SUP[arma] || 'inf', escalon: MARCA_ESC[escalon] || '', rotulo: designacionDe(pm.nombre), info, color })
+      } else el.push({ tipo: 'unidad', ll: ll(pm.coords[0]), simbolo: 'pto', rotulo: iCalco >= 0 ? '' : pm.nombre.slice(0, 60), info, color: iCalco >= 0 ? '#5b7a99' : color })
+    }
+    total++
+  }
+  const lista2 = [...grupos].filter(([, e]) => e.length).map(([n, e], i) => ({
+    id: `kmz${i}`, nombre: `${n} (${e.length})`,
+    // Los calcos del terreno vienen apagados: son miles de trazos; se prenden en el tablero.
+    visible: !/›.*calco|^calco/i.test(n) && !CALCO.test(n.split(' › ').slice(-2, -1)[0] || ''), elementos: e,
+  }))
+  return { tipoArchivo: 'sideceme-superposicion', nombre, grupos: lista2, total, fuera }
+}
+
+// Lo que llama superponer.js con los archivos elegidos (KMZ o KML). Un archivo = una capa.
+export async function superposicionDeArchivo(f) {
+  let kmls
+  try { kmls = await textosKml(f) } catch (e) { throw new Error(e.message.startsWith('«') ? e.message : `«${f.name}»: ${e.message}`) }
+  const lista = []
+  for (const k of kmls) lista.push(...placemarks(leerXml(k.texto), { conLineas: true }))
+  const r = superposicionDeKml(lista, { nombre: nombreSinExt(f.name) })
+  if (!r.total) throw new Error(`«${f.name}» no trae nada con coordenadas.`)
+  return r
 }

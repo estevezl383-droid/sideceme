@@ -79,7 +79,8 @@
 //   index-productos-em-20261029.js + reemplazos-2026-10-29-areas-logisticas.js = index-areas-logisticas-20261029.js
 //   index-areas-logisticas-20261029.js + reemplazos-2026-10-29-guardar-ia.js = index-guardar-ia-20261029.js
 //   index-guardar-ia-20261029.js + reemplazos-2026-10-30-ogo.js = index-ogo-20261030.js
-//   index-ogo-20261030.js + reemplazos-2026-11-08-kmz.js = index-kmz-20261108.js (el vigente)
+//   index-ogo-20261030.js + reemplazos-2026-11-08-kmz.js = index-kmz-20261108.js
+//   index-kmz-20261108.js + reemplazos-2026-11-08-fichas-to.js = index-fichas-to-20261108.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -93,6 +94,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-11-08-fichas-to'),
+    nombre: 'reemplazos-2026-11-08-fichas-to',
+    // calcos/assets/index-kmz-20261108.js (antes del piso 0,9 del tamaño de las fichas al ver todo el TO).
+    anterior: '3684ddc13b856a1f93fc46d1ef89eecde7bcb7911d8fde5790f4b8776690a9f0',
+  },
   {
     lista: require('./reemplazos-2026-11-08-kmz'),
     nombre: 'reemplazos-2026-11-08-kmz',

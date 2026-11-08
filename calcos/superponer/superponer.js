@@ -17,6 +17,8 @@
  *   - sideceme-areas-operaciones (el que baja «Área de Ops»)
  *   - capa-em (la capa de un G) y ejercicio.json: toma las fichas con lat/lng y las áreas
  *   - GeoJSON (FeatureCollection / Feature)
+ *   - KMZ / KML de Google Earth (08-11-2026): un grupo por carpeta; los calcos del terreno vienen
+ *     apagados (lo lee ../areas-operaciones/abrir-kmz.mjs)
  *
  * Lo cargado se recuerda en este navegador (localStorage); si no se puede, igual funciona.
  */
@@ -28,6 +30,8 @@
   var capas = []          // {id, nombre, origen, visible, opac, grupos:[{id,nombre,visible,elementos}], lg, preset}
   var conf = { escala: 1.5, rotulos: 'auto', compacto: true }
   var ZOOM_DETALLE = 8, ultimoCompacto = null
+  // El lector de KMZ es un módulo: se pide recién cuando se elige un KMZ, al lado de este script.
+  var LECTOR_KMZ = (function () { try { return new URL('../areas-operaciones/abrir-kmz.mjs?v=sup20261108', document.currentScript.src).href } catch (e) { return './areas-operaciones/abrir-kmz.mjs?v=sup20261108' } })()
   var ultimoNombre = '', mapa = null, btn = null, tab = null, input = null, abierto = false, quitados = {}
 
   function esc(s) {
@@ -319,6 +323,16 @@
   }
 
   function cargarArchivo(f) {
+    if (/\.(kmz|kml)$/i.test(f.name || '')) {
+      aviso('⏳ Leyendo «' + f.name + '»…')
+      import(LECTOR_KMZ).then(function (m) { return m.superposicionDeArchivo(f) }).then(function (r) {
+        var c = agregar({ nombre: r.nombre, grupos: r.grupos })
+        abrir(true); zoomA(c)
+        var apagados = r.grupos.filter(function (g) { return !g.visible }).length
+        aviso('🧩 «' + f.name + '» superpuesto: ' + r.total + ' elementos en ' + r.grupos.length + ' grupos' + (apagados ? ' (' + apagados + ' de calcos del terreno apagados: prendelos en el tablero)' : '') + (r.fuera ? '. ' + r.fuera + ' no entraron (demasiados).' : '.'))
+      }).catch(function (e) { aviso('No se pudo superponer «' + f.name + '»: ' + (e && e.message || e)) })
+      return
+    }
     var rd = new FileReader()
     rd.onload = function () {
       try {
@@ -402,12 +416,12 @@
     btn.title = 'Tablero de capas superpuestas: activar y desactivar archivos encima de la carta'
     btn.setAttribute('aria-expanded', 'false')
     input = document.createElement('input')
-    input.type = 'file'; input.accept = '.json,.geojson,application/json'; input.multiple = true; input.hidden = true
+    input.type = 'file'; input.accept = '.json,.geojson,application/json,.kmz,.kml,application/vnd.google-earth.kmz,application/vnd.google-earth.kml+xml'; input.multiple = true; input.hidden = true
     tab = document.createElement('section')
     tab.className = 'sidsup'; tab.hidden = true; tab.setAttribute('aria-label', 'Tablero de capas superpuestas')
     tab.innerHTML = '<div class="sidsup-hd"><b>🧩 TABLERO · SUPERPONER</b><button type="button" class="sidsup-x" data-a="cerrar" aria-label="Cerrar">✕</button></div>' +
       '<div class="sidsup-bd">' +
-      '<button type="button" class="sidsup-cargar" data-a="cargar">💻 Abrir archivo de la computadora (JSON / GeoJSON)</button>' +
+      '<button type="button" class="sidsup-cargar" data-a="cargar">💻 Abrir archivo de la computadora (JSON / GeoJSON / KMZ / KML)</button>' +
       '<button type="button" class="sidsup-cargar" data-a="quitartodo">🗑️ Quitar todas las capas</button>' +
       '<p class="sidsup-ayuda"><b>Superponer</b> sólo muestra el archivo encima de la carta: no se guarda en el ejercicio ni borra nada. <b>Integrar capa</b> (en 📁 Ejercicio) sí lo mete al ejercicio.</p>' +
       '<div class="sidsup-cf"><label>Tamaño de las fichas <input type="range" min="1" max="2" step="0.1" data-a="escala"> <span class="sidsup-esc"></span></label>' +

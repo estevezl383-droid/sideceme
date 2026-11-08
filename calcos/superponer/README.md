@@ -8,7 +8,8 @@ debajo de «Integrar capa del Estado Mayor»). **No guarda nada en el ejercicio 
 - Superponer → sólo la muestra encima; se apaga cuando se quiere.
 
 Entiende: `sideceme-superposicion` (formato propio, ver `ejercicios/diamante/superposicion.json`),
-`sideceme-areas-operaciones`, `capa-em`, `ejercicio.json` (toma fichas con lat/lng y áreas) y GeoJSON.
+`sideceme-areas-operaciones`, `capa-em`, `ejercicio.json` (toma fichas con lat/lng y áreas), GeoJSON y KMZ/KML de Google Earth
+(08-11-2026: un grupo por carpeta, los calcos del terreno apagados; lo lee `../areas-operaciones/abrir-kmz.mjs`).
 
 Tamaño de símbolos 100–200 % (150 % por defecto). Al ver todo el TO (zoom < 8) se achican solos y
 los rótulos se ocultan, para no congestionar; al acercar vuelven. Ambas cosas se pueden cambiar.
