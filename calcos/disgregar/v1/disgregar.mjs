@@ -44,6 +44,22 @@ export function mismaUnidad(a, b) {
   return !!x && x === y
 }
 
+// «DIV MEC -1 – CE-I» → «DIV MEC -1»: la designación sin el escalón superior pegado al final (así
+// vienen las fichas de Google Earth). Con `superior`, sólo si lo de atrás ES esa unidad; sin él, si lo
+// de atrás es una gran unidad (CE, DIV, BRIG, EJ…). Si no, queda igual. (08-11-2026)
+const GRAN_UNIDAD = /^(C\.?\s?E|C\.?\s?T\.?\s?O|DIV|D\.?\s?E|BRIG|EJ|CUERPO|DIVISION|BRIGADA|FF\.?\s?TT)\b/
+export function sinSuperior(designacion, superior = '') {
+  const partes = String(designacion || '').split(/\s+[–—-]\s+/)
+  if (partes.length < 2) return designacion
+  const ult = partes[partes.length - 1]
+  const esSuperior = superior ? mismaUnidad(ult, superior) : GRAN_UNIDAD.test(sinAcentos(ult).toUpperCase().trim())
+  return esSuperior ? partes.slice(0, -1).join(' – ') : designacion
+}
+// La misma unidad aunque una de las dos lleve pegado su superior: «DIV MEC -1 – CE-I» = «DIV MEC-1».
+export function mismaUnidadOSuperior(a, b, superior = '') {
+  return mismaUnidad(a, b) || mismaUnidad(sinSuperior(a, superior), b) || mismaUnidad(a, sinSuperior(b, superior))
+}
+
 // Escalón y arma por la sigla. Lo que no se reconoce queda para que el oficial lo revise.
 export function clasificar(designacion) {
   const s = sinAcentos(designacion).toUpperCase().replace(/\./g, ' ').replace(/\s+/g, ' ').trim()
@@ -194,7 +210,8 @@ export function disgregar(unidades, id, lista, { base = Date.now() } = {}) {
   const yaEstaban = []
   const poner = []
   for (const d of lista || []) {
-    const ya = us.find((u) => u.id !== id && esPropia(u) && mismaUnidad(u.designacion, d.designacion))
+    // La que ya está en la carta, aunque venga de Google Earth con el superior pegado («DIV MEC -1 – CE-I»).
+    const ya = us.find((u) => u.id !== id && esPropia(u) && mismaUnidadOSuperior(u.designacion, d.designacion, madre.designacion))
     if (ya) yaEstaban.push({ ficha: ya, d })
     else poner.push(d)
   }
