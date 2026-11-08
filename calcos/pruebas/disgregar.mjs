@@ -3,7 +3,7 @@
 // quiere que el CE-I quede como Puesto Comando con DIV MEC-2, DIV-1 y DIV-6 alrededor.
 //   node disgregar.mjs
 import assert from 'node:assert/strict'
-import { leerDependientes, inmediatas, fuenteDependientes, disgregar, reagrupar, accionDisgregar, puedeDisgregarse, clasificar, mismaUnidad, filasMovimientos } from '../disgregar/v1/disgregar.mjs'
+import { leerDependientes, inmediatas, fuenteDependientes, disgregar, reagrupar, accionDisgregar, puedeDisgregarse, clasificar, mismaUnidad, filasMovimientos, sinSuperior, mismaUnidadOSuperior } from '../disgregar/v1/disgregar.mjs'
 
 let n = 0
 const caso = (nombre, fn) => { fn(); n++; console.log('  ✔ ' + nombre) }
@@ -100,6 +100,25 @@ caso('F2·SAL Movimientos iniciales: un renglón por dependiente, sin repetir lo
   const f = filasMovimientos(r.unidades, [{ Unidad: 'GALM-1' }])
   assert.deepEqual(f.map((x) => x.Unidad), ['DIV MEC-2', 'DIV-1', 'DIV-6'])
   assert.match(f[0].Observaciones, /Dependiente de CE-I/)
+})
+
+caso('fichas de Google Earth con el superior pegado («DIV MEC-2 – CE-I»): no se duplican (08-11-2026)', () => {
+  // Sergio pasó sus fichas del KMZ al ejercicio y después disgrega el CE-I.
+  const kmz = [
+    ce, galm, enemigo,
+    { id: 10, bando: 'propias', tipo: 'unidad', escalon: 'division', arma: 'mecanizada', designacion: 'DIV MEC -2 – CE-I', lat: -18.4, lng: -68.7 },
+    { id: 11, bando: 'propias', tipo: 'unidad', escalon: 'division', arma: 'infanteria', designacion: 'DIV-1 – CE-II', lat: -18.3, lng: -68.6 },
+  ]
+  const r = disgregar(kmz, 1, leerDependientes(ordenSup.organizacionTarea, 'CE-I'))
+  // DIV MEC-2 ya estaba (con «– CE-I»): queda vinculada; la DIV-1 del CE-II NO es la del CE-I.
+  assert.deepEqual(r.yaEstaban.map((u) => u.id).sort(), [10, 2])
+  assert.deepEqual(r.nuevas.map((u) => u.designacion), ['DIV-1', 'DIV-6'])
+  assert.equal(r.unidades.find((u) => u.id === 10).dependeDe, 1)
+  assert.equal(r.unidades.find((u) => u.id === 11).dependeDe, undefined)
+  assert.equal(sinSuperior('DIV MEC -1 – CE-I', 'CE-I'), 'DIV MEC -1')
+  assert.equal(sinSuperior('1ª Brig. «X» – Chungará'), '1ª Brig. «X» – Chungará')
+  assert.ok(mismaUnidadOSuperior('AGRP. LOG. – CE-I', 'AGRP LOG'))
+  assert.ok(!mismaUnidadOSuperior('DIV-1', 'DIV-12'))
 })
 
 console.log(`disgregar: ${n} casos ✔`)
