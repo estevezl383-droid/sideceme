@@ -72,15 +72,17 @@ function ejercicio() {
     const panel = page.locator('[data-evento-critico]')
     await panel.waitFor({ timeout: 10000 })
     const txt = await panel.innerText()
-    assert.match(txt, /Evento crítico para el Juego de Guerra/)
+    // 08-11-2026: el panel en tres pasos (① Juego de guerra, ② decisión del Comandante, ③ la matriz).
+    assert.match(txt, /DECISIÓN DEL COMANDANTE/)
+    assert.match(txt, /① JUEGO DE GUERRA/)
     assert.match(txt, /CAE más probable/)
     assert.match(txt, /CAE más peligroso/)
     const filas = panel.locator('[data-ev-fila]')
     assert.equal(await filas.count(), 3, 'las 3 fases 🔵')
     // Cada fase 🔵 con la 🔴 del mismo orden; la ⭐ en la FASE III (en contacto).
     assert.deepEqual(await filas.locator('select').evaluateAll((s) => s.map((x) => x.value)), ['0', '1', '2'])
-    assert.match(await filas.nth(2).innerText(), /^⭐ 🔵 CAP 1 · FASE III — Ocupación de la posición/)
-    assert.match(await filas.nth(2).innerText(), /unidad\(es\) enemiga\(s\) a menos de 15 km/)
+    assert.match(await filas.nth(2).innerText(), /^⭐ 🔵 FASE III — Ocupación de la posición/)
+    assert.match(await filas.nth(2).innerText(), /🔴 \d+ a menos de 15 km/)
     assert.doesNotMatch(await filas.nth(0).innerText(), /⭐/)
     await panel.scrollIntoViewIfNeeded()
     await foto('1-panel')
@@ -97,6 +99,11 @@ function ejercicio() {
     await clic(panel.locator('[data-ev="guardar"]'))
     s = await esperar(page, leerSincro, (v) => v._evento && v._evento.azul === 1)
     assert.deepEqual([s._evento.azul, s._evento.rojo], [1, 3])
+    // 📝 recién con la decisión del Comandante (② CAP 1, el que está a la vista): ① se pliega; se abre otra vez.
+    assert.equal(await panel.locator('[data-ev="anotar"]').count(), 0, 'sin decisión no se anota en la matriz')
+    await clic(panel.locator('[data-dec="1"]'))
+    await panel.locator('[data-dec-estado]').waitFor({ timeout: 5000 })
+    await clic(panel.locator('[data-ev-plegar]'))
     // Vuelvo al más crítico y lo anoto en la matriz: la columna FASE III, sólo lo vacío.
     await clic(filas.nth(2))
     await clic(panel.locator('[data-ev="anotar"]'))
@@ -105,7 +112,7 @@ function ejercicio() {
     assert.match(s['INTELIGENCIA|FASE III'], /ATACAR y ROMPER la primera posición defensiva con 1ª BR\. AC\. «CORACEROS», GAAP N° 4/)
     assert.equal(s['MANIOBRA|FASE I'], 'Lo escribió el oficial')
     assert.deepEqual([s._evento.azul, s._evento.rojo], [2, 2])
-    await panel.getByText('📝 Anotado en la columna «FASE III»: 2 casilla(s)', { exact: false }).waitFor({ timeout: 5000 })
+    await panel.getByText('📝 Anotado en «FASE III» (2 casilla(s) vacía(s)).', { exact: false }).waitFor({ timeout: 5000 })
     await foto('2-anotado')
 
     // ⬇️ El archivo para el Juego de Guerra.
