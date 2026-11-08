@@ -336,7 +336,9 @@ export function superposicionDeKml(lista, { nombre = '' } = {}) {
       const info = [pm.nombre, pm.desc.split('\n').slice(1, 4).join(' · ')].filter(Boolean).join(' — ').slice(0, 400)
       if (unidad) {
         const escalon = escalonDe(pm.nombre, lineaEsc), arma = armaDe(`${pm.nombre} ${lineaEsc}`)
-        el.push({ tipo: 'unidad', ll: ll(pm.coords[0]), simbolo: SIMBOLO_SUP[arma] || 'inf', escalon: MARCA_ESC[escalon] || '', rotulo: designacionDe(pm.nombre), info, color })
+        // `ficha`: lo que hace falta para 📌 Pasar fichas al ejercicio (superponer.js).
+        el.push({ tipo: 'unidad', ll: ll(pm.coords[0]), simbolo: SIMBOLO_SUP[arma] || 'inf', escalon: MARCA_ESC[escalon] || '', rotulo: designacionDe(pm.nombre), info, color,
+          ficha: { escalon, arma, bando: enemigo ? 'enemigo' : 'propias', designacion: designacionDe(pm.nombre) } })
       } else el.push({ tipo: 'unidad', ll: ll(pm.coords[0]), simbolo: 'pto', rotulo: iCalco >= 0 ? '' : pm.nombre.slice(0, 60), info, color: iCalco >= 0 ? '#5b7a99' : color })
     }
     total++
@@ -347,6 +349,26 @@ export function superposicionDeKml(lista, { nombre = '' } = {}) {
     visible: !/›.*calco|^calco/i.test(n) && !CALCO.test(n.split(' › ').slice(-2, -1)[0] || ''), elementos: e,
   }))
   return { tipoArchivo: 'sideceme-superposicion', nombre, grupos: lista2, total, fuera }
+}
+
+// 📌 Pasar fichas al ejercicio (08-11-2026): una ficha superpuesta → una ficha de la Mesa. Sirve para
+// las de un KMZ (traen `ficha`) y, por el rótulo, el símbolo y el color, para las cargadas antes o desde
+// un JSON. Los puntos sueltos (simbolo 'pto') no son unidades.
+const ESC_DE_MARCA = { XXXX: 'ejercito', XXX: 'cuerpo', XX: 'division', X: 'brigada', III: 'regimiento', II: 'batallon', I: 'compania', '•••': 'seccion', '•': 'escuadra' }
+export function fichaDeSuperpuesta(el) {
+  if (!el || el.tipo !== 'unidad' || !Array.isArray(el.ll) || el.simbolo === 'pto') return null
+  const lat = +el.ll[0], lng = +el.ll[1]
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null
+  const f = el.ficha || {}
+  const designacion = String(f.designacion || el.rotulo || '').trim().slice(0, 80)
+  if (!designacion) return null
+  const bando = f.bando || (/^#e0443a$/i.test(String(el.color || '')) ? 'enemigo' : 'propias')
+  return {
+    lat, lng, bando, tipo: 'unidad',
+    escalon: f.escalon || ESC_DE_MARCA[String(el.escalon || '').trim()] || escalonDe(designacion, ''),
+    arma: f.arma || (el.simbolo === 'air' ? 'aviacion' : el.simbolo === 'aeromov' ? 'aerotransportada' : armaDe(`${designacion} ${el.info || ''}`)),
+    instalacion: '', designacion, futura: false, agrupacion: false,
+  }
 }
 
 // Lo que llama superponer.js con los archivos elegidos (KMZ o KML). Un archivo = una capa.
