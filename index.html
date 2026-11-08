@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.476</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.480</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8116,8 +8116,8 @@ body.wg-jugando{overflow:hidden}
   box-shadow:0 0 0 1px rgba(255,216,59,.35),0 0 14px rgba(255,216,59,.35)}
 .wg-uchip.fc{opacity:.42;text-decoration:line-through}
 /* v2.9.447 — 🏷️ LOS LETRERITOS de la ficha: sólo lo que le falta, debajo del símbolo. */
-.wg-letrero{position:absolute;left:0;top:0;transform:translate(-50%,15px);display:flex;gap:2px;white-space:nowrap;pointer-events:none}
-.wg-letrero span{font:700 9.5px/1.3 system-ui,-apple-system,sans-serif;padding:0 3px;border-radius:4px;
+.wg-letrero{position:absolute;left:0;top:0;transform:translate(-50%,17px);display:flex;gap:2px;white-space:nowrap;pointer-events:none}
+.wg-letrero span{font:700 10.5px/1.3 system-ui,-apple-system,sans-serif;padding:0 3px;border-radius:4px;
   background:rgba(8,12,18,.84);color:#e8f0f7;border:1px solid rgba(255,255,255,.28)}
 .wg-letrero span.a{color:#ffd28a;border-color:#e08a2c}
 .wg-letrero span.r{color:#ffc2c2;border-color:#e23b3b;background:rgba(70,8,8,.88)}
@@ -8125,13 +8125,13 @@ body.wg-jugando{overflow:hidden}
 .wg-letrero span.clic{pointer-events:auto;cursor:pointer}
 .wg-letrero span.clic:hover{border-color:#fff;filter:brightness(1.25)}
 .wg-letrero3d{display:flex;gap:2px;white-space:nowrap;pointer-events:none;justify-content:center}
-.wg-letrero3d span{font:700 10.5px/1.35 system-ui,-apple-system,sans-serif;padding:0 4px;border-radius:5px;
+.wg-letrero3d span{font:700 11.5px/1.35 system-ui,-apple-system,sans-serif;padding:0 4px;border-radius:5px;
   background:rgba(8,12,18,.86);color:#e8f0f7;border:1px solid rgba(255,255,255,.3);box-shadow:0 1px 4px rgba(0,0,0,.5)}
 .wg-letrero3d span.a{color:#ffd28a;border-color:#e08a2c}
 .wg-letrero3d span.r{color:#ffc2c2;border-color:#e23b3b;background:rgba(70,8,8,.9)}
 .wg-letrero3d span.clic{pointer-events:auto;cursor:pointer}
 .wg-letrero3d span.clic:hover{border-color:#fff;filter:brightness(1.25)}
-.wg-letrero3d.sel span{font-size:11.5px;border-width:1.5px}
+.wg-letrero3d.sel span{font-size:12.5px;border-width:1.5px}
 /* v2.9.457: ⛽ que baja en vivo mientras la unidad marcha (película del turno). */
 .wg-comb-vivo{font:800 11px/1.3 system-ui,-apple-system,sans-serif;padding:1px 6px;border-radius:999px;white-space:nowrap;
   background:rgba(6,14,22,.9);color:#c9f7d8;border:1.5px solid #2ecc71;box-shadow:0 1px 6px rgba(0,0,0,.6);pointer-events:none;
@@ -8304,6 +8304,22 @@ body.wg-maqueta #wg-hud,body.wg-maqueta #wg-tabs,body.wg-maqueta #wg-hud-marco{d
 .wg-tab.t-azul.on{background:linear-gradient(180deg,rgba(75,147,255,.40),rgba(75,147,255,.12));border-color:#4b93ff;color:#dbe9ff}
 .wg-tab.t-rojo.on{background:linear-gradient(180deg,rgba(255,82,82,.40),rgba(255,82,82,.12));border-color:#ff5252;color:#ffe0e0}
 .wg-tab.solo{cursor:default}
+
+/* v2.9.477 — 🎯 EL MODO DEL CLIC, A LA VISTA: con un arma elegida el clic apunta (no mueve); se ve al pie del mapa,
+   justo encima de la consola (arriba lo tapaban los avisos), y el cursor es una mira. «✖ SOLTAR» (o tocar otra vez
+   el arma, o M, o Esc) vuelve a MOVER. */
+#wg-modo{display:none}
+#screen-wargame.wg-full #wg-game.wg-hud-on.wg-modo-clic #wg-modo{display:flex;position:absolute;left:50%;transform:translateX(-50%);
+  bottom:calc(var(--hud-total) + 14px);z-index:1035;align-items:center;gap:10px;padding:5px 6px 5px 14px;border-radius:999px;
+  background:rgba(96,12,6,.93);border:1px solid #ff6b4a;box-shadow:0 0 0 3px rgba(255,90,50,.18),0 6px 22px rgba(0,0,0,.45);
+  color:#fff;font:700 12.5px/1.25 system-ui,-apple-system,sans-serif;white-space:nowrap;pointer-events:auto;max-width:calc(100% - 40px)}
+#wg-modo>span{overflow:hidden;text-overflow:ellipsis}
+#wg-modo b{color:#ffd9a0;letter-spacing:.3px}
+#wg-modo button{flex:0 0 auto;border:1px solid rgba(255,255,255,.55);background:rgba(255,255,255,.14);color:#fff;border-radius:999px;
+  padding:4px 11px;font:800 11px/1.2 system-ui,sans-serif;letter-spacing:.5px;cursor:pointer}
+#wg-modo button:hover{background:rgba(255,255,255,.28)}
+#wg-game.wg-modo-clic .leaflet-container,#wg-game.wg-modo-clic .leaflet-interactive,
+#wg-game.wg-modo-clic .maplibregl-canvas-container.maplibregl-interactive{cursor:crosshair!important}
 
 /* El marco de la lente: el árbitro no se olvida de que está mirando con los ojos de un bando. */
 #screen-wargame.wg-full #wg-game.wg-hud-on.hud-lente #wg-hud-marco{display:block;position:absolute;left:0;right:0;
@@ -8526,6 +8542,52 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
 .wg-sy-go{width:100%;height:38px;margin:10px 0 4px;border-radius:10px;cursor:pointer;font:900 13px/1 system-ui;letter-spacing:.4px;color:#fff;background:linear-gradient(180deg,#25c763,#117a3a);border:1px solid #a5f3c4}
 .wg-sy-go:disabled{opacity:.5;cursor:default}
 .wg-sy-t{margin:12px 0 2px;font:900 9.5px/1 system-ui;letter-spacing:1.1px;color:#8fa3b8}
+/* v2.9.478 — ⏱ la tabla como línea de tiempo: barras que terminan juntas en la línea H */
+.wg-s2vacio{font:600 12px/1.5 system-ui;color:#dce9f7}
+.wg-s2vacio ol{margin:8px 0 8px 18px;padding:0}
+.wg-s2vacio li{margin:3px 0}
+.wg-s2cab{margin:0 0 8px;padding:10px 11px;border-radius:11px;background:linear-gradient(180deg,rgba(232,160,40,.22),rgba(232,160,40,.07));border:1px solid rgba(232,160,40,.75)}
+.wg-s2cab .t{font:900 10px/1 system-ui;letter-spacing:1.2px;color:#ffc766}
+.wg-s2cab .h{margin-top:6px;font:900 22px/1 system-ui;color:#fff}
+.wg-s2cab .h span{font:700 11px/1 system-ui;color:#ffe3ad;margin-left:4px}
+.wg-s2cab .d{margin-top:6px;font:600 11.5px/1.4 system-ui;color:#ffe3ad}
+.wg-s2eje{position:relative;height:16px;margin:2px 38px 0 26px;font:900 9.5px/16px system-ui;letter-spacing:.6px;color:#8fa3b8}
+.wg-s2eje .o{position:absolute;left:0}
+.wg-s2eje .hx{position:absolute;transform:translateX(-50%);color:#ffc766;background:rgba(232,160,40,.25);border:1px solid rgba(232,160,40,.8);border-radius:5px;padding:0 5px;line-height:14px}
+.wg-s2f{padding:7px 4px 6px;border-top:1px solid rgba(140,210,255,.14)}
+.wg-s2f.manda{background:rgba(232,160,40,.07);border-radius:8px}
+.wg-s2f .c{display:flex;align-items:center;gap:6px}
+.wg-s2f .ic{flex:0 0 20px;text-align:center;font-size:14px;line-height:1}
+.wg-s2f .nm{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.2}
+.wg-s2f .nm b{font:900 12px/1.2 system-ui;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wg-s2f .nm i{font:600 10.5px/1.25 system-ui;font-style:normal;color:#9fb3c8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wg-s2f .est{flex:0 0 auto;font:800 10.5px/1.2 system-ui;color:#ffd28a}
+.wg-s2r{flex:0 0 auto;display:flex;align-items:center;gap:2px;background:rgba(0,0,0,.35);border:1px solid rgba(140,210,255,.28);border-radius:7px;padding:1px}
+.wg-s2r b{min-width:44px;text-align:center;font:900 10.5px/1 system-ui;color:#fff}
+.wg-s2r button{width:20px;height:20px;margin:0;padding:0;border:0;border-radius:5px;background:rgba(140,210,255,.16);color:#dce9f7;font:900 13px/1 system-ui;cursor:pointer}
+.wg-s2r button:hover{background:rgba(140,210,255,.34)}
+.wg-s2r.manda{border-color:rgba(232,160,40,.8);background:rgba(232,160,40,.2)}
+.wg-s2r.manda b{min-width:30px;padding:4px 0;color:#ffc766}
+.wg-s2b{flex:0 0 auto;width:26px;height:24px;margin:0;padding:0;display:flex;align-items:center;justify-content:center;border-radius:7px;cursor:pointer;font:900 11px/1 system-ui;color:#fff;border:1px solid transparent}
+.wg-s2b.play{background:#157a3c;border-color:#8ff3b6}
+.wg-s2b.tiro{background:#8a1d0c;border-color:#ffb199}
+.wg-s2b:hover{filter:brightness(1.3)}
+.wg-s2x{flex:0 0 auto;width:18px;height:18px;margin:0;padding:0;border-radius:50%;cursor:pointer;background:rgba(80,20,20,.9);border:1px solid rgba(255,120,120,.75);color:#ffd2d2;font:800 9px/1 system-ui}
+.wg-s2f .p{position:relative;height:12px;margin:6px 38px 2px 26px;border-radius:6px;background:rgba(140,210,255,.08)}
+.wg-s2f .p .hl{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:#ffc766;box-shadow:0 0 6px rgba(255,199,102,.8)}
+.wg-s2f .p .bar{position:absolute;top:2px;height:8px;border-radius:4px;background:linear-gradient(90deg,#3fae6a,#7cf0a8)}
+.wg-s2f .p .bar.manda{background:linear-gradient(90deg,#d98c1f,#ffcf6b)}
+.wg-s2f .p .bar.mal{background:linear-gradient(90deg,#b5481f,#ff8f5a)}
+.wg-s2f .p .tiro{position:absolute;top:-5px;transform:translateX(-50%);font-size:14px;line-height:1;font-style:normal;filter:drop-shadow(0 0 4px rgba(255,90,40,.9))}
+.wg-s2f .t{margin:2px 38px 0 26px;font:600 10.5px/1.3 system-ui;color:#c9d8e8}
+.wg-s2f .t b{color:#fff}
+.wg-s2f .av{margin:3px 0 0 26px;font:700 10.5px/1.3 system-ui;color:#ffb454}
+.wg-s2f.lanz .c{opacity:.95}
+.wg-s2nota{font:600 10.5px/1.4 system-ui;color:#8fa3b8}
+.wg-s2pie{position:sticky;bottom:-14px;z-index:3;margin:0 -12px;padding:4px 12px 10px;
+  background:linear-gradient(180deg,rgba(10,15,21,0),rgba(10,15,21,.97) 26%)}
+.wg-s2pie .wg-sy-go{margin:6px 0 0;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.wg-s2nota b{color:#ffd28a}
 
 /* La bitácora (la misma de siempre, ahora como columna de la consola) */
 #wg-hud-bitcol{background:none;border:0;border-radius:0;overflow:visible}
@@ -8675,6 +8737,8 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
       <div id="wg-ayuda"></div>
       <!-- v2.9.452 — el marco de la lente del árbitro, la ayuda emergente y la entrada. -->
       <div id="wg-hud-marco"></div>
+      <!-- v2.9.477 — 🎯 en qué modo está el clic (arma, romper contacto, apoyar) y cómo se sale -->
+      <div id="wg-modo"></div>
       <div id="wg-hud-tip"></div>
       <div id="wg-hud-splash"></div>
       <div id="wg-hud-pop"></div>
@@ -30811,6 +30875,7 @@ function wgUnirse(btn){
 async function wgAbrir(partidaId, clave){
   WG.partidaId=partidaId; WG.clave=clave||''; WG.ordenes={}; WG.sel=null;
   WG.tiros={}; WG.tirosCola=[]; WG.cadencia={}; WG.sinc={ rel:{} }; WG.gatillo=false;   // v2.9.463 · v2.9.465
+  WG._combates=null;   // v2.9.479: la película de los combates no pasa de una partida a otra
   document.getElementById('wg-lobby').style.display='none';
   document.getElementById('wg-game').style.display='';
   await ensureLeaflet();
@@ -38315,14 +38380,72 @@ function _wgHumoCuadro(ahora){
 const WG_CONTACTO_KM = 3;      // el radio del combate de encuentro del motor (`rango_combate_km`)
 const WG_CONTACTO_MAX = 12;    // pares a la vez, los más cercanos primero
 const WG_TRAZA_COL = { azul:'255,214,110', rojo:'255,92,58' };
-function _wgArmasDeCercaCli(u){
+function _wgArmasDeCercaCli(u, sinMun){
   try{
+    // v2.9.479: en la película de un combate YA resuelto no se mira la munición (el motor ya la gastó).
     return _wgArmamento(u).filter(a=>a && !a.ingenieria && a.alcance>0 && (!a.indirecto || /^mortero/.test(a.id))
-      && _wgMunicion(u,a.id)>0);
+      && (sinMun || _wgMunicion(u,a.id)>0));
   }catch(_e){ return []; }
 }
+// ============================================================
+// v2.9.479 — ⚔️ SE FILMA EL COMBATE QUE SE DECIDIÓ, Y NADA MÁS.
+// Sergio (07-11-2026): «hay unidades que se están disparando infinitamente: eso no debe durar más de
+// 1 minuto, ya debe salir el resultado en la bitácora y una debe ser destruida si corresponde».
+// Hasta acá todo par a 3 km o menos se tiroteaba en pantalla mientras corriera el reloj, aunque el
+// motor no los hiciera pelear (una vez por jornada): era un tiroteo sin fin y sin resultado.
+// Ahora el motor decide el encuentro en el acto (`encuentros` del paso) y la pantalla filma SÓLO ese
+// combate unos segundos: abre el que atacó, contesta el otro si tiene con qué, el que pierde se va
+// callando y el destruido revienta y queda humeando. El parte sale en la bitácora en ese mismo paso.
+// Los que quedan fijados, quedan quietos: no se tirotean solos.
+// ============================================================
+const WG_COMBATE_PELI_MS = 6000, WG_COMBATE_ASALTO_MS = 2000;   // 8 s un asalto, 12 s tres
+function _wgCombatesRegistrar(lista){
+  if(!Array.isArray(lista) || !lista.length) return;
+  const ahora=performance.now();
+  WG._combates=WG._combates||new Map();
+  for(const c of lista){
+    if(!c || c.a==null || c.b==null) continue;
+    const n=Math.max(1,Math.min(3,Number(c.n)||1));
+    WG._combates.set(String(c.a)+'|'+String(c.b), { c, t0:ahora, fin:ahora+WG_COMBATE_PELI_MS+WG_COMBATE_ASALTO_MS*n });
+    // Sobre la ficha, lo que pasó (si esta pantalla la tiene).
+    try{
+      if(c.destruida!=null) _wgBurbuja(c.destruida,'💥 DESTRUIDA',6000);
+      if(c.gana!=null) _wgBurbuja(c.gana, c.destruida!=null?'⚔️ Venció · sigue':'⚔️ Se impuso', 4200);
+      else { _wgBurbuja(c.a,'⚔️ Fijados',4200); _wgBurbuja(c.b,'⚔️ Fijados',4200); }
+    }catch(_e){}
+  }
+  try{ _wgHumoArrancar(); }catch(_e){}
+}
 // Los pares en contacto que se ven en esta pantalla (se rehace con las fuentes del humo, cada segundo).
+// v2.9.479: son los COMBATES que el motor decidió en los últimos segundos (ver arriba).
 function _wgHumoContactos(uds){
+  const H=_wgHumo();
+  if(!H.pares) H.pares=new Map();
+  if(!_wgCorre() || WG.replayando){ H.pares.clear(); return; }
+  const C=WG._combates;
+  if(!C || !C.size){ H.pares.clear(); return; }
+  const ahoraP=performance.now();
+  const porId=new Map(((WG.estado&&WG.estado.unidades)||[]).map(u=>[String(u.id),u]));
+  const ven=new Set((uds||[]).map(u=>String(u.id)));
+  const lado=_wgBandoLente() || ((WG.soy==='azul'||WG.soy==='rojo')?WG.soy:null);
+  const nuevo=new Map();
+  for(const [k,v] of C){
+    if(ahoraP>v.fin){ C.delete(k); continue; }
+    const c=v.c, A=porId.get(String(c.a)), B=porId.get(String(c.b));
+    // Lo que esta pantalla puede ver: su propia unidad peleando, o los dos a la vista (el árbitro sin lente, todo).
+    if(lado && !(c.ba===lado || c.bb===lado) && !(ven.has(String(c.a)) && ven.has(String(c.b)))) continue;
+    const pa=A?[Number(A.lng),Number(A.lat)]:c.pa, pb=B?[Number(B.lng),Number(B.lat)]:c.pb;
+    if(!pa || !pb || !Number.isFinite(pa[0]) || !Number.isFinite(pb[0])) continue;
+    const a=Object.assign({}, A||{ id:c.a, bando:c.ba }, { lng:pa[0], lat:pa[1] });
+    const b=Object.assign({}, B||{ id:c.b, bando:c.bb }, { lng:pb[0], lat:pb[1] });
+    const prev=H.pares.get(k);
+    nuevo.set(k, Object.assign(prev||{ prox:H.ahora+120+Math.random()*500 }, { a, b, d:_wgHav(pa,pb), v }));
+  }
+  H.pares=nuevo;
+}
+// v2.9.476 (lo que hacía antes): todo par enemigo a 3 km o menos se tiroteaba mientras corriera el reloj.
+// Queda por si hace falta volver; ya no se llama (era el «tiroteo infinito»).
+function _wgHumoContactosCerca(uds){
   const H=_wgHumo();
   if(!H.pares) H.pares=new Map();
   if(!_wgCorre() || WG.replayando){ H.pares.clear(); return; }
@@ -38347,8 +38470,12 @@ function _wgHumoContactos(uds){
   H.pares=nuevo;
 }
 // Una ráfaga de `quien` sobre `blanco`, desde `t0` (ms de la página).
-function _wgHumoRafaga(quien, blanco, d, t0){
-  const H=_wgHumo(), armas=_wgArmasDeCercaCli(quien);
+// v2.9.479: `sinMun` = la película de un combate ya resuelto (no mira munición; si de esa ficha no se sabe
+// el armamento —niebla—, tira con lo de siempre).
+function _wgHumoRafaga(quien, blanco, d, t0, sinMun){
+  const H=_wgHumo();
+  let armas=_wgArmasDeCercaCli(quien, sinMun);
+  if(!armas.length && sinMun) armas=[WG_ARMAS.ametralladora||WG_ARMAS.fusil].filter(Boolean);
   if(!armas.length) return 0;
   const R=Math.random;
   // Las de alcance: el mortero tira por elevación sólo si el blanco no está encima.
@@ -38375,6 +38502,20 @@ function _wgHumoTirotear(ahora){
   if(!H.pares || !H.pares.size || H.tz.length>90) return;
   for(const v of H.pares.values()){
     if(ahora<v.prox) continue;
+    // v2.9.479 — LA PELÍCULA DE UN COMBATE DECIDIDO: abre el que atacó; el otro contesta si tenía con qué;
+    // el que pierde se va callando y el destruido deja de tirar enseguida.
+    if(v.v && v.v.c){
+      const c=v.v.c, k=Math.max(0,Math.min(1,(performance.now()-v.v.t0)/Math.max(1,v.v.fin-v.v.t0)));
+      v.prox=ahora+900+Math.random()*1500;
+      const pierde=c.destruida!=null ? String(c.destruida) : (c.gana!=null ? (String(c.gana)===String(c.a)?String(c.b):String(c.a)) : null);
+      const calla=(x)=>pierde===String(x.id) && k>(c.destruida!=null?0.3:0.75);
+      let p=v.a, q=v.b;
+      if(calla(p)){ [p,q]=[q,p]; }
+      const n=calla(p) ? 0 : _wgHumoRafaga(p, q, v.d, ahora, true);
+      if((c.contesta!==false) && !calla(q) && Math.random()<.8) _wgHumoRafaga(q, p, v.d, ahora+260+Math.random()*480, true);
+      else if(!n) continue;
+      continue;
+    }
     v.prox=ahora+1700+Math.random()*2800;
     const a=v.a, b=v.b, nca=_wgEsNoCombatienteCli(a), ncb=_wgEsNoCombatienteCli(b);
     // Abre el fuego el de combate (si los dos lo son, más seguido el más fuerte); el apoyo sólo contesta.
@@ -39095,7 +39236,20 @@ function _wg3dDatos(){
   const map=WG.map3d; if(!map||!map.getSource) return;
   if(WG.replayando && _wgAnimando()){ WG._renderPend=true; return; }   // v2.9.430
   try{
-    const s1=map.getSource('wg-terr'); if(s1) s1.setData(_wg3dTerrenoFC());
+    // ============================================================
+    // v2.9.480 — EL TERRENO NO SE VUELVE A SUBIR SI NO CAMBIÓ. Sergio (07-11-2026): «lo quiero bien
+    // fluido». Cada paso del reloj volvía a mandar la carta entera (≈1,4 MB: caminos, curvas, ríos) al
+    // mapa 3D, que la rehacía de cero: en el laboratorio eran 36 trabones en 40 s, de hasta 0,7 s cada
+    // uno. Ahora se sube sólo si cambió la carta (WG.terreno es otra: obras, plan de barreras, recarga)
+    // o los calcos encendidos. Medido: 4 trabones en 40 s y 59 cuadros por segundo.
+    // ============================================================
+    const s1=map.getSource('wg-terr');
+    if(s1){
+      const fT=JSON.stringify(WG.calcos||{});
+      if(WG._t3Ref!==WG.terreno || WG._t3Src!==s1 || WG._t3Firma!==fT){
+        s1.setData(_wg3dTerrenoFC()); WG._t3Ref=WG.terreno; WG._t3Src=s1; WG._t3Firma=fT;
+      }
+    }
     _wg3dBarreras();   // v2.9.439: el plan de barreras con su símbolo
     // v2.9.218: la MISMA lista que pinta el 2D. Si mañana se agrega una figura
     // nueva a `_wgDibujo()`, aparece acá sola — ése era el punto del cambio.
@@ -39168,7 +39322,7 @@ function _wg3dDatos(){
   for(const u of _wgUnidadesVisibles()){
     // v2.9.231 — LA FICHA TIENE PORTE SEGÚN SU ESCALÓN. Una división no puede
     // verse igual que una sección: el tamaño es información, no decoración.
-    const sim=_wgSimboloUnidad(u,false), F=0.40*_wgPorte(u);   // v2.9.261: más chicas
+    const sim=_wgSimboloUnidad(u,false), F=WG_FICHA_3D*_wgPorte(u);   // v2.9.261: más chicas · v2.9.480: +10 %
     const img=document.createElement('img');
     img.src=sim.url; img.style.width=(sim.w*F)+'px'; img.style.height=(sim.h*F)+'px';
     // v2.9.203: las fichas del 3D SÍ reciben clic (seleccionar / atacar), igual
@@ -39838,7 +39992,11 @@ function wgModoApoyar(){
 function wgElegirArma(id){
   WG.gatillo=false;               // v2.9.463: tocar el ícono apunta; el gatillo dispara
   if(id) WG.modoReplegar=false;   // v2.9.225: elegir arma cancela el repliegue
-  WG.armaSel = (WG.armaSel===id)?null:id;   // volver a tocarlo lo deselecciona
+  const soltar=!!id && WG.armaSel===id;
+  WG.armaSel = soltar?null:id;    // volver a tocarlo lo deselecciona
+  // v2.9.477: se dice qué hace el próximo clic.
+  if(soltar) _wgAviso('🚶 <b>Arma suelta.</b> El clic en la carta vuelve a trazar el desplazamiento.', 2400);
+  else if(id && WG_ARMAS[id]) _wgAviso(`🎯 <b>${_rgEsc(WG_ARMAS[id].nom)}</b> elegida: tocá el blanco (un enemigo, un contacto o un punto). Para volver a mover, tocala otra vez.`, 3200);
   _wgRender();
 }
 // v2.9.217 — LA ORDEN FUERA DE ALCANCE YA NO SE BLOQUEA.
@@ -43776,7 +43934,7 @@ function _wgDibujo(){
   // v2.9.463: los tiros apuntados y los de la cola se dibujan como los fuegos de siempre (pero no son la orden de la unidad).
   const _tirosD=[];
   for(const [uid,m] of Object.entries(WG.tiros||{})) for(const [arma,t] of Object.entries(m||{})) _tirosD.push([uid,Object.assign({},t,{ tipo:t.objetivo_id!=null?'atacar':'fuego', arma, _arma:arma })]);
-  for(const q of (WG.tirosCola||[])) _tirosD.push([String(q.unidad_id),{ tipo:q.objetivo_id!=null?'atacar':'fuego', objetivo_id:q.objetivo_id, destino_lng:q.lng, destino_lat:q.lat, arma:q.arma, mision:q.mision, _arma:q.arma, _cola:q }]);
+  for(const q of (WG.tirosCola||[])) _tirosD.push([String(q.unidad_id),{ tipo:(q.objetivo_id!=null&&!q.area)?'atacar':'fuego', objetivo_id:q.area?null:q.objetivo_id, destino_lng:q.lng, destino_lat:q.lat, arma:q.arma, mision:q.mision, _arma:q.arma, _cola:q }]);   // v2.9.477: el de área, al punto
   for(const [uid,o] of [...Object.entries(WG.ordenes), ..._tirosD]){
     _marcar(); _ini=D.length; _uidPrev=String(uid); _oPrev=o;
     const u=uById[uid]; if(!u) continue;
@@ -45050,7 +45208,7 @@ function _wgPisoFC(){
     if(!Number.isFinite(u.lng)||!Number.isFinite(u.lat)) continue;
     feats.push({type:'Feature',geometry:{type:'Point',coordinates:[u.lng,u.lat]},
       properties:{ _col: u.estado==='fuera_combate' ? '#7c8894' : (WG_COL[u.bando]||'#888'),
-        _r: 13*_wgPorte(u) }});
+        _r: 13*1.1*_wgPorte(u) }});   // v2.9.480: la huella acompaña a la ficha (+10 %)
   }
   return {type:'FeatureCollection',features:feats};
 }
@@ -45351,6 +45509,10 @@ const WG_PORTE={ equipo:0.72, escuadra:0.78, seccion:0.86, compania:0.94,
 // v2.9.349 — EL CONVOY SE VE. Va como «sección», así que la ficha quedaba de
 // unos 30 px y la silueta del camión no se leía: se agranda un 55 % para que el
 // cisterna se distinga del camión de municiones sin tener que acercarse.
+// v2.9.480 — 🪖 LAS FICHAS, UN 10 % MÁS GRANDES. Sergio (07-11-2026): «trata de hacer las fichas un 10 % más
+// grandes, están muy chicas». 3D: 0,40 → 0,44; 2D: 0,46 → 0,506. Todo lo que cuelga de la ficha (rótulo,
+// letrero, huella) sale de este mismo factor.
+const WG_FICHA_3D = 0.44, WG_FICHA_2D = 0.506;
 function _wgPorte(u){
   const base = WG_PORTE[u&&u.escalon] || 1.0;
   return (u && u.arma==='convoy') ? base*1.55 : base;
@@ -45565,7 +45727,7 @@ function _wgRender(){
     // v2.9.261: más chicas, para que se lea el terreno.
     // v2.9.353: el VEHÍCULO va más grande — es una silueta con detalle (llantas,
     // cabina, carga) y a 27 px no se distinguía un cisterna de una ambulancia.
-    const F = 0.46 * (sim.veh ? 1.55 : 1);
+    const F = WG_FICHA_2D * (sim.veh ? 1.55 : 1);   // v2.9.480: +10 % (era 0,46)
     // v2.9.323 — LA FICHA VA ENVUELTA. Era un `L.icon` (un `<img>` pelado) y por
     // eso el replay no podía hacerla caminar: el `transform` de ese elemento lo
     // escribe Leaflet para colocarla en el mapa, así que el cabeceo de la marcha
@@ -45809,6 +45971,28 @@ function _wgPuedeEmpenar(u){
     +'o batí el <b>área</b> con un clic en el mapa.', 7000);
   return false;
 }
+// v2.9.477 — lo mismo que pregunta `_wgPuedeEmpenar`, sin avisos: ¿se lo puede empeñar (está identificado)?
+function _wgEmpenable(u){
+  if(!u) return false;
+  const obs=(WG.soy==='arbitro') ? _wgBandoLente() : WG.soy;
+  if(!obs || u.bando===obs) return true;
+  if(_wgNivelInt(obs,u)>=WG_INT_IDENT) return true;
+  const marca=((WG.estado&&WG.estado.inteligencia)||[]).find(x=>x.bando===obs && String(x.unidad_id)===String(u.id));
+  return !!(marca && _wgIntEnvejecido(marca.nivel, marca.turno)>=WG_INT_IDENT);
+}
+// v2.9.477 — 🎯 FUEGO DE ÁREA SOBRE UN CONTACTO. Con el arma elegida (o la de mayor alcance que tenga con
+// qué), se apunta a DONDE ESTÁ el contacto. Si lo ve el sensor ahora, el motor lo sigue hasta que sale el
+// tiro; si es una marca vieja de la carta, el tiro cae en ese punto (y si ya no hay nadie, lo dice).
+function _wgApuntarContacto(tirador, c){
+  if(!tirador || !c) return;
+  const arma=WG.armaSel||_wgArmaElegible(tirador);
+  if(!arma){ _wgAviso(`🚫 <b>${_rgEsc(tirador.designacion||'La unidad')}</b> no tiene con qué tirar.`, 3000); return; }
+  const a=WG_ARMAS[arma];
+  _wgAvisarAlcance(tirador, c, arma);
+  _wgApuntar(tirador, arma, { destino_lng:Number(c.lng), destino_lat:Number(c.lat),
+    mision:(a&&a.indirecto)?(WG.misionSel||'destruccion'):'destruccion',
+    area:1, contacto:1, sigue:c._reportado?null:c.id });
+}
 function _wgUnidadClick(u){
   // v2.9.455 — DURANTE LA PELÍCULA DEL TURNO SE PUEDE ELEGIR (y ver su ficha
   // abajo), pero no ordenar: las fichas todavía no llegaron a su lugar nuevo.
@@ -45853,7 +46037,11 @@ function _wgUnidadClick(u){
   const selU=_wgUnidadPorId(WG.sel);
   if(selU && String(selU.id)!==String(u.id) && selU.bando!==u.bando){
     if(!_wgPuedeOrdenar()) return;
-    if(!_wgPuedeEmpenar(u)) return;        // v2.9.284: hay que reconocerlo antes
+    // v2.9.477 — 🎯 EL CONTACTO SIN IDENTIFICAR TAMBIÉN SE BATE. Sergio (07-11-2026): «no sé por qué no
+    // está funcionando apuntar a las unidades». Sus blancos eran «CONTACTO ·T55»: marcas sin identificar,
+    // y el clic decía «no se empeña» y no hacía nada. Sobre un contacto no se empeña la UNIDAD, pero el
+    // arma sí lo bate: fuego de ÁREA sobre donde está (ver `_wgApuntarContacto`).
+    if(!_wgEmpenable(u)){ _wgApuntarContacto(selU,u); return; }
     _wgAvisarAlcance(selU,u,WG.armaSel);   // v2.9.217: avisa, pero deja ordenar
     _wgApuntarA(selU,u);                   // v2.9.463: apunta; el tiro sale con el gatillo o la sincronización
     return;
@@ -45871,10 +46059,11 @@ function _wgUnidadClick(u){
   // clic en enemigo con una unidad mía seleccionada → orden de atacar
   if(WG.sel){
     if(!_wgPuedeOrdenar()) return;
-    if(!_wgPuedeEmpenar(u)) return;        // v2.9.284: hay que reconocerlo antes
+    const _t=_wgUnidadPorId(WG.sel); if(!_t) return;
+    if(!_wgEmpenable(u)){ _wgApuntarContacto(_t,u); return; }   // v2.9.477
     // v2.9.217: se avisa SU alcance (no el genérico), pero la orden se manda igual.
-    _wgAvisarAlcance(_wgUnidadPorId(WG.sel),u,WG.armaSel);
-    _wgApuntarA(_wgUnidadPorId(WG.sel),u);   // v2.9.463
+    _wgAvisarAlcance(_t,u,WG.armaSel);
+    _wgApuntarA(_t,u);   // v2.9.463
   }
 }
 function _wgMapClick(ev){
@@ -46049,7 +46238,7 @@ function _wgMatrizFilas(){
   }
   for(const q of (WG.tirosCola||[])){
     const u=uById[q.unidad_id]; if(!mio(u)) continue;
-    const a=WG_ARMAS[q.arma], t={ objetivo_id:q.objetivo_id, destino_lng:q.lng, destino_lat:q.lat };
+    const a=WG_ARMAS[q.arma], t={ objetivo_id:q.area?null:q.objetivo_id, destino_lng:q.lng, destino_lat:q.lat, area:q.area };
     filas.push({ k:'q'+q.id, uid:String(q.unidad_id), id:q.unidad_id, u, t, tiro:true, arma:q.arma, plan:false, cola:q, mov:false, dur:0, km:0, sale:Number(q.h)||0,
       espera:(Number(q.h)||0)>ahora+0.01, nom:_rgEsc(u.designacion||('unidad '+q.unidad_id)), tarea:(a?a.nom:q.arma)+' → '+_wgTiroBlanco(t,uById) });
   }
@@ -46096,6 +46285,7 @@ function _wgOrdenSale(o){
   return (Number(o.turno)-1)*_wgHorasTurno()+Number(o.inicio);
 }
 function _wgTiroBlanco(t,uById){
+  if(t.contacto || t.area) return 'el CONTACTO';   // v2.9.477
   if(t.objetivo_id!=null){ const b=uById[t.objetivo_id]; return _rgEsc((b&&b.designacion)||'el blanco'); }
   const m=t.mision&&WG_MISIONES[t.mision];
   return m&&t.mision!=='destruccion'?m.nom.toLowerCase():'un punto';
@@ -46124,12 +46314,17 @@ function _wgApuntar(u, armaId, blanco){
   const t=Object.assign({ tipo:blanco.objetivo_id!=null?'atacar':'fuego', tarea:(_wgTirosDe(id)[armaId]||{}).tarea||null, proposito:(_wgTirosDe(id)[armaId]||{}).proposito||null }, blanco);
   ((WG.tiros||(WG.tiros={}))[id]||(WG.tiros[id]={}))[armaId]=t;
   WG.gatillo=false;
-  if(ya){ WG.armaSel=null; _wgTirar(u,armaId,t); }
-  else _wgAviso(`🎯 <b>${_rgEsc(a?a.nom:armaId)}</b> apuntada. Apretá <b>DISPARAR</b> abajo del arma, o dejala en la ⏱ sincronización.`, 3000);
+  // v2.9.477: el arma queda ELEGIDA (también después del gatillo) hasta que se la vuelve a tocar: así lo
+  // usa Sergio — «le doy click a esa misma arma y la suelto y puedo trazar desplazamientos».
+  if(ya) _wgTirar(u,armaId,t);
+  else _wgAviso(blanco.contacto
+    ? `🎯 <b>${_rgEsc(a?a.nom:armaId)}</b> apuntada al <b>CONTACTO</b>: fuego de ÁREA sobre donde está (sin identificarlo no se empeña la unidad). Apretá <b>FUEGO</b> abajo del arma.`
+    : `🎯 <b>${_rgEsc(a?a.nom:armaId)}</b> apuntada. Apretá <b>FUEGO</b> abajo del arma, o dejala en la ⏱ sincronización.`, 3600);
   _wgPlanTocado(); _wgRender(); if(WG.map3d) _wg3dDatos();
 }
 function _wgTiroEnvio(uid,arma,t,demora){
-  return { unidad_id:Number(uid), arma, objetivo_id:t.objetivo_id!=null?t.objetivo_id:null, lng:t.destino_lng!=null?t.destino_lng:null, lat:t.destino_lat!=null?t.destino_lat:null,
+  return { unidad_id:Number(uid), arma, objetivo_id:t.objetivo_id!=null?t.objetivo_id:(t.sigue!=null?t.sigue:null), lng:t.destino_lng!=null?t.destino_lng:null, lat:t.destino_lat!=null?t.destino_lat:null,
+    area:t.area?1:null,   // v2.9.477: fuego de área sobre un contacto (el id, si el sensor lo ve, para seguirlo)
     mision:t.mision||null, tarea:t.tarea||null, proposito:t.proposito||null, demora:demora||0 };
 }
 function _wgSinMotor(e){ return /no reconocida|Necesitás el enlace/i.test(String(e||'')); }
@@ -46172,6 +46367,9 @@ async function _wgTirar(u, armaId, t){
   _wgCanalOrden([],[],r.tiros||[]);
   _wgPlanTocado();
   _wgBurbuja(u.id, _wgCorre()?`🔥 ¡Fuego! ${a?a.nom:''}`:'🔥 Tira cuando corra el tiempo', 2400);
+  // v2.9.477: el arma sigue elegida; se dice cómo volver a mover.
+  if(WG.armaSel===armaId && String(WG.sel)===id)
+    _wgAviso(`🔥 <b>${_rgEsc(a?a.nom:armaId)}</b>: ¡fuego${_wgCorre()?'':' (sale cuando corra el tiempo)'}! Para mover la unidad, tocá <b>otra vez el arma</b> (o ✖ SOLTAR).`, 3600);
   _wgRender(); if(WG.map3d) _wg3dDatos();
 }
 // ✖ de un tiro: el apuntado se borra acá; el que esperaba en la cola, también en el servidor.
@@ -46298,47 +46496,95 @@ function wgSincRel(k,v){
   (WG.sinc||(WG.sinc={rel:{}})).rel[k]=Number(v)||0;
   wgPanelMatriz();
 }
+// ============================================================
+// v2.9.478 — ⏱ LA TABLA, COMO UNA LÍNEA DE TIEMPO: TODOS LLEGAN A LA HORA H.
+// Sergio (07-11-2026): «es bastante confuso… ya te dije, automáticamente se elige el tiempo que más
+// tarden los desplazamientos… esta tabla para sincronizar movimientos y fuegos debe ser más clara y
+// fácil de usar». La cuenta era la misma; lo que confundía era leerla: renglones con «TARDA»,
+// «LLEGA/TIRA», una lista desplegable de horas en cada uno y tres botones distintos.
+// Ahora se VE: cada movimiento es una barra que termina en la línea H (la pone sola la más lenta, que
+// arranca ya), cada fuego un 🔥 sobre esa línea. No hay nada que elegir para que llegue todo junto: se
+// aprieta ▶ EJECUTAR. Si se quiere, − / + corre una llegada o un fuego de a 15 minutos.
+// ============================================================
 function _wgMatrizHTML(){
   const filas=_wgMatrizFilas();
   const { H, manda }=_wgSincCalculo(filas);
-  if(!filas.length) return `<div class="rg-meta" style="line-height:1.5">`
-    +`Todavía no hay nada planificado.<br>Tocá una unidad y marcá a dónde va, o apuntá un arma y tocá el blanco: la tabla se arma sola. `
-    +`Arriba queda <b>la que más tarda</b>; en base a ésa se sincronizan los fuegos y los demás movimientos.</div>`;
+  if(!filas.length) return `<div class="wg-s2vacio"><b>Todavía no hay nada planificado.</b>`
+    +`<ol><li>Tocá una unidad y marcá en la carta <b>a dónde va</b>. Repetí con las demás.</li>`
+    +`<li>Para un fuego: elegí el <b>arma</b> y tocá el <b>blanco</b>.</li>`
+    +`<li>Volvé acá y apretá <b>▶ EJECUTAR</b>.</li></ol>`
+    +`La tabla se arma sola: la que <b>más tarda</b> marca la hora <b>H</b> y todo llega junto a esa hora.</div>`;
   const planes=filas.filter(f=>f.plan), lanzadas=filas.filter(f=>!f.plan);
-  // Arriba la que más tarda; después las demás, de la más lenta a la más rápida; al final los fuegos.
-  planes.sort((a,b)=>(b===manda)-(a===manda)||b.dur-a.dur||(Number(b.mov)-Number(a.mov)));
+  // Arriba la que más tarda; después los movimientos de la más lenta a la más rápida; al final los fuegos.
+  planes.sort((a,b)=>(b===manda)-(a===manda)||(Number(b.mov)-Number(a.mov))||b.dur-a.dur);
+  const km=(f)=>f.km?` · ${f.km.toFixed(1).replace('.',',')} km`:'';
   const celdaX=(f)=>f.tiro?`wgAnularTiro('${f.uid}','${f.arma}',event)`:`wgAnularOrden('${f.uid}',event)`;
-  const accion=(f)=>f.tiro
-    ? `<button class="wg-sy-b tiro" onclick="wgGatillo('${f.uid}','${f.arma}',event)" title="Dispara ahora, sola">🎯</button>`
-    : `<button class="wg-sy-b play" onclick="wgPlayUnidad('${f.uid}',event)" title="Sale ahora, sola">▶</button>`;
-  const aviso=(f)=>f.imposible?`<span class="m av">🛑 ${_rgEsc(f.motivo||'no llega')}</span>`
-    : (f.tiro&&f.alcanza===false?`<span class="m av">🔥 fuera de alcance: tira corto</span>`:'')
-    + (f.mov&&f.tarde?`<span class="m av">⏱ no llega a tiempo: llega ${_wgHMin(f.llega)} después de lanzar</span>`:'');
-  const fila=(f)=>`<div class="wg-sy-f">`
-    +`<div><b>${f.nom}</b><span class="m">${f.tarea}${f.km?` · ${f.km.toFixed(1).replace('.',',')} km`:''}</span>${aviso(f)}</div>`
-    +`<div>${f.mov?_wgHoras(f.dur):'—'}</div>`
-    +`<div><select onchange="wgSincRel('${f.k}',this.value)" title="${f.mov?'A qué hora llega':'A qué hora tira'}, respecto de H">${_wgSincOpciones(f,H)}</select>`
-    +`<span class="m">${f.mov?'sale':'tira'} +${_wgHMin(f.arranca)}</span></div>`
-    +`<div>${accion(f)}</div><div><button class="wg-sy-x" onclick="${celdaX(f)}" title="Borrar del plan">✖</button></div></div>`;
-  const resto=planes.filter(f=>f!==manda);
+  const solo=(f)=>f.tiro
+    ? `<button class="wg-s2b tiro" onclick="wgGatillo('${f.uid}','${f.arma}',event)" data-tip="${_rgEsc('FUEGO YA|Tira ahora, sola, sin esperar a las demás.')}">🔥</button>`
+    : `<button class="wg-s2b play" onclick="wgPlayUnidad('${f.uid}',event)" data-tip="${_rgEsc('SALE YA|Sale ahora, sola, sin esperar a las demás.')}">▶</button>`;
+  const aviso=(f)=>(f.imposible?`<div class="av">🛑 ${_rgEsc(f.motivo||'no llega')}</div>`:'')
+    + (f.tiro&&f.alcanza===false?`<div class="av">🔥 fuera de alcance: va a tirar corto</div>`:'')
+    + (f.mov&&f.tarde?`<div class="av">⏱ no llega a esa hora: sale ya y llega ${_wgHMin(f.llega)} después de lanzar</div>`:'');
+  // La escala: de «lanzar» a lo último que pasa.
+  let fin=Math.max(H, 0.25);
+  for(const f of planes) fin=Math.max(fin, f.mov?(f.llega||0):(f.arranca||0));
+  const pc=(h)=>Math.max(0,Math.min(100,100*(Number(h)||0)/fin));
+  const pH=pc(H);
+  const ctl=(f)=>{
+    if(f===manda) return `<span class="wg-s2r manda" data-tip="${_rgEsc('MARCA LA HORA H|Es la que más tarda: sale apenas se lanza y su llegada es la hora H de todos.')}"><b>H</b></span>`;
+    return `<span class="wg-s2r"><button onclick="wgSincPaso('${f.k}',-1)" data-tip="${_rgEsc((f.mov?'LLEGA':'TIRA')+' 15 MIN ANTES|Respecto de la hora H.')}">−</button>`
+      +`<b>${_wgSincRelTxt(f.rel||0)}</b>`
+      +`<button onclick="wgSincPaso('${f.k}',1)" data-tip="${_rgEsc((f.mov?'LLEGA':'TIRA')+' 15 MIN DESPUÉS|Respecto de la hora H.')}">+</button></span>`;
+  };
+  const fila=(f)=>{
+    const ic=f.tiro?'🔥':(_wgEsConvoy(f.u)?'🚚':(f.o&&f.o.tipo==='replegar'?'↩️':(f.o&&f.o.tipo==='zapa'?'🚧':'🚶')));
+    const cuando=f.mov
+      ? (f===manda ? `sale <b>YA</b> · tarda ${_wgHoras(f.dur)} · llega <b>H</b>`
+        : `sale <b>${f.arranca>0.01?'+'+_wgHMin(f.arranca):'YA'}</b> · tarda ${_wgHoras(f.dur)} · llega <b>${_wgSincRelTxt(f.rel||0)}</b>`)
+      : `tira en <b>${_wgSincRelTxt(f.rel||0)}</b>${H>0.01||f.rel?` (+${_wgHMin(f.arranca)} de lanzar)`:' (al lanzar)'}`;
+    const barra=f.mov
+      ? `<i class="bar${f===manda?' manda':''}${f.tarde||f.imposible?' mal':''}" style="left:${pc(f.arranca).toFixed(1)}%;width:${Math.max(1.5,pc(f.llega)-pc(f.arranca)).toFixed(1)}%"></i>`
+      : `<i class="tiro" style="left:${pc(f.arranca).toFixed(1)}%">🔥</i>`;
+    return `<div class="wg-s2f${f===manda?' manda':''}${f.tiro?' fuego':''}">`
+      +`<div class="c"><span class="ic">${ic}</span><span class="nm"><b>${f.nom}</b><i>${f.tarea}${km(f)}</i></span>`
+      +ctl(f)+solo(f)+`<button class="wg-s2x" onclick="${celdaX(f)}" data-tip="${_rgEsc('SACAR DEL PLAN|La saca de la tabla (no se lanza).')}">✖</button></div>`
+      +`<div class="p"><i class="hl" style="left:${pH.toFixed(1)}%"></i>${barra}</div>`
+      +`<div class="t">${cuando}</div>${aviso(f)}</div>`;
+  };
   const ahora=_wgHoraJuego();
-  const enCurso=(f)=>`<div class="wg-sy-f" style="grid-template-columns:minmax(0,1fr) 92px 18px">`
-    +`<div><b>${f.nom}</b><span class="m">${f.tarea}</span></div>`
-    +`<div>${f.espera?`⏳ ${f.tiro?'tira':'sale'} en ${_wgHMin((f.sale||0)-ahora)}`:(f.cola?'🔥 sale ya':(f.ordenFuego?'🔥 tirando':'🚶 en marcha'))}</div>`
-    +`<div><button class="wg-sy-x" onclick="${celdaX(f)}" title="Anular">✖</button></div></div>`;
+  const enCurso=(f)=>`<div class="wg-s2f lanz"><div class="c"><span class="ic">${f.tiro||f.ordenFuego?'🔥':'🚶'}</span>`
+    +`<span class="nm"><b>${f.nom}</b><i>${f.tarea}</i></span>`
+    +`<span class="est">${f.espera?`⏳ ${f.tiro?'tira':'sale'} en ${_wgHMin((f.sale||0)-ahora)}`:(f.cola?'🔥 sale ya':(f.ordenFuego?'🔥 tirando':'🚶 en marcha'))}</span>`
+    +`<button class="wg-s2x" onclick="${celdaX(f)}" data-tip="${_rgEsc('ANULAR|Se cancela: la unidad no sale / el arma no tira.')}">✖</button></div></div>`;
   let h='';
-  if(manda) h+=`<div class="wg-sy-manda"><div class="l">⏱ LA QUE MÁS TARDA · MARCA LA HORA H</div>`
-    +`<div class="n"><span>${manda.nom}</span><button class="wg-sy-b play" onclick="wgPlayUnidad('${manda.uid}',event)" title="Sale ahora, sola">▶</button>`
-    +`<button class="wg-sy-x" onclick="${celdaX(manda)}" title="Borrar del plan">✖</button></div>`
-    +`<div class="d">${manda.tarea}${manda.km?` · ${manda.km.toFixed(1).replace('.',',')} km`:''} · tarda <b>${_wgHoras(H)}</b></div>${aviso(manda)?`<div class="d">${aviso(manda)}</div>`:''}`
-    +`<div class="d">H = ${_wgHMin(H)} después de lanzar.</div></div>`;
-  else if(planes.length) h+=`<div class="wg-sy-manda"><div class="l">⏱ SIN MOVIMIENTOS</div><div class="d">H = el momento de lanzar. Cada fuego tira a H + lo que elijas.</div></div>`;
-  if(resto.length) h+=`<div class="wg-sy-h"><div>UNIDAD · TAREA</div><div>TARDA</div><div>LLEGA/TIRA</div><div></div><div></div></div>`+resto.map(fila).join('');
-  if(planes.length) h+=`<button class="wg-sy-go" onclick="wgSincEjecutar(this)">▶ EJECUTAR SINCRONIZADO · ${planes.length}</button>`
-    +`<div class="rg-meta" style="font-size:10.5px;line-height:1.4">El reloj lo lleva el motor: cada una sale a su hora aunque cierres esta pantalla.`
-    +(_wgCorre()?'':' <b>El tiempo está en pausa:</b> la cuenta arranca con ▶ PLAY.')+`</div>`;
-  if(lanzadas.length) h+=`<div class="wg-sy-t">YA LANZADAS</div>`+lanzadas.sort((a,b)=>(a.sale||0)-(b.sale||0)).map(enCurso).join('');
+  if(planes.length){
+    h+=`<div class="wg-s2cab">`
+      +(manda
+        ? `<div class="t">⏱ TODOS LLEGAN A LA HORA H</div><div class="h">H = <b>${_wgHMin(H)}</b> <span>después de lanzar</span></div>`
+          +`<div class="d">La pone sola la que más tarda: <b>${manda.nom}</b>${km(manda)}. Las demás salen más tarde para llegar juntas; los fuegos tiran en H.</div>`
+        : `<div class="t">⏱ SÓLO FUEGOS</div><div class="d">No hay movimientos: H es el momento de lanzar. Cada fuego tira en H (o lo corrés con − / +).</div>`)
+      +`</div>`;
+    h+=`<div class="wg-s2eje"><span class="o">▶ lanzar</span><span class="hx" style="left:${pH.toFixed(1)}%">H</span></div>`;
+    h+=planes.map(fila).join('');
+    h+=`<div class="wg-s2pie"><button class="wg-sy-go" onclick="wgSincEjecutar(this)">▶ EJECUTAR · ${planes.length===1?'1 tarea':planes.length+' tareas'}${manda?' · todo en H':''}</button></div>`
+      +`<div class="wg-s2nota">Sale todo junto: cada una a su hora para llegar a H. El reloj lo lleva el servidor aunque cierres esta pantalla.`
+      +(_wgCorre()?'':' <b>El tiempo está en pausa:</b> la cuenta arranca con ▶ PLAY de arriba.')+`</div>`;
+  }
+  if(lanzadas.length) h+=`<div class="wg-sy-t">EN CURSO</div>`+lanzadas.sort((a,b)=>(a.sale||0)-(b.sale||0)).map(enCurso).join('');
   return h;
+}
+// v2.9.478 — − / + de un renglón: corre su llegada (o su fuego) 15 minutos respecto de H. Un movimiento no
+// puede llegar antes de lo que tarda (saldría antes de lanzar); nadie más allá de H + 2 h.
+function wgSincPaso(k, dir){
+  const filas=_wgMatrizFilas(); const { H, manda }=_wgSincCalculo(filas);
+  const f=filas.find(x=>x.k===k);
+  if(!f || !f.plan || f===manda) return;
+  const rel=(WG.sinc&&WG.sinc.rel)||{};
+  let r=(Number(rel[k])||0)+0.25*(dir<0?-1:1);
+  const min=f.mov ? Math.ceil(((f.dur||0)-H)*4-1e-6)/4 : -Math.floor(H*4+1e-6)/4;
+  r=Math.max(min, Math.min(2, r));
+  (WG.sinc||(WG.sinc={ rel:{} })).rel[k]=Math.abs(r)<1e-9?0:r;
+  wgPanelMatriz();
 }
 async function wgSincEjecutar(btn){
   const filas=_wgMatrizFilas(); _wgSincCalculo(filas);
@@ -47769,6 +48015,8 @@ function _wgTicRecibido(r){
     try{ _wgAnimarMinas(im,[],T,Number(r.horas)||0.1); }catch(e){ console.warn(e); }
     try{ _wgEncender(im,Number(r.turno)); _wgApagarViejos(Number(r.turno)); }catch(_e){}
   }
+  // v2.9.479 — ⚔️ los combates que el motor decidió en este paso: la película dura unos segundos y corta.
+  if((r.encuentros||[]).length){ try{ _wgCombatesRegistrar(r.encuentros); }catch(e){ console.warn('combates:', e); } duro=true; }
   // La descarga se ve una vez por unidad, no en cada paso.
   const vistas=WG._entregaVista=WG._entregaVista||{};
   const ents=(r.entregas||[]).filter(e=>{ const k=String(e.uid); if(ahora-(vistas[k]||0)<45000 || (lado && e.bando!==lado)) return false; vistas[k]=ahora; return true; });
@@ -48874,6 +49122,28 @@ function _wgHudGrilla(){
     }
   }
   if(el._f!==h){ el._f=h; el.innerHTML=h; }
+  try{ _wgModoRender(); }catch(_e){}   // v2.9.477
+}
+// v2.9.477 — 🎯 EL MODO DEL CLIC, AL PIE DEL MAPA. Con un arma elegida, el clic APUNTA (no traza la marcha):
+// se dice cuál, qué falta y cómo se vuelve a MOVER (tocar otra vez el arma, ✖ SOLTAR, M o Esc).
+function _wgModoRender(){
+  const g=document.getElementById('wg-game'), el=document.getElementById('wg-modo');
+  if(!g || !el) return;
+  const u=_wgUnidadPorId(WG.sel);
+  let h='';
+  if(u && WG.armaSel && WG_ARMAS[WG.armaSel]){
+    const a=WG_ARMAS[WG.armaSel], t=_wgTirosDe(u.id)[a.id], falta=_wgRecarga(u.id,a.id);
+    const enCola=(WG.tirosCola||[]).some(q=>String(q.unidad_id)===String(u.id)&&q.arma===a.id);
+    h = WG.gatillo ? `🔥 <b>${_rgEsc(a.nom)}</b> · tocá el blanco: dispara ya`
+      : enCola ? `🔥 <b>${_rgEsc(a.nom)}</b> · sale con el próximo paso`
+      : falta>0 ? `🔥 <b>${_rgEsc(a.nom)}</b> disparó · recarga ⏳${_wgHMin(falta)}`
+      : t ? `🎯 <b>${_rgEsc(a.nom)}</b> apuntada · apretá <b>FUEGO</b>`
+      : `🎯 <b>${_rgEsc(a.nom)}</b> · tocá el blanco`;
+  } else if(u && WG.modoReplegar) h='↩️ <b>ROMPER CONTACTO</b> — tocá hacia dónde se retira';
+  else if(u && WG.modoApoyar) h='🤝 <b>APOYAR</b> — tocá la unidad propia que recibe';
+  g.classList.toggle('wg-modo-clic', !!h);
+  const html=h ? `<span>${h}</span><button onclick="wgHudMover()" data-tip="${_rgEsc('VOLVER A MOVER|Suelta el arma: el próximo clic en la carta traza el desplazamiento. También: tocar otra vez el arma, la tecla M o Esc.')}">✖ SOLTAR · MOVER</button>` : '';
+  if(el._f!==html){ el._f=html; el.innerHTML=html; }
 }
 // ------------------------------------------------------------
 // LA VENTANITA (ficha completa, tarea, obras): sólo cuando se pide
