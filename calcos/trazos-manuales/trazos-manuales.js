@@ -241,9 +241,12 @@
           m.on("drag", (e) => { pts[i] = e.target.getLatLng(); forma.setLatLngs(pts); });
           m.on("click", (e) => {
             L.DomEvent.stop(e);
+            // El 2º clic de un doble clic cae sobre el vértice que dejó el 1º: termina.
             // Clic en el primer vértice de un polígono = cerrarlo.
-            if (geom === "poligono" && i === 0 && pts.length >= 3) terminar();
+            if (!editando && esDoble(e)) terminar();
+            else if (geom === "poligono" && i === 0 && pts.length >= 3) terminar();
           });
+          m.on("dblclick", (e) => { L.DomEvent.stop(e); if (!editando) terminar(); });
           m.on("contextmenu", (e) => { L.DomEvent.stop(e); if (pts.length > 1) { pts.splice(i, 1); redibujar(); actualizarBarra(); } });
           return m.addTo(grupo);
         });
@@ -269,12 +272,19 @@
         if (ok) ok.disabled = pts.length < minimo;
       };
 
-      let ultimoClic = 0;
+      // Doble clic propio: no depende de que la carta reciba «dblclick» (el 2º clic suele caer
+      // sobre el vértice recién puesto, o la carta tiene otra capa encima).
+      let ultimoClic = { t: 0, x: -99, y: -99 };
+      const esDoble = (e) => {
+        const o = e && e.originalEvent;
+        if (o && o.detail > 1) return true;
+        const x = o ? o.clientX : -99, y = o ? o.clientY : -99;
+        return Date.now() - ultimoClic.t < 500 && Math.abs(x - ultimoClic.x) < 10 && Math.abs(y - ultimoClic.y) < 10;
+      };
       const enClic = (e) => {
-        if (e.originalEvent && e.originalEvent.detail > 1) return; // el 2º clic de un doble clic
-        const ahora = Date.now();
-        if (ahora - ultimoClic < 250) return;
-        ultimoClic = ahora;
+        if (geom !== "punto" && !editando && pts.length && esDoble(e)) { terminar(); return; }
+        const o = e.originalEvent;
+        ultimoClic = { t: Date.now(), x: o ? o.clientX : -99, y: o ? o.clientY : -99 };
         pts.push(e.latlng);
         if (geom === "punto") { terminar(); return; }
         redibujar();
@@ -287,7 +297,7 @@
       };
       const enDoble = (e) => {
         if (e && e.originalEvent) L.DomEvent.stop(e);
-        terminar();
+        if (!editando) terminar();
       };
       const sinPopups = () => { try { map.closePopup(); } catch {} };
       const enTecla = (e) => {
@@ -303,6 +313,21 @@
       map.on("dblclick", enDoble);
       map.on("popupopen", sinPopups);
       document.addEventListener("keydown", enTecla, true);
+      // Mientras se dibuja, TODO clic sobre la carta es un punto: también sobre una ficha, un
+      // rótulo o un elemento de otro calco (si no, Leaflet se lo da a ese elemento y el punto
+      // se pierde, o se abre su ventanita). Los vértices propios conservan su clic.
+      const panel = map.getPane ? map.getPane("mapPane") : null;
+      const clicNativo = (ev) => {
+        const t = ev.target;
+        if (!panel || !panel.contains(t) || (t.closest && t.closest(".sid-tm-vertice"))) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        enClic({ latlng: map.mouseEventToLatLng(ev), originalEvent: ev });
+      };
+      document.addEventListener("click", clicNativo, true);
+      // Respaldo: el doble clic nativo sobre la carta, aunque algo lo frene antes de Leaflet.
+      const dobleNativo = (ev) => { if (geom !== "punto" && !editando && contenedor.contains(ev.target)) { ev.preventDefault(); ev.stopPropagation(); terminar(); } };
+      document.addEventListener("dblclick", dobleNativo, true);
 
       let hecho = false;
       const limpiar = () => {
@@ -311,6 +336,8 @@
         map.off("dblclick", enDoble);
         map.off("popupopen", sinPopups);
         document.removeEventListener("keydown", enTecla, true);
+        document.removeEventListener("dblclick", dobleNativo, true);
+        document.removeEventListener("click", clicNativo, true);
         try { map.removeLayer(grupo); } catch {}
         b.remove();
         contenedor.style.cursor = cursorAntes;
