@@ -312,3 +312,10 @@ vista previa con toques, guardar, el JSON y abrirlo con los calcos prendidos; ca
 cualquier otro (y de ahí al `ejercicio.json` del Juego de Guerra). Reglas y pruebas en
 `../CAMBIOS-EN-EL-COMPILADO.md` (2026-11-08). Pruebas: `node calcos/pruebas/abrir-kmz.mjs`,
 `node calcos/pruebas/e2e/abrir-kmz.cjs` (`CARPETA_KMZ=…` para los KMZ reales).
+
+## ✂️💾 Guardar área cortada como ejercicio — 08-NOV-2026
+
+`guardar-cortada.mjs`: la selección que deja la tijera se graba como ejercicio APARTE (el área, sus
+fichas propias y enemigas y lo que se veía adentro), para entregar a cada escalón. Botones en la
+tijera y en «💾 Guardar como». Ver `../CAMBIOS-EN-EL-COMPILADO.md` (2026-11-08 (3)). Prueba:
+`CARPETA_KMZ=… node calcos/pruebas/e2e/cortada.cjs`.

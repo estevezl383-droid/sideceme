@@ -80,7 +80,8 @@
 //   index-areas-logisticas-20261029.js + reemplazos-2026-10-29-guardar-ia.js = index-guardar-ia-20261029.js
 //   index-guardar-ia-20261029.js + reemplazos-2026-10-30-ogo.js = index-ogo-20261030.js
 //   index-ogo-20261030.js + reemplazos-2026-11-08-kmz.js = index-kmz-20261108.js
-//   index-kmz-20261108.js + reemplazos-2026-11-08-fichas-to.js = index-fichas-to-20261108.js (el vigente)
+//   index-kmz-20261108.js + reemplazos-2026-11-08-fichas-to.js = index-fichas-to-20261108.js
+//   index-fichas-to-20261108.js + reemplazos-2026-11-08-cortada.js = index-cortada-20261108.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -94,6 +95,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-11-08-cortada'),
+    nombre: 'reemplazos-2026-11-08-cortada',
+    // calcos/assets/index-fichas-to-20261108.js (antes de «Guardar área cortada como…»).
+    anterior: '9a62230ed3595fb14c7f16504b3a91082a60ee78f19fdc6925d79179fe6f7d92',
+  },
   {
     lista: require('./reemplazos-2026-11-08-fichas-to'),
     nombre: 'reemplazos-2026-11-08-fichas-to',

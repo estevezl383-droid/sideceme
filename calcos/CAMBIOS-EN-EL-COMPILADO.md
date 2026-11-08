@@ -5,6 +5,33 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-11-08 (3) — ✂️💾 «Guardar área cortada como…» ejercicio aparte (`index-cortada-20261108.js`)
+
+Parte de `index-fichas-to-20261108.js` + `pruebas/reemplazos-2026-11-08-cortada.js` (2 reemplazos; `construir-cortada.js`;
+`reemplazos-compilado.js` lo deshace byte por byte). Sergio, con la tijera sobre «AO TIGRE CE-I (TAMBO QUEMADO)» y el botón
+«💾 Guardar como»: «lo cortado que lo pueda guardar… guardar área cortada como… así yo ya pueda entregar su área y su
+enemigo a cada cuerpo de ejército… todo lo que está dentro del área cortada debe incluir sus unidades y todo lo activado».
+
+- **Qué pasaba**: la tijera guardaba la selección DENTRO del ejercicio abierto y la bajaba como `Seleccion_….json`; para
+  tenerla como ejercicio había que bajar el archivo y volver a abrirlo con «📂 Abrir archivo».
+- **Fuera del compilado**: `areas-operaciones/guardar-cortada.mjs` (nuevo): la selección (`paqueteSeleccion`: el área,
+  lo que se veía adentro cortado por el lazo, fichas propias y enemigas, CMOC, calcos) → `ejercicioDeArchivo` → se
+  CREA y GRABA como ejercicio nuevo (nombre propuesto «CE-I TIGRE · DIAMANTE KMZ», sin pisar uno existente), con el
+  país, las capas a la vista, el escenario y `origenCorte`. El abierto no cambia. Botones: en la tijera, «💾 Guardar
+  área cortada como ejercicio…» (`tijera.mjs`); en «💾 Guardar como», el apartado «✂️ Guardar área cortada como…» con
+  una por selección (`guardado/v1/resguardo.js?v=20261108-cortada`, el módulo se pide al tocar).
+- **En el compilado**: `window.SIDAlmacenMesa = { listar, crear, guardar }` (el `og` de la Mesa, con su guardia de «no
+  pisar con vacío») y la tijera con `?v=cortada20261108`.
+- **Cómo se comprobó**: `pruebas/e2e/cortada.cjs` con los KMZ reales (`CARPETA_KMZ=…`): las 4 AO + SATURNO → tijera
+  alrededor del AO TIGRE → «CE-I TIGRE · DIAMANTE KMZ» guardado con el área activa y su brigada roja (sólo las de
+  adentro), «… (2)» desde «💾 Guardar como», el abierto sin cambiar y el nuevo se abre con su área, su ficha y el lazo
+  como Área de Interés; sin errores JS. `reemplazos-compilado.js`, `e2e/abrir-archivo.cjs`, `e2e/superponer-kmz.cjs` y
+  `npm test` (el caso conocido de `guia-inicial.mjs` con los mismos 13 ganchos; `huellas-osm.mjs` depende de la
+  velocidad de la máquina: pasa o falla sin cambios). `e2e/areas-tijera.cjs` ya fallaba antes de este cambio (busca
+  «👁 Ver todos», que no está desde la vista plegada) y `e2e/resguardo.cjs` espera una descarga que el Chrome de esta
+  máquina reemplaza por «Guardar como» del sistema (falla igual con el `resguardo.js` anterior).
+- **Si se recompila desde el fuente**: exponer el almacén de ejercicios (listar/crear/guardar) para los módulos de afuera.
+
 ## 2026-11-08 (2) — 🔎 Fichas visibles al ver todo el TO y 🧩 Superponer KMZ/KML (`index-fichas-to-20261108.js`)
 
 Parte de `index-kmz-20261108.js` + `pruebas/reemplazos-2026-11-08-fichas-to.js` (1 reemplazo; `construir-fichas-to.js`;

@@ -45,6 +45,8 @@
 })(typeof window !== 'undefined' ? window : this, function () {
   'use strict'
   var MAX_COPIAS = 8
+  // ✂️💾 (08-11-2026) «Guardar área cortada como…»: el módulo se pide recién al tocar el botón.
+  var CORTADA = (function () { try { return new URL('../../areas-operaciones/guardar-cortada.mjs?v=cortada20261108', document.currentScript.src).href } catch (e) { return './areas-operaciones/guardar-cortada.mjs?v=cortada20261108' } })()
   var CADA = 60000 // copia local y en la carpeta, si cambió
   var SESION_CADA = 20000 // volver a leer la sesión
   var AVISO_ANTES = 15 * 60000 // avisar antes de que venza
@@ -365,6 +367,7 @@
       else if (q === 'cerrar') { est.verPanel = false; pintar() }
       else if (q === 'ver') { est.verPanel = true; pintar() }
       else if (q === 'nueva-no') { est.nueva = null; pintar() }
+      else if (q === 'cortada') guardarCortada(a.getAttribute('data-c'))
     }
     pan.addEventListener('click', acc); franja.addEventListener('click', acc)
   }
@@ -385,6 +388,26 @@
     return '<li' + (est.localErr ? ' class="mal"' : '') + '><b>🖥️ Esta computadora</b><span>' + (est.localErr ? '⚠️ ' + esc(est.localErr) : l.length ? l.length + ' copia(s) de «' + esc(nombreAbierto()) + '» (no se pisan al abrir el ejercicio):' : 'Todavía no hay copias de este ejercicio.') + '</span>' +
       (l.length ? '<ol>' + l.map(function (c) { return '<li>' + esc(hora(Date.parse(c.t))) + ' · ' + esc(kb(c.bytes)) + ' <button type="button" class="chico" data-r="copia" data-c="' + esc(c.clave) + '">⬇️</button></li>' }).join('') + '</ol>' : '') + '</li>'
   }
+  // ✂️ Las áreas cortadas con la tijera (las selecciones guardadas del ejercicio abierto): cada una se
+  // guarda como ejercicio APARTE, con lo que se veía adentro y sus fichas propias y enemigas.
+  function cortadas() {
+    try { var f = mesa() && mesa().foto && mesa().foto(), l = f && f.ops && f.ops.selecciones; return Array.isArray(l) ? l.filter(function (x) { return x && x.id && x.nombre }) : [] } catch (e) { return [] }
+  }
+  function lineaCortadas() {
+    var l = cortadas()
+    if (!l.length) return '<li><b>✂️ Guardar área cortada como…</b><span>Todavía no hay áreas cortadas en este ejercicio. Cortá una con <b>✂️ CORTAR ÁREA</b> («✓ Cortar y guardar selección») y aparece acá.</span></li>'
+    return '<li class="bien"><b>✂️ Guardar área cortada como…</b><span>Cada área cortada se guarda como ejercicio APARTE con lo que se veía adentro (sus fichas propias y enemigas, medidas, CMOC, calcos), para entregarla a su escalón. El que tenés abierto no cambia.</span>' +
+      l.map(function (x) { return '<button type="button" data-r="cortada" data-c="' + esc(x.id) + '">💾 «' + esc(x.nombre) + '» como ejercicio…</button>' }).join('') +
+      (est.avisoCortada ? '<p role="status" class="nota' + (/^⚠️/.test(est.avisoCortada) ? ' error' : /^✓/.test(est.avisoCortada) ? ' ok' : '') + '">' + esc(est.avisoCortada) + '</p>' : '') + '</li>'
+  }
+  function guardarCortada(id) {
+    est.avisoCortada = '⏳ Guardando el área cortada…'; pintar()
+    import(CORTADA).then(function (m) { return m.guardarCortadaComo(id) }).then(function (r) {
+      if (r.cancelado) { est.avisoCortada = ''; pintar(); return }
+      est.avisoCortada = r.ok ? '✓ «' + r.nombre + '» guardado como ejercicio aparte (' + r.resumen + '). Abrilo en 📁 Ejercicio → «Abrir guardados».' : '⚠️ ' + r.error
+      pintar()
+    }, function (e) { est.avisoCortada = '⚠️ No se pudo guardar el área cortada: ' + ((e && e.message) || e); pintar() })
+  }
   function nombreAbierto() { try { var M = mesa(); return (M && M.nombre && M.nombre()) || '' } catch (e) { return '' } }
   function pintar() {
     if (!pan) return
@@ -395,7 +418,7 @@
     if (est.verPanel) pan.innerHTML = '<div class="cab"><b>💾 Guardar como · ' + esc(nombreAbierto() || 'el ejercicio') + '</b><button type="button" class="chico" data-r="cerrar">✕</button></div>' +
       '<button type="button" class="grande" data-r="bajar">💾 Guardar como archivo JSON</button>' +
       '<p class="nota">' + (typeof window.showSaveFilePicker === 'function' ? 'Elige el nombre y dónde guardar el archivo. Si el navegador no permite elegir, se solicitará una descarga.' : 'El archivo se descarga con el nombre del ejercicio. Tu navegador decide si pregunta la carpeta o usa Descargas.') + '</p>' +
-      '<ul>' + lineaNube() + lineaCarpeta() + lineaCopias() + '</ul>' +
+      '<ul>' + lineaCortadas() + lineaNube() + lineaCarpeta() + lineaCopias() + '</ul>' +
       '<p class="nota">Un .json se abre con <b>📁 Ejercicio → 📂 Abrir archivo JSON</b>: entra como ejercicio NUEVO y el que tenías abierto no se toca.</p>' +
       (est.aviso ? '<p role="status" class="nota' + (/^(⚠️|No se pudo|El navegador bloqueó)/.test(est.aviso) ? ' error' : /^✓/.test(est.aviso) ? ' ok' : '') + '">' + esc(est.aviso) + '</p>' : '')
     // la franja de arriba

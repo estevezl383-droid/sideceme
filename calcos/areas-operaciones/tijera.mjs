@@ -14,6 +14,7 @@
 import { repartir, resumenContenido, simplificarLazo, capasCmocVisibles } from './recorte.mjs?v=tijera20261016'
 import { listarAreas, recortarArea, guardarSeleccion, listarSelecciones, paqueteSeleccion, contenidoTijera, vistaLimpia } from './modelo.mjs?v=tijera20261016'
 import { iniciarLazo, carta2D, vistaPrevia } from './lazo.mjs?v=tijera20261016'
+import { guardarCortadaComo } from './guardar-cortada.mjs?v=cortada20261108'
 
 export const EVENTO_TIJERA = 'sid-tijera'
 export const EVENTO_COMPARTIR = 'sid-compartir-seleccion'
@@ -149,6 +150,19 @@ export default function Tijera({ react: R, ops, onOps, ejercicio, onDeshacer, un
       setAviso(`⬇️ Seleccion_${archivoDe(s.nombre)}.json bajado. Se abre con 📁 Ejercicios → «📂 Abrir archivo JSON» (como ejercicio nuevo).`)
     } catch (e) { setError(e.message) }
   }
+  // 💾 (08-11-2026) El área cortada, con lo de adentro, como ejercicio APARTE para entregar a cada CE.
+  const [grabando, setGrabando] = R.useState(false)
+  const comoEjercicio = async () => {
+    const s = laGuardada()
+    if (!s) { setError('La selección ya no está en el ejercicio (¿se deshizo?).'); return }
+    setError(''); setAviso(''); setGrabando(true)
+    let r
+    try { r = await guardarCortadaComo(s.id) } catch (e) { r = { ok: false, error: e.message } }
+    setGrabando(false)
+    if (r.cancelado) return
+    if (!r.ok) { setError(r.error); return }
+    setAviso(`💾 «${r.nombre}» guardado como ejercicio aparte (${r.resumen}). Está en 📁 Ejercicios → «Abrir guardados». El que tenés abierto no cambió.`)
+  }
   const compartir = () => { const s = laGuardada(); if (!s) { setError('La selección ya no está en el ejercicio (¿se deshizo?).'); return } pedirCompartir(s.id); onAbrirAreas?.(); cerrar() }
 
   if (!fase) return null
@@ -174,7 +188,8 @@ export default function Tijera({ react: R, ops, onOps, ejercicio, onDeshacer, un
   if (fase === 'guardada') return h('section', { 'aria-label': 'Tijera', style: caja }, titulo,
     h('p', { role: 'status', style: { margin: 0, color: '#a9ffcf' } }, `💾 «${guardada?.nombre}» guardada: el área quedó en la carta y la selección en ▧ Área de Ops → «Selecciones guardadas», con lo que se veía cortado por donde pasó la tijera.`),
     ...mensajes,
-    h('button', { type: 'button', style: verde, onClick: bajar }, '⬇️ Bajar el JSON de la selección'),
+    h('button', { type: 'button', style: verde, disabled: grabando, onClick: comoEjercicio }, grabando ? '⏳ Guardando…' : '💾 Guardar área cortada como ejercicio…'),
+    h('button', { type: 'button', style: boton, onClick: bajar }, '⬇️ Bajar el JSON de la selección'),
     h('button', { type: 'button', style: boton, onClick: compartir }, '📤 Compartir (ciclo / paralelo)'),
     h('button', { type: 'button', style: boton, onClick: empezar }, '✂️ Cortar otra'),
     h('button', { type: 'button', style: boton, onClick: cerrar }, 'Cerrar'))
