@@ -62,7 +62,7 @@ const SALIDAS = path.join(__dirname, '..', 'salidas-trazos')
     await page.locator('.sid-tm-barra').waitFor()
     await clic(P(0.35, 0.40)); await clic(P(0.50, 0.48))
     const [x3, y3] = P(0.62, 0.42)
-    await page.mouse.click(x3, y3); await page.waitForTimeout(320); await page.mouse.dblclick(x3, y3)
+    await page.mouse.dblclick(x3, y3) // doble clic en un lugar nuevo: pone el último punto y termina
     await page.locator('.sid-tm-modal').waitFor()
     await foto('2-clasificar-camino')
     await page.locator('.sid-tm-modal input[value="clnd"]').check()
@@ -104,8 +104,8 @@ const SALIDAS = path.join(__dirname, '..', 'salidas-trazos')
 
     // 4 · Río (línea) con ✔ Terminar.
     await fila(/hidrogr/i).locator('button', { hasText: 'Río' }).click()
-    await clic(P(0.20, 0.20)); await clic(P(0.28, 0.30)); await clic(P(0.25, 0.42))
-    await page.locator('.sid-tm-barra [data-a="ok"]').click()
+    await clic(P(0.20, 0.20)); await clic(P(0.28, 0.30))
+    { const [x, y] = P(0.25, 0.42); await page.mouse.dblclick(x, y) } // doble clic termina el río
     await page.locator('.sid-tm-modal').waitFor()
     await page.locator('.sid-tm-modal [data-nom]').fill('Río Nuevo')
     await page.locator('.sid-tm-modal [data-si]').click()
@@ -113,8 +113,8 @@ const SALIDAS = path.join(__dirname, '..', 'salidas-trazos')
 
     // 5 · Pueblo: polígono + punto de aldea.
     await fila(/poblaciones/i).locator('button', { hasText: 'Pueblo (área)' }).click()
-    for (const p of [P(0.40, 0.15), P(0.50, 0.15), P(0.50, 0.25), P(0.40, 0.25)]) await clic(p)
-    await page.keyboard.press('Enter')
+    for (const p of [P(0.40, 0.15), P(0.50, 0.15), P(0.50, 0.25)]) await clic(p) // el tercero cae sobre un ícono de la carta: igual cuenta
+    { const [x, y] = P(0.40, 0.25); await page.mouse.dblclick(x, y) } // doble clic cierra el polígono
     await page.locator('.sid-tm-modal').waitFor()
     assert.equal(await page.locator('.sid-tm-modal [data-punto]').inputValue(), 'village')
     await page.locator('.sid-tm-modal [data-nom]').fill('Caserío Villa Nueva')
@@ -133,6 +133,8 @@ const SALIDAS = path.join(__dirname, '..', 'salidas-trazos')
     }
     const lag = man('hidrografico').find((f) => f.geometry.type === 'Polygon').geometry.coordinates[0]
     assert.equal(lag.length, 5, 'laguna: 4 vértices + cierre')
+    assert.equal(man('hidrografico').find((f) => f.geometry.type === 'LineString').geometry.coordinates.length, 3, 'río: 3 puntos, el doble clic no duplica')
+    assert.equal(man('poblaciones').find((f) => f.geometry.type === 'Polygon').geometry.coordinates[0].length, 5, 'pueblo: 4 vértices + cierre')
     assert.deepEqual(lag[0], lag[4])
     // La lista de la fila.
     await fila(/comunicaciones/i).locator('[data-a="plegar"]').click()
