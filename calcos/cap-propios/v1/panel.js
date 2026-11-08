@@ -122,6 +122,8 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
   const [abierto, setAbierto] = R.useState(hoja?.id === 'coa')
   const [msg, setMsg] = R.useState('')
   const C = capsDe(ctx.g3)
+  // 🎖️ El CAP que decidió el Comandante en la F4·P6-7 (evento-critico/v1/decision.mjs), 08-11-2026.
+  const decidido = [1, 2].includes(Number(ctx.g3?._caps?.decision?.cap)) ? Number(ctx.g3._caps.decision.cap) : null
   let P = null
   try {
     P = proponer(ctx, C.formas)
@@ -135,8 +137,8 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
 
   const botonCAP = (c) =>
     h('button', { key: c.n, style: E.cap(c.n === C.activo), 'data-cap': c.n, onClick: () => c.n !== C.activo && (setMsg(''), onAccion?.('cambiar', { n: c.n, formas })) },
-      `${c.n === C.activo ? '● ' : ''}CAP ${c.n} · ${c.nomForma}`,
-      h('div', { style: { fontWeight: 400, fontSize: 10.5, marginTop: 2 } }, `${nf[c.n] || 0} fase(s) 🔵${c.n === C.activo ? ' · el que estás trabajando' : ' · guardado'}`))
+      `${c.n === C.activo ? '● ' : ''}CAP ${c.n} · ${c.nomForma}${c.n === decidido ? ' 🎖️' : ''}`,
+      h('div', { style: { fontWeight: 400, fontSize: 10.5, marginTop: 2 } }, `${nf[c.n] || 0} fase(s) 🔵${c.n === decidido ? ' · 🎖️ decidido por el Comandante' : c.n === C.activo ? ' · el que estás trabajando' : ' · guardado'}`))
 
   // Las fases de cada CAP que ya están en la carta: las del activo (fasesCOA.propio) y las del guardado.
   const ROM = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
@@ -264,6 +266,7 @@ export function botonesCAP(info, fasesCOA) {
   try {
     if (!info || !R.jsx) return null
     const C = capsDe(info.g3)
+    const decidido = [1, 2].includes(Number(info.g3?._caps?.decision?.cap)) ? Number(info.g3._caps.decision.cap) : null
     const nf = fasesPorCAP(info.g3, fasesCOA || {})
     const nomF = (n) => {
       const id = C.formas[n]
@@ -272,7 +275,7 @@ export function botonesCAP(info, fasesCOA) {
     }
     return h('div', { style: { display: 'flex', gap: 5, margin: '4px 0 6px', alignItems: 'center', flexWrap: 'wrap' }, 'data-cap-botones': '1' },
       [1, 2].map((n) =>
-        h('button', { key: n, 'data-cap': n, style: { ...E.cap(n === C.activo), flex: '0 0 auto', padding: '4px 8px', fontSize: 11.5 }, onClick: () => n !== C.activo && info.acc?.('cambiar', { n }) }, `${n === C.activo ? '● ' : ''}CAP ${n}${nomF(n)} (${nf[n] || 0})`)),
+        h('button', { key: n, 'data-cap': n, title: n === decidido ? 'Decidido por el Comandante (F4·P6-7)' : undefined, style: { ...E.cap(n === C.activo), flex: '0 0 auto', padding: '4px 8px', fontSize: 11.5 }, onClick: () => n !== C.activo && info.acc?.('cambiar', { n }) }, `${n === C.activo ? '● ' : ''}CAP ${n}${nomF(n)} (${nf[n] || 0})${n === decidido ? ' 🎖️' : ''}`)),
       h('span', { style: { fontSize: 10.5, color: '#8fa3b5' } }, 'El otro CAP queda guardado con sus fases.'),
       botonFlechas({ flex: '0 0 auto', borderColor: COLOR_CAP[C.activo] || AZUL }))
   } catch {
