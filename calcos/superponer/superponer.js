@@ -31,8 +31,23 @@
   var conf = { escala: 1.5, rotulos: 'auto', compacto: true }
   var ZOOM_DETALLE = 8, ultimoCompacto = null
   // El lector de KMZ es un módulo: se pide recién cuando se elige un KMZ, al lado de este script.
-  var LECTOR_KMZ = (function () { try { return new URL('../areas-operaciones/abrir-kmz.mjs?v=sup20261108', document.currentScript.src).href } catch (e) { return './areas-operaciones/abrir-kmz.mjs?v=sup20261108' } })()
+  var LECTOR_KMZ = (function () { try { return new URL('../areas-operaciones/abrir-kmz.mjs?v=pasar20261108', document.currentScript.src).href } catch (e) { return './areas-operaciones/abrir-kmz.mjs?v=pasar20261108' } })()
   var ultimoNombre = '', mapa = null, btn = null, tab = null, input = null, abierto = false, quitados = {}
+  // 📌 Pasar fichas al ejercicio (08-11-2026): las fichas superpuestas sólo se DIBUJAN; para moverlas y
+  // que las hojas las vean tienen que ser fichas de la Mesa. La Mesa le pasa a MesaAcademica las fichas
+  // del ejercicio y `agregarUnidades` (con su ↶ Deshacer): se toma de ahí, sin tocar el compilado.
+  var DISGREGAR = (function () { try { return new URL('../disgregar/v1/disgregar.mjs?v=pasar20261108', document.currentScript.src).href } catch (e) { return './disgregar/v1/disgregar.mjs?v=pasar20261108' } })()
+  var puente = null
+  function engancharPuente() {
+    var M = window.MesaAcademica
+    if (!M || typeof M.sincronizar !== 'function') return false
+    if (M.__sidsupPuente) return true
+    var orig = M.sincronizar
+    M.sincronizar = function (p) { if (p && typeof p.agregarUnidades === 'function') puente = p; return orig.apply(this, arguments) }
+    M.__sidsupPuente = true
+    return true
+  }
+  if (!engancharPuente()) { var tPuente = setInterval(function () { if (engancharPuente()) clearInterval(tPuente) }, 300); setTimeout(function () { clearInterval(tPuente) }, 60000) }
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -128,7 +143,7 @@
           var pl = L.polyline(el.coords, { color: col, weight: 2.5, opacity: 0.85 * c.opac, dashArray: el.discontinua ? '8 6' : null, pane: 'sidSupArea' })
           if (el.info) pl.bindTooltip(esc(el.info), { sticky: true })
           pl.addTo(lg)
-        } else if (el.tipo === 'unidad' && el.ll) {
+        } else if (el.tipo === 'unidad' && el.ll && !el.pasada) {
           var s = simbolo(el.simbolo || 'inf', el.escalon || '', col, escalaEf())
           var lab = el.rotulo ? '<div class="sidsup-lbl" style="left:' + (s.w + 3) + 'px;top:' + (s.top - 1) + 'px"><b>' + esc(el.rotulo) + '</b>' + (el.sub ? '<span>' + esc(el.sub) + '</span>' : '') + '</div>' : ''
           var m = L.marker(el.ll, { pane: 'sidSupMarca', riseOnHover: true, keyboard: false,
@@ -198,6 +213,7 @@
         if (!g.visible) return
         ;(g.elementos || []).forEach(function (el) {
           var div = document.createElement('div'), pos
+          if (el.tipo === 'unidad' && el.ll && el.pasada) return
           if (el.tipo === 'unidad' && el.ll) {
             var s = simbolo(el.simbolo || 'inf', el.escalon || '', el.color || '#4f9cf0', e)
             div.className = 'sidsup3-u'
@@ -375,6 +391,71 @@
     if (v3.map) { try { var p = b.pad(0.12); v3.map.fitBounds([[p.getWest(), p.getSouth()], [p.getEast(), p.getNorth()]], { maxZoom: 11, duration: 800 }) } catch (e) {} }
   }
 
+  // ---------- 📌 pasar las fichas al ejercicio ----------
+  // Fichas (unidades con símbolo) de los grupos prendidos; con `todas`, también las ya pasadas.
+  function fichasDe(c, todas) {
+    var out = []
+    c.grupos.forEach(function (g) {
+      if (!todas && !g.visible) return
+      ;(g.elementos || []).forEach(function (el) {
+        if (el && el.tipo === 'unidad' && el.ll && el.simbolo !== 'pto' && (el.rotulo || (el.ficha && el.ficha.designacion)) && (todas ? el.pasada : !el.pasada)) out.push({ el: el, g: g })
+      })
+    })
+    return out
+  }
+  function botonPasar(c) {
+    var n = fichasDe(c).length, ya = fichasDe(c, true).length
+    if (!n && !ya) return ''
+    return '<div class="sidsup-pasar">' +
+      (n ? '<button type="button" data-a="pasar" title="Convierte las fichas de los grupos prendidos en fichas de la Mesa: se pueden mover y las hojas de trabajo las ven. Las que ya están en el ejercicio no se repiten.">📌 Pasar ' + n + ' ficha' + (n === 1 ? '' : 's') + ' al ejercicio</button>' : '') +
+      (ya ? '<span>' + ya + ' ya pasada' + (ya === 1 ? '' : 's') + ' (no se dibujan acá) <button type="button" data-a="reponer" title="Volver a dibujarlas en esta capa (no toca las del ejercicio)">↺</button></span>' : '') +
+      '</div>'
+  }
+  function distKm(a, b) {
+    var r = Math.PI / 180, x = (b.lng - a.lng) * r * Math.cos((a.lat + b.lat) * r / 2), y = (b.lat - a.lat) * r
+    return Math.sqrt(x * x + y * y) * 6371
+  }
+  function pasarFichas(c) {
+    engancharPuente()
+    if (!puente || typeof puente.agregarUnidades !== 'function') { aviso('La Mesa todavía está cargando. Esperá unos segundos y volvé a apretar 📌.'); return }
+    var lista = fichasDe(c)
+    if (!lista.length) { aviso('Esta capa no tiene fichas prendidas para pasar.'); return }
+    Promise.all([import(LECTOR_KMZ), import(DISGREGAR)]).then(function (m) {
+      var kmz = m[0], dis = m[1]
+      var existentes = (puente.unidades || []).filter(function (u) { return u && isFinite(+u.lat) && isFinite(+u.lng) })
+      var misma = function (u, f) { return (u.bando === 'enemigo' ? 'enemigo' : 'propias') === f.bando && dis.mismaUnidadOSuperior(u.designacion, f.designacion) }
+      var nuevas = [], repetidas = [], base = Date.now()
+      lista.forEach(function (x, i) {
+        var f = kmz.fichaDeSuperpuesta(x.el)
+        if (!f) return
+        // Ya está en el ejercicio (aunque se haya movido o disgregado): no se repite.
+        var ya = existentes.filter(function (u) { return misma(u, f) })[0]
+        // Repetida en el mismo archivo (la misma ficha en dos carpetas): una sola.
+        var dup = !ya && nuevas.filter(function (n) { return misma(n.f, f) && distKm(n.f, f) < 2 })[0]
+        if (ya || dup) { repetidas.push({ x: x, f: f, ya: ya || dup.f }); return }
+        f.id = base + i + Math.random()
+        f.origenSuperponer = String(c.nombre || '').slice(0, 120)
+        nuevas.push({ x: x, f: f })
+      })
+      var prop = nuevas.filter(function (n) { return n.f.bando !== 'enemigo' }).length, enem = nuevas.length - prop
+      var txt = '📌 Pasar fichas de «' + c.nombre + '» al ejercicio' + (puente.ejercicio ? ' «' + puente.ejercicio + '»' : '') + '\n\n' +
+        (nuevas.length ? '• Se agregan ' + nuevas.length + ' ficha(s): ' + prop + ' propia(s) y ' + enem + ' enemiga(s), en el mismo lugar donde están.\n' : '• No hay fichas nuevas para agregar.\n') +
+        (repetidas.length ? '• ' + repetidas.length + ' ya están en el ejercicio y NO se repiten: ' + repetidas.slice(0, 8).map(function (r) { return r.f.designacion }).join(', ') + (repetidas.length > 8 ? '…' : '') + '\n' : '') +
+        '\nDespués se pueden arrastrar, entran a las hojas de trabajo y ⊞ Disgregar no las duplica. En esta capa dejan de dibujarse (para no verlas dobles). ↶ Deshacer lo revierte.'
+      if (!nuevas.length) {
+        window.alert(txt)
+        repetidas.forEach(function (r) { r.x.el.pasada = true })
+        dibujar(c); guardar(); pintar(); actualizar3D()
+        return
+      }
+      if (!window.confirm(txt)) return
+      puente.agregarUnidades(nuevas.map(function (n) { return n.f }))
+      nuevas.concat(repetidas).forEach(function (n) { n.x.el.pasada = true })
+      dibujar(c); guardar(); pintar(); actualizar3D()
+      aviso('📌 ' + nuevas.length + ' ficha(s) pasadas al ejercicio' + (repetidas.length ? ' · ' + repetidas.length + ' ya estaban' : '') + '. Ya se pueden mover.')
+    }).catch(function (e) { aviso('No se pudieron pasar las fichas: ' + (e && e.message || e)) })
+  }
+
   // ---------- interfaz ----------
   function aviso(t) {
     var a = document.createElement('div'); a.className = 'sidsup-aviso'; a.textContent = t
@@ -391,6 +472,7 @@
         '<b title="' + esc(c.nombre) + '">' + esc(c.nombre) + '</b>' +
         '<button type="button" data-a="zoom" title="Ir a la capa">🎯</button>' +
         '<button type="button" data-a="quitar" title="Quitar del tablero (no borra nada del ejercicio)">✕</button></div>' +
+        botonPasar(c) +
         '<div class="sidsup-gs">' + c.grupos.map(function (g) {
           return '<label><input type="checkbox" data-a="grupo" data-g="' + esc(g.id) + '"' + (g.visible ? ' checked' : '') + '> ' + esc(g.nombre) + '</label>'
         }).join('') + '</div>' +
@@ -438,6 +520,8 @@
       if (a === 'cerrar') abrir(false)
       if (a === 'cargar') input.click()
       if (a === 'zoom' && c) zoomA(c)
+      if (a === 'pasar' && c) pasarFichas(c)
+      if (a === 'reponer' && c) { fichasDe(c, true).forEach(function (x) { delete x.el.pasada }); dibujar(c); guardar(); pintar(); actualizar3D() }
       if (a === 'quitartodo') { capas.forEach(function (x) { if (x.lg && mapa) mapa.removeLayer(x.lg) }); capas = []; guardar(); pintar(); actualizar3D() }
       if (a === 'quitar' && c) { if (c.lg) mapa.removeLayer(c.lg); capas = capas.filter(function (x) { return x !== c }); if (c.preset) quitados[c.preset] = true; guardar(); pintar(); actualizar3D() }
     })

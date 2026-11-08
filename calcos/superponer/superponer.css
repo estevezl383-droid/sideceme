@@ -68,3 +68,9 @@
 .sidsup3d.sinrot .sidsup-lbl3,.sidsup3d.sinrot .sidsup3-ao{display:none}
 .sidsup-op span{min-width:34px;text-align:right;color:#e7c46a;font-weight:700}
 .sidsup-nota{margin:0;font-size:11px;color:#7f8c97}
+/* 📌 Pasar fichas al ejercicio (08-11-2026) */
+.sidsup-pasar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0 4px}
+.sidsup-pasar button[data-a="pasar"]{flex:1 1 auto;background:#1d6b3a;color:#eafff0;border:1px solid #4fd17f;border-radius:6px;padding:6px 9px;font-weight:700;font-size:12px;cursor:pointer}
+.sidsup-pasar button[data-a="pasar"]:hover{background:#25874a}
+.sidsup-pasar span{font-size:11px;color:#9fd9b0}
+.sidsup-pasar span button{background:none;border:1px solid #4fd17f;color:#9fd9b0;border-radius:4px;padding:0 5px;cursor:pointer}
