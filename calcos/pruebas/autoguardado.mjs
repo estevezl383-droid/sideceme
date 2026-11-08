@@ -5,14 +5,14 @@
 // avisaron; al salir guarda lo pendiente; el sello dice el estado.
 //   node calcos/pruebas/autoguardado.mjs
 import assert from 'node:assert/strict'
-import { crearGuardador, sello, ESPERA, ESPERA_MAX, REINTENTOS } from '../guardado/v1/autoguardado.mjs'
+import { crearGuardador, sello, errorLegible, ESPERA, ESPERA_MAX, REINTENTOS } from '../guardado/v1/autoguardado.mjs'
 
 const casos = []
 const caso = (nombre, fn) => casos.push([nombre, fn])
 const vuelta = () => new Promise((ok) => setImmediate(ok))
 
 // Reloj y temporizadores falsos.
-function banco({ respuestas = [], demora = 0 } = {}) {
+function banco({ respuestas = [], demora = 0, recuperado } = {}) {
   let ahora = 1_000_000
   let timers = []
   let id = 0
@@ -31,6 +31,7 @@ function banco({ respuestas = [], demora = 0 } = {}) {
     ultimo,
     alCambiar: (e) => estados.push(e.fase),
     avisar: (r) => avisos.push(r),
+    recuperado,
     reloj: () => ahora,
     programar: (f, ms) => {
       timers.push({ id: ++id, t: ahora + ms, f })
@@ -253,6 +254,33 @@ caso('el sello: un botón con el estado a la vista', async () => {
   assert.match(mal.title, /sin red/)
   ok.onClick()
   assert.deepEqual(llamadas, [{ forzar: true }], 'tocarlo guarda todo, aunque no haya cambios')
+})
+
+// 2026-11-08: la página de error 520 de Cloudflare salía ENTERA en rojo en el panel.
+const PAGINA_520 = '<!DOCTYPE html> <!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]--> <head> <title>supabase.co | 520: Web server is returning an unknown error</title> </head> <body> <span class="code-label">Error code 520</span> ' + 'x'.repeat(5000) + '</body></html>'
+caso('una página de error HTML se resume en una línea', async () => {
+  assert.equal(errorLegible(PAGINA_520), 'el servidor de SIDECEME no respondió (error 520)')
+  assert.equal(errorLegible('<html><body>nada</body></html>'), 'el servidor de SIDECEME no respondió')
+  assert.equal(errorLegible('Failed to fetch'), 'Failed to fetch')
+  assert.ok(errorLegible('y'.repeat(900)).length <= 201)
+})
+caso('el aviso llega corto y, al volver a guardar bien, se avisa «recuperado»', async () => {
+  let rec = 0
+  const b = banco({ respuestas: [{ ok: false, error: PAGINA_520 }], recuperado: () => rec++ })
+  b.g.activar(true)
+  b.g.cambio()
+  await b.avanzar(ESPERA)
+  assert.equal(b.avisos.length, 1)
+  assert.equal(b.avisos[0].error, 'el servidor de SIDECEME no respondió (error 520)')
+  assert.equal(b.g.estado.error, 'el servidor de SIDECEME no respondió (error 520)')
+  assert.equal(rec, 0)
+  await b.avanzar(REINTENTOS[0] + 10)
+  assert.equal(b.g.estado.fase, 'al-dia')
+  assert.equal(rec, 1, 'el reintento que sale bien borra el aviso')
+  b.datos.unidades.push({ id: 1 })
+  b.g.cambio()
+  await b.avanzar(ESPERA)
+  assert.equal(rec, 1, 'un guardado normal no lo vuelve a llamar')
 })
 
 let fallas = 0

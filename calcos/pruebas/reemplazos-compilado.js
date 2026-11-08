@@ -81,7 +81,10 @@
 //   index-guardar-ia-20261029.js + reemplazos-2026-10-30-ogo.js = index-ogo-20261030.js
 //   index-ogo-20261030.js + reemplazos-2026-11-08-kmz.js = index-kmz-20261108.js
 //   index-kmz-20261108.js + reemplazos-2026-11-08-fichas-to.js = index-fichas-to-20261108.js
-//   index-fichas-to-20261108.js + reemplazos-2026-11-08-cortada.js = index-cortada-20261108.js (el vigente)
+//   index-fichas-to-20261108.js + reemplazos-2026-11-08-cortada.js = index-cortada-20261108.js
+//   index-cortada-20261108.js + reemplazos-2026-11-08-pd-corta.js = index-pd-corta-20261108.js
+//   index-pd-corta-20261108.js + reemplazos-2026-11-08-autoguardado.js = index-autoguardado-20261108.js
+//   index-autoguardado-20261108.js + reemplazos-2026-11-08-tareas-verdes.js = index-tareas-verdes-20261108.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -95,6 +98,24 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-11-08-tareas-verdes'),
+    nombre: 'reemplazos-2026-11-08-tareas-verdes',
+    // calcos/assets/index-autoguardado-20261108.js (antes de las tareas tácticas en verde fluorescente).
+    anterior: '1da11709bc327224fd5b91e34eb34b7beb9ce78a9f67e9cc5a05f791f164b957',
+  },
+  {
+    lista: require('./reemplazos-2026-11-08-autoguardado'),
+    nombre: 'reemplazos-2026-11-08-autoguardado',
+    // calcos/assets/index-pd-corta-20261108.js (antes del aviso corto del autoguardado).
+    anterior: '5266fe3fd5a4a9d11ef826f4a97f21bde1740c40b53597aaedffb978c31bdf1b',
+  },
+  {
+    lista: require('./reemplazos-2026-11-08-pd-corta'),
+    nombre: 'reemplazos-2026-11-08-pd-corta',
+    // calcos/assets/index-cortada-20261108.js (antes de recortar el texto de la hoja P.D.).
+    anterior: '62f19845ea4383a6984e98e3891a72fca3a8c467dc4659de8cb113885b73d326',
+  },
   {
     lista: require('./reemplazos-2026-11-08-cortada'),
     nombre: 'reemplazos-2026-11-08-cortada',
