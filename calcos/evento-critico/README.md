@@ -9,6 +9,50 @@ sincronizar el curso de acción para que coincida en tiempo, espacio y propósit
 probable del enemigo» y que es donde se registran los resultados del Juego de Guerra. La plantilla sustentadora de la
 decisión sale **después**, de la matriz ya jugada.
 
+## 🎖️ La decisión del Comandante: CAP 1 o CAP 2 (08-11-2026)
+
+Sergio, con esta hoja abierta: «aquí es donde someto a juego de guerra las fases, el más probable y el más peligroso;
+quiero una opción donde diga: después de sometido a juego de guerra el Comandante se decidió por el CAP 1 o CAP 2, para
+que en base a eso ya se desarrolle el resto del planeamiento y recién se rellene» la matriz. Y: «resaltar esta hoja»,
+«reducir el texto… que sea sólo de ejecución… que no haya tanto texto pequeño que no se lee».
+
+La hoja ahora es **🎖️ DECISIÓN DEL COMANDANTE**, en tres pasos (`① Juego de guerra → ② Decisión → ③ Matriz`):
+
+1. **① JUEGO DE GUERRA · CAP contra CAE** — lo de siempre (abajo), más corto: 🔵 CAP 1 / CAP 2, 🔴 CAE más probable /
+   más peligroso, cada fase con la que enfrenta y la medida en una línea (el detalle, al pasar el mouse). 💾 Guardar y
+   ⬇️ Bajar para el Juego. Se pliega una vez decidido (se abre tocando el título).
+2. **② ¿QUÉ CAP DECIDIÓ EL COMANDANTE?** — dos botones grandes (CAP 1 / CAP 2, con su nombre y sus fases). Al tocar uno:
+   - la Mesa **pasa a ese CAP** (la misma acción que el botón del F3·P6: sus fases 🔵, su F3·P4 y su F3·P6 quedan donde
+     la Mesa las busca siempre), así que **todo lo que sigue** (F4·P7, F5, F6, F7, el Word, la OPORD, el Juego) va con él;
+   - queda `g3._caps.decision = { cap, t }` (los que escriben `_caps` copian lo que tenía: sobrevive a los cambios de
+     CAP). `capAprobado` (orden-preparatoria/v1/prep.mjs) lo pone primero: la Orden Preparatoria N° 3 y la Orden
+     General de Operaciones van con el CAP decidido aunque después se mire el otro; la Guía de Planificación Final dice
+     «mi decisión es que el CAP N° n…» si la F6·P1 está vacía (estado-mayor/v8/campos/cmte.js);
+   - **↺ Cambiar la decisión** la borra (la matriz no se toca). Con el otro CAP a la vista: «⚠️ A la vista está el
+     CAP 1 · Volver al CAP 2».
+3. **③ La matriz** — 🌱, 🤖 y la rejilla recién con la decisión y ese CAP a la vista (antes: «🔒 La matriz se llena
+   después de la decisión. Ya tiene n casilla(s): se guardan.»). La matriz es la del CAP decidido (`sincro._cap`): si la
+   hoja tenía la de otro CAP, queda en `sincro._matrices[n]` y vuelve si se decide ese CAP; una vacía arranca con las
+   columnas de sus fases («FASE 1»…, como 🌱). El pedido de la IA lleva «DECISIÓN DEL COMANDANTE» con las fases del CAP
+   decidido (una por columna) y el evento crítico jugado. 📝 Anotar en la matriz, sólo con la matriz abierta.
+
+Además:
+
+- **Resaltada** en la lista de documentos del G-3: borde y fondo dorados y la chapa **🎖️ DECISIÓN** (después,
+  **🎖️ CAP n**). Los botones CAP 1 / CAP 2 del F3·P6 y del 🎬 C.A. por fases marcan el decidido con 🎖️.
+- **Las hojas que siguen** (F4·P7, F5, F6, F7) dicen arriba, en una línea: «🎖️ CAP 2 · Defensa móvil — decidido por el
+  Comandante», «⚠️ Falta la decisión del Comandante…» o «⚠️ A la vista está el CAP 1, pero el Comandante decidió el
+  CAP 2».
+- **Menos texto**: sin la cita del PMTD ni el pie largo del Juego; sin la nota «Lo que va en cada casilla…» (sigue en
+  la guía y va a la IA); «Lo que entregó el G-2» plegado; la entrega en una línea («Juego de guerra → decisión del
+  Comandante → Matriz de Ejecución») y la guía «📘 ¿Para qué es y cómo se llena?» plegada (en las demás hojas sigue
+  abierta: la F3·P1 y la F3·P3 la muestran a propósito). En todo el Tablero del G-3 la nota de la IA es una línea y la
+  letra chica sube un punto. El panel usa letra de 12,5 a 16 px.
+- Archivos: `v1/decision.mjs` (sin dependencias del compilado: `estado`, `matrizAbierta`, `conDecision`,
+  `sinDecision`, `matrizPara`, `nombreCAP`, `avisoHoja`, `filaDocumento`, `bloqueIA`, `pedidoDecision`), `v1/panel.js`,
+  `textoCorto` en `v1/modelo.mjs`; en el compilado, `pruebas/reemplazos-2026-11-08-decision-cap.js`. Pruebas:
+  `pruebas/decision-cap.mjs` y `pruebas/e2e/decision-cap.cjs` (también con `DPR=2`).
+
 ## En la Mesa
 
 **Tablero del G-3 → 📄 Documentos → «4 · Analizar los cursos de acción» → F4·P6-7 Matriz de sincronización**, arriba
