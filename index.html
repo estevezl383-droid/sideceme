@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.474</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.476</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7551,6 +7551,8 @@ body.wg-jugando{overflow:hidden}
 #screen-wargame.wg-full #wg-rail{position:absolute;top:56px;left:8px;z-index:1020;display:flex;flex-direction:column;gap:8px}
 #screen-wargame.wg-full #wg-zoom{position:absolute;top:56px;right:8px;z-index:1020;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
 #screen-wargame.wg-full #wg-zoom-chip{font-size:11px;padding:4px 9px}
+/* v2.9.475: el viento va a la IZQUIERDA del zoom, en su misma fila: la columna no crece y la carta de orientación (top:150px) queda donde estaba. */
+#screen-wargame.wg-full #wg-viento-chip{font-size:11px;padding:4px 9px;position:absolute;right:calc(100% + 6px);bottom:0}
 /* v2.9.286 — CARTA DE ORIENTACIÓN. Va debajo del zoom, contra el borde derecho.
    Chica a propósito: es para ubicarse de un vistazo, no para operar sobre ella.
    `pointer-events:none` porque si se pudiera arrastrar competiría con el mapa. */
@@ -7659,6 +7661,11 @@ body.wg-jugando{overflow:hidden}
   background:radial-gradient(circle,rgba(70,66,62,.75) 0%,rgba(50,47,44,.35) 60%,rgba(40,38,36,0) 78%);
   filter:blur(3px);animation:wgHumo 2.8s ease-out infinite}
 .wg-fuego .humo.b{animation-duration:3.6s;animation-delay:-1.4s}
+/* v2.9.475 — el humo del incendio lo dibuja el lienzo del humo, tendido por el viento. */
+.wg-fuego .humo{display:none}
+.wg-humo-cv{position:absolute;left:0;top:0;pointer-events:none}
+#wg-viento-chip{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;cursor:help}
+#wg-viento-chip .fl{display:inline-block;font-size:13px;line-height:1;color:#9fd8ff;font-weight:900;transition:transform .35s ease}
 /* ============================================================
    v2.9.235 — EL DRON SE VE VOLANDO.
    Da vueltas de verdad sobre la unidad, en un círculo proporcional a su
@@ -8783,6 +8790,7 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
         <button class="wg-rd" onclick="wgZoom(1)" title="Acercar">＋</button>
         <button class="wg-rd" onclick="wgZoom(-1)" title="Alejar">−</button>
         <span id="wg-zoom-chip" class="wg-chip" title="Nivel de zoom y ancho real del terreno que estás viendo">—</span>
+        <span id="wg-viento-chip" class="wg-chip" title="Viento: lleva el humo de los incendios">🌬️ —</span>
       </div>
 
       <!-- v2.9.286 — CARTA DE ORIENTACIÓN (arriba a la derecha).
@@ -36074,6 +36082,7 @@ async function wgEstado(silencioso){
   if(r.reloj && Number(r.reloj.n)>=0 && (WG._ticN==null || Number(r.reloj.n)>WG._ticN)) WG._ticN=Number(r.reloj.n);
   WG.estado=r; WG.soy=r.soy;
   try{ _wgVivoFusionFin(); _wgTicArrancar(); }catch(_e){}
+  try{ _wgHumoArrancar(); }catch(_e){}   // v2.9.475: 🌫️ el humo y el viento
   try{ if(WG._canal) _wgCanalBandosIniciar(); }catch(_e){}   // v2.9.455: el canal del bando, ya sabiendo cuál es
   try{ _wgBitRender(); }catch(_e){}   // v2.9.445: los 📻 pedidos pendientes, al día con las fichas
   WG.relojJuego=r.reloj||null;          // v2.9.449
@@ -37854,6 +37863,7 @@ function _wgAnimarDisparos(impactos, trazas, segundosMarcha=22, horaFin){
           boom.style.width=(90*esc)+'px'; boom.style.height=(90*esc)+'px';
           capa.appendChild(boom);
           setTimeout(()=>boom.remove(),600);
+          try{ _wgHumoExplosion([t.im.lng,t.im.lat], t.ultimo?'grande':'chica'); }catch(_e){}   // v2.9.475: y la nube
           continue;
         }
         t.el.style.display='';
@@ -37928,6 +37938,7 @@ function _wgAnimarMinas(impactos, trazas, segundosMarcha=22, horaFin){
           e.hecha=true; e.fin=dt+VIDA;
           for(const o of evs) if(o.uid===e.uid && o.orden>e.orden)
             o.t=Math.max(o.t, dt+(o.orden-e.orden)*WG_MINA_HUECO_MS);
+          try{ _wgHumoExplosion([e.im.lng,e.im.lat],'mina'); }catch(_e){}   // v2.9.475: el polvo que queda
           if(!cuerdo(p)) continue;
           e.el=document.createElement('div');
           e.el.className='wg-mina';
@@ -37944,6 +37955,494 @@ function _wgAnimarMinas(impactos, trazas, segundosMarcha=22, horaFin){
     };
     _wgCuadro(paso);
   });
+}
+// ============================================================
+// v2.9.475 — 🌫️ HUMO DE BATALLA, CON VIENTO.
+// Sergio (07-11-2026), con dos fotos de referencia —la nube abollonada de una
+// explosión, gris y blanca con el fuego adentro, y el humo de un incendio que el
+// viento estira kilómetros sobre el terreno—: «aparte de que se quede con fuego,
+// que humee… que haya diferentes tipos de humo… cuando las unidades ya fueron
+// destruidas totalmente que humeen y que ese humo sople en una dirección, como si
+// el viento lo llevara a cierto lugar, pero que tampoco llegue a tapar mucho la
+// visibilidad de la mesa… que se vea como si fuera un verdadero campo de batalla».
+//
+//   · UN SOLO VIENTO POR PARTIDA. El rumbo y la fuerza salen del número de la
+//     partida y de la hora de juego: rola despacio, como el de verdad, y todas las
+//     pantallas ven el mismo sin pedirle nada al servidor. Al lado del zoom dice de
+//     dónde sopla, hacia dónde (la flecha gira con la cámara) y con qué fuerza.
+//   · SEIS HUMOS, cada uno con su forma:
+//       💥 NUBE DE EXPLOSIÓN (foto 1): en cada impacto; grande cuando cierra la
+//          ráfaga y cuando una unidad cae fuera de combate, con el fuego adentro.
+//       ⬛ COLUMNA NEGRA: vehículo, blindado, artillería, convoy destruidos —arde
+//          combustible—, con llamas en la base.
+//       ◼ COLUMNA GRIS: tropa a pie, PC, ingenieros o comunicaciones destruidos.
+//       〰 HILO DE HUMO: la unidad muy castigada (menos de 45 %) que sigue peleando.
+//       🔥 PENACHO DE INCENDIO (foto 2): donde cayó el fuego y el terreno sigue
+//          ardiendo; bajo, claro y largo, tendido por el viento.
+//       🟫 POLVO de la mina que salta.
+//   · NO TAPA LA MESA. Va en un lienzo pegado al mapa, DEBAJO de las fichas, los
+//     rótulos y las llamas: el humo nunca oculta una unidad. Es translúcido, se
+//     abre y se aclara a medida que se aleja, y de cerca se adelgaza más.
+//   · Es IMAGEN, no regla: el motor no lo lee (no hay humo que ciegue a nadie).
+//     Sale de lo que la pantalla ya sabe —el estado de cada ficha, los incendios y
+//     los impactos de cada paso del reloj—. Sin SQL ni motor nuevo.
+// ============================================================
+const WG_HUMO_MAX = 500;   // partículas vivas como mucho (un monitor de 🖥️ Pantallas: la tercera parte)
+// col: paleta · op: opacidad máxima · vida: s · r0/rg: radio inicial (m) y cuánto se abre por s ·
+// h/tau: cuánto sube (m) y en cuánto tiempo · dv: cuánto lo arrastra el viento · lat: cuánto se
+// abre de costado (m) · est: cuánto se estira a favor del viento al envejecer (la estela de la foto 2) ·
+// som: lo oscuro de la sombra de cada bollo · tasa: bocanadas por s de una fuente fija · spr: nube o velo.
+const WG_HUMO_TIPOS = {
+  explosion:{ col:['#fbf8f2','#eee8de','#d9d1c5','#bab1a5'], op:.85, vida:[10,16], r0:45, rg:0,  h:[150,520], tau:1.6, dv:.38, lat:90, est:.35, som:.32, spr:'nube' },
+  negro:    { col:['#3b342f','#2b2521','#4d4640','#5a534c'], op:.46, vida:[12,16], r0:55, rg:45, h:[450,750], tau:2.4, dv:1.1, lat:40, est:1.1, som:.55, tasa:5,   spr:'nube' },
+  gris:     { col:['#7d7770','#958f87','#6a645c'],           op:.4,  vida:[11,15], r0:50, rg:42, h:[380,620], tau:2.2, dv:1.1, lat:40, est:1.1, som:.55, tasa:3.8, spr:'nube' },
+  tocada:   { col:['#a39d95','#bab4ab'],                     op:.26, vida:[6,9],   r0:30, rg:30, h:[200,320], tau:1.8, dv:.95, lat:25, est:.8,  som:.5,  tasa:1.1, spr:'velo' },
+  incendio: { col:['#f2ece0','#e5ddcd','#d8cfbd'],           op:.24, vida:[14,19], r0:90, rg:60, h:[70,150],  tau:1.6, dv:1.4, lat:60, est:1.8, som:.5,  tasa:2.6, spr:'velo' },
+  polvo:    { col:['#a98f6c','#907857','#bba585'],           op:.62, vida:[5,8],   r0:35, rg:0,  h:[60,180],  tau:.9,  dv:.3,  lat:60, est:.2,  som:.4,  spr:'nube' },
+};
+// Las armas que arden con humo NEGRO (combustible, blindaje, munición). El resto, gris.
+const WG_HUMO_NEGRO = ['mecanizada','blindada','motorizada','cabmec','artilleria','lanzacohetes','antiaerea',
+  'antitanque','convoy','logistica','ambulancia','aviacion','helicoptero'];
+function _wgHumoNegro(u){ return !!u && (WG_HUMO_NEGRO.includes(u.arma) || _wgEsConvoy(u)); }
+// ---- 🌬️ el viento ----
+const WG_RUMBOS8=['N','NE','E','SE','S','SO','O','NO'];
+function _wgRumboTxt(g){ return WG_RUMBOS8[Math.round((((Number(g)||0)%360)+360)%360/45)%8]; }
+// De dónde sopla (`de`, como lo dice el parte meteorológico), hacia dónde (`a`) y su fuerza.
+function _wgViento(){
+  const pid=Number(WG.partidaId)||1;
+  let h=0; try{ h=_wgHoraJuego(); }catch(_e){}
+  const base=(pid*137.508)%360;
+  const de=((base+24*Math.sin(h/3.7+pid)+9*Math.sin(h/1.3+pid*.7))%360+360)%360;
+  const kmh=Math.max(4, 13+7*Math.sin(h/5.3+pid*1.3)+3*Math.sin(h/.9+pid));
+  return { de, a:(de+180)%360, kmh };
+}
+function _wgVientoChip(rumboCam){
+  const el=document.getElementById('wg-viento-chip'); if(!el) return;
+  const v=_wgViento(), giro=v.a-(Number(rumboCam)||0), de=_wgRumboTxt(v.de), a=_wgRumboTxt(v.a), km=Math.round(v.kmh);
+  const k=de+'|'+km+'|'+Math.round(giro/4);
+  if(el._k===k) return;
+  el._k=k;
+  el.innerHTML=`<b class="fl" style="transform:rotate(${giro.toFixed(0)}deg)">↑</b>Viento del ${de} · ${km} km/h`;
+  el.title=`VIENTO: sopla del ${de} (${Math.round(v.de)}°) hacia el ${a}, a ${km} km/h, y rola despacio con las horas. `
+    +`Lleva el humo de los incendios y de las unidades destruidas (la flecha apunta hacia donde va). Es sólo imagen: el combate no lo usa.`;
+}
+// ---- las formas del humo (se dibujan una vez y se reusan) ----
+function _wgHumoRgb(h){ const n=parseInt(String(h).slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+function _wgHumoSprite(col, forma, v, somb){
+  const so=somb==null?.55:Number(somb);
+  const C=WG._humoSpr||(WG._humoSpr={}), key=col+forma+v+'|'+so;
+  if(C[key]) return C[key];
+  const S=96, cv=document.createElement('canvas'); cv.width=cv.height=S;
+  const g=cv.getContext('2d');
+  const rgb=_wgHumoRgb(col), mezcla=(t,o)=>rgb.map((c,i)=>Math.round(c+(t[i]-c)*o));
+  const css=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  if(forma==='velo'){
+    const gr=g.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);
+    gr.addColorStop(0,css(rgb,.8)); gr.addColorStop(.45,css(rgb,.45)); gr.addColorStop(1,css(rgb,0));
+    g.fillStyle=gr; g.fillRect(0,0,S,S);
+  }else{
+    // Nube abollonada: varios bollos con la luz arriba a la izquierda y la sombra abajo,
+    // como la columna de la foto 1. Cuatro variantes fijas (sin azar entre pantallas).
+    const luz=mezcla([255,255,255],.42), som=mezcla([0,0,0],so);
+    let s=(Number(v)+1)*7919; const rnd=()=>((s=(s*16807)%2147483647)/2147483647);
+    const n=6+(Number(v)%3);
+    for(let i=0;i<n;i++){
+      const a=rnd()*Math.PI*2, d=(i?(0.08+rnd()*0.13):0)*S, rr=S*(0.17+rnd()*0.1);
+      const cx=S/2+Math.cos(a)*d, cy=S/2+Math.sin(a)*d*0.8;
+      const gr=g.createRadialGradient(cx-rr*.35,cy-rr*.42,rr*.08,cx,cy,rr);
+      gr.addColorStop(0,css(luz,.95)); gr.addColorStop(.5,css(rgb,.88)); gr.addColorStop(.8,css(som,.55)); gr.addColorStop(1,css(som,0));
+      g.fillStyle=gr; g.beginPath(); g.arc(cx,cy,rr,0,Math.PI*2); g.fill();
+    }
+  }
+  return C[key]=cv;
+}
+// ---- el estado del humo ----
+function _wgHumo(){
+  const pid=WG.partidaId||null;
+  if(!WG._humo || WG._humo.pid!==pid){
+    WG._humo={ pid, p:[], fu:new Map(), est:new Map(), estOk:false, ahora:performance.now(), n:0, tz:[], fl:[], pares:new Map() };   // v2.9.476: trazadoras, fogonazos y pares en contacto
+  }
+  WG._humo.max=WG.mon ? Math.round(WG_HUMO_MAX/3) : WG_HUMO_MAX;
+  return WG._humo;
+}
+function _wgHumoParticula(tipo, g, extra){
+  const T=WG_HUMO_TIPOS[tipo], H=_wgHumo();
+  if(!T || H.p.length>=H.max) return null;
+  const R=Math.random, ent=(r)=>r[0]+R()*(r[1]-r[0]);
+  const p=Object.assign({ g, T, t0:H.ahora, vida:ent(T.vida)*1000, r0:T.r0*(0.8+R()*0.45)*(g.esc||1),
+    h:ent(T.h)*(g.esc||1), lat:(R()*2-1)*T.lat, col:T.col[Math.floor(R()*T.col.length)], v:Math.floor(R()*4),
+    rot:R()*6.283, gir:(R()-.5)*.22, ox:0, oy:0 }, extra||{});
+  H.p.push(p);
+  return p;
+}
+// 💥 La nube de una explosión: `chica` (cada proyectil), `grande` (el que cierra la ráfaga),
+// `destruida` (la unidad que acaba de caer) o `mina` (polvo).
+function _wgHumoExplosion(lngLat, tam){
+  if(!Array.isArray(lngLat) || !Number.isFinite(Number(lngLat[0])) || !Number.isFinite(Number(lngLat[1]))) return;
+  const H=_wgHumo(); _wgHumoArrancar();
+  const R=Math.random, lleno=H.p.length/H.max;
+  if(lleno>.95) return;
+  // v2.9.476: `golpe` es el polvito de una bala de fusil o ametralladora.
+  const n = tam==='destruida' ? 13 : tam==='grande' ? 9 : tam==='mina' ? 5 : tam==='golpe' ? 1 : (lleno>.7?1:2);
+  const tipo = (tam==='mina'||tam==='golpe') ? 'polvo' : 'explosion';
+  const esc = tam==='destruida' ? 1.45 : tam==='grande' ? 1.1 : tam==='mina' ? .8 : tam==='golpe' ? .42 : .65;
+  if(tam==='golpe' && lleno>.6) return;
+  const disp = tam==='chica' ? 80 : 35, lat=Number(lngLat[1]), c=Math.max(.2,Math.cos(lat*Math.PI/180));
+  const g={ lng:Number(lngLat[0])+((R()*2-1)*disp/111320)/c, lat:lat+(R()*2-1)*disp/110540, esc };
+  const abre=(tam==='destruida'?260:190)*esc;
+  for(let i=0;i<n;i++){
+    const ang=R()*6.283, d=(i===0?0:(.35+R()*.65))*abre;
+    _wgHumoParticula(tipo, g, { ox:Math.cos(ang)*d, oy:Math.sin(ang)*d*.55, rmax:(190+R()*200)*esc,
+      h:(tipo==='polvo' ? 60+R()*120 : (i===0 ? 90 : 140+R()*400))*esc, t0:H.ahora+(tam==='chica'?0:i*55) });
+  }
+}
+// Las fuentes fijas: las unidades destruidas o castigadas que se ven, y lo que sigue ardiendo.
+function _wgHumoFuentes(){
+  const H=_wgHumo(), vivas=new Map();
+  const uds = WG.verUnidades===false ? [] : _wgUnidadesVisibles();
+  for(const u of uds){
+    const k='u'+u.id, max=Number(u.poder_max)||0, pct=max ? Number(u.poder_actual)/max : 1;
+    const muerta = u.estado==='fuera_combate' || pct<=0.2;
+    // La que cae mientras se mira: la nube grande. Al abrir la partida no explota nada.
+    const antes=H.est.get(k); H.est.set(k, muerta?'m':'v');
+    if(muerta && antes==='v' && H.estOk) _wgHumoExplosion([Number(u.lng),Number(u.lat)],'destruida');
+    const tipo = muerta ? (_wgHumoNegro(u)?'negro':'gris') : (pct<0.45 ? 'tocada' : null);
+    if(!tipo) continue;
+    let g=H.fu.get(k);
+    const lng=Number(u.lng), lat=Number(u.lat);
+    if(!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+    // Si la unidad se movió, el humo nuevo sale de donde está; el viejo sigue su camino.
+    if(!g || g.tipo!==tipo || _wgHav([g.lng,g.lat],[lng,lat])>0.03){
+      let porte=1; try{ porte=Math.max(.75,Math.min(1.4,_wgPorte(u)||1)); }catch(_e){}
+      const cist = _wgEsConvoy(u) && Number((u.carga||{}).III)>0;   // la cisterna arde fuerte
+      g={ k, tipo, lng, lat, acc:g?g.acc:Math.random(), fuego:tipo!=='tocada', fuerte:tipo==='negro'||cist,
+        esc:porte*(cist?1.25:1), fase:Math.random()*10 };
+    }
+    vivas.set(k,g);
+  }
+  for(const f of (WG.incendios||[])){
+    const lng=Number(f.lng), lat=Number(f.lat);
+    if(!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+    const k='f'+lng.toFixed(5)+','+lat.toFixed(5);
+    if(vivas.has(k)) continue;
+    vivas.set(k, H.fu.get(k) || { k, tipo:'incendio', lng, lat, acc:Math.random(), fuego:false,
+      esc:Math.max(.8,Math.min(1.6,(Number(f.radio)||.2)/.25)) });
+  }
+  H.fu=vivas; H.estOk=true;
+  try{ _wgHumoContactos(uds); }catch(e){ console.warn('contacto:', e); }   // v2.9.476
+}
+// ¿Dónde se dibuja? En el mapa que está a la vista, DEBAJO de las fichas.
+function _wgHumoSuperficie(){
+  if(_wgEn3D()){
+    const map=WG.map3d, gl=map && map.getCanvas && map.getCanvas();
+    if(!gl || !gl.clientWidth || !gl.parentNode) return null;
+    let cv=WG._humoCv3;
+    // Justo después del lienzo del relieve: los marcadores (fichas, rótulos, llamas) van después y quedan arriba.
+    if(!cv || cv.previousSibling!==gl){ if(cv) cv.remove(); cv=document.createElement('canvas'); cv.className='wg-humo-cv'; gl.after(cv); WG._humoCv3=cv; }
+    return { sup:'3d', cv, w:gl.clientWidth, h:gl.clientHeight, pitch:Number(map.getPitch())||0, rumbo:Number(map.getBearing())||0,
+      proj:(lng,lat)=>{ const q=map.project([lng,lat]); return [q.x,q.y]; } };
+  }
+  const map=WG.map;
+  if(!map || !map.getContainer || typeof L==='undefined') return null;
+  const cont=map.getContainer();
+  if(!cont || !cont.clientWidth || !cont.isConnected) return null;
+  // Un panel propio entre la imagen y lo dibujado (las capas van en 400, las fichas en 600).
+  let pane=map.getPane('wgHumo');
+  if(!pane){ pane=map.createPane('wgHumo'); pane.style.zIndex='390'; pane.style.pointerEvents='none'; }
+  let cv=WG._humoCv2;
+  if(!cv || cv.parentNode!==pane){ cv=document.createElement('canvas'); cv.className='wg-humo-cv'; pane.appendChild(cv); WG._humoCv2=cv; }
+  try{ L.DomUtil.setPosition(cv, map.containerPointToLayerPoint([0,0])); }catch(_e){}
+  return { sup:'2d', cv, w:cont.clientWidth, h:cont.clientHeight, pitch:0, rumbo:0,
+    proj:(lng,lat)=>{ const q=map.latLngToContainerPoint([lat,lng]); return [q.x,q.y]; } };
+}
+function _wgHumoArrancar(){
+  const Z=WG._humoLazo||(WG._humoLazo={});
+  if(Z.dormido){ clearTimeout(Z.dormido); Z.dormido=null; requestAnimationFrame(Z.ciclo); return; }   // despierta ya
+  if(Z.on) return;
+  Z.on=true;
+  Z.ciclo=(t)=>{
+    let sigue=false;
+    try{ sigue=_wgHumoCuadro(t); }catch(e){ console.warn('humo:', e); }
+    if(sigue) requestAnimationFrame(Z.ciclo);
+    else Z.dormido=setTimeout(()=>{ Z.dormido=null; requestAnimationFrame(Z.ciclo); }, 700);   // nada que dibujar: se fija cada tanto
+  };
+  requestAnimationFrame(Z.ciclo);
+}
+// Las llamas de una unidad que arde, en la base de su columna (se inclinan con el viento).
+function _wgHumoLlamas(ctx, x, y, s, t, fuerte, wx, wy){
+  ctx.globalCompositeOperation='lighter';
+  const R=(fuerte?20:14)*s*(0.88+0.12*Math.sin(t*6.1)+0.05*Math.sin(t*17.3));
+  const gr=ctx.createRadialGradient(x,y,0,x,y,R);
+  gr.addColorStop(0,'rgba(255,175,70,.62)'); gr.addColorStop(.45,'rgba(255,100,20,.26)'); gr.addColorStop(1,'rgba(255,60,0,0)');
+  ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(x,y,R,0,Math.PI*2); ctx.fill();
+  const n=fuerte?4:3, inc=Math.max(-.5,Math.min(.5,wx||0));
+  for(let i=0;i<n;i++){
+    const ph=t*(8.5+i*2.9)+i*1.7;
+    const h=(fuerte?17:12)*s*(0.72+0.22*Math.sin(ph)+0.1*Math.sin(ph*2.6));
+    const w=h*0.42, ox=(i-(n-1)/2)*w*0.55, cx=x+ox, punta=cx+inc*h*0.7+Math.sin(ph*1.3)*w*0.22;
+    const lg=ctx.createLinearGradient(0,y,0,y-h);
+    lg.addColorStop(0,'rgba(255,246,175,.95)'); lg.addColorStop(.28,'rgba(255,205,45,.9)');
+    lg.addColorStop(.62,'rgba(255,115,12,.72)'); lg.addColorStop(1,'rgba(255,50,0,0)');
+    ctx.fillStyle=lg; ctx.beginPath(); ctx.moveTo(cx-w/2,y);
+    ctx.quadraticCurveTo(cx-w*.6,y-h*.55,punta,y-h);
+    ctx.quadraticCurveTo(cx+w*.6,y-h*.55,cx+w/2,y); ctx.closePath(); ctx.fill();
+  }
+  ctx.globalCompositeOperation='source-over';
+}
+// Un cuadro. Devuelve false cuando no hay nada que mirar (y el ciclo se duerme un rato).
+function _wgHumoCuadro(ahora){
+  const H=_wgHumo();
+  H.ahora=ahora;
+  const S=(WG.partidaId && WG.estado) ? _wgHumoSuperficie() : null;
+  // El lienzo de la otra superficie (o de una partida cerrada) queda limpio.
+  for(const cv of [WG._humoCv2, WG._humoCv3]) if(cv && (!S || cv!==S.cv) && cv.width){ cv.width=0; cv.height=0; }
+  if(!S){ H.ult=0; H.tz.length=0; H.fl.length=0; return false; }
+  // El humo es lento: 30 cuadros por segundo (un monitor, 20) le sobran.
+  if(H.ult && ahora-H.ult<(WG.mon?48:31)) return true;
+  const dt=H.ult ? Math.min(.25,(ahora-H.ult)/1000) : 0;
+  H.ult=ahora; H.n++;
+  if(!H.tf || ahora-H.tf>900){
+    H.tf=ahora;
+    try{ _wgHumoFuentes(); }catch(e){ console.warn('humo (fuentes):', e); }
+    H.v=_wgViento();
+    try{ _wgVientoChip(S.rumbo); }catch(_e){}
+  }else if(S.sup==='3d' && H.rumbo!==Math.round(S.rumbo)){ try{ _wgVientoChip(S.rumbo); }catch(_e){} }
+  H.rumbo=Math.round(S.rumbo);
+  const v=H.v||(H.v=_wgViento());
+  // Las fuentes fijas largan su humo (menos cada una si hay muchas, para no ahogar la mesa).
+  const nf=H.fu.size, freno=Math.min(1, 9/Math.max(1,nf))*(H.p.length>H.max*.85?.35:1);
+  for(const g of H.fu.values()){
+    const T=WG_HUMO_TIPOS[g.tipo];
+    g.acc=(g.acc||0)+T.tasa*freno*dt*Math.sqrt(g.esc||1);
+    while(g.acc>=1){ g.acc-=1; _wgHumoParticula(g.tipo, g); }
+  }
+  try{ _wgHumoTirotear(ahora); }catch(e){ console.warn('contacto:', e); }   // v2.9.476: las ráfagas que vencen
+  const dpr=Math.min(WG.mon?1:2, window.devicePixelRatio||1);
+  const W=Math.max(1,Math.round(S.w*dpr)), Hh=Math.max(1,Math.round(S.h*dpr));
+  if(S.cv.width!==W || S.cv.height!==Hh){ S.cv.width=W; S.cv.height=Hh; S.cv.style.width=S.w+'px'; S.cv.style.height=S.h+'px'; }
+  const ctx=S.cv.getContext('2d');
+  ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha=1; ctx.clearRect(0,0,W,Hh);
+  if(!H.p.length && !nf && !H.tz.length && !H.fl.length && !H.pares.size) return false;
+  // Cuánto se ve la altura según la inclinación de la cámara (de arriba casi no se nota).
+  const sube=0.12+0.88*Math.sin(Math.min(85,S.pitch)*Math.PI/180);
+  const vel=Math.max(90, Math.min(260, v.kmh/3.6*60));   // m/s de la película (el viento a 1 h = 1 min)
+  const rad=v.a*Math.PI/180, sa=Math.sin(rad), ca=Math.cos(rad);
+  // Cada grupo se proyecta una vez por cuadro: dónde está, hacia dónde lo lleva el viento, la escala.
+  const geo=(g)=>{
+    if(g._n===H.n) return g._ok;
+    g._n=H.n; g._ok=false;
+    const p=S.proj(g.lng,g.lat);
+    if(!p || !Number.isFinite(p[0]) || !Number.isFinite(p[1]) || Math.abs(p[0])>20000 || Math.abs(p[1])>20000) return false;
+    const c=Math.max(.2,Math.cos(g.lat*Math.PI/180));
+    const q=S.proj(g.lng+sa*1000/111320/c, g.lat+ca*1000/110540);        // 1 km a favor del viento
+    const r=S.proj(g.lng+ca*1000/111320/c, g.lat-sa*1000/110540);        // 1 km de costado
+    if(!q || !r) return false;
+    const lw=Math.hypot(q[0]-p[0],q[1]-p[1]), lp=Math.hypot(r[0]-p[0],r[1]-p[1]);
+    const kv=Math.max(lw,lp)/1000;
+    if(!Number.isFinite(kv) || kv<=0) return false;
+    // Píxeles por metro. Una nube de verdad mide 100-300 m: a la distancia de juego serían 3 píxeles.
+    // Como la ficha, el humo va EXAGERADO y casi del mismo tamaño en pantalla: crece apenas al acercarse.
+    const kc=0.075*Math.max(.75,Math.min(1.3,Math.pow(kv/.04,.3))), s=kc/kv;
+    g._p=p; g._k=kc; g._wx=(q[0]-p[0])/1000*s; g._wy=(q[1]-p[1])/1000*s;
+    g._nx=(r[0]-p[0])/1000*s; g._ny=(r[1]-p[1])/1000*s; g._fi=Math.atan2(g._wy,g._wx);
+    g._cerca = kv>.07 ? Math.max(.5, 1-(kv-.07)/.12) : 1;   // de muy cerca, más transparente
+    return (g._ok=true);
+  };
+  const bola=(p)=>p.rmax!=null;
+  let quedan=0;
+  for(let i=0;i<H.p.length;i++){
+    const p=H.p[i], a=(ahora-p.t0)/1000;
+    if(a*1000>=p.vida){ continue; }
+    H.p[quedan++]=p;
+    if(a<0 || !geo(p.g)) continue;
+    const T=p.T, g=p.g, e=a*1000/p.vida, kc=g._k;
+    const deriva=vel*T.dv*a*(0.22+0.78*(1-Math.exp(-a/1.6)));
+    const alto=p.h*(1-Math.exp(-a/T.tau));
+    const abre=p.lat*(0.25+0.11*a);
+    const radio=Math.min(78, (bola(p) ? p.r0+p.rmax*(1-Math.exp(-a/.55))+9*a : p.r0+T.rg*a)*kc);
+    if(radio<0.6) continue;
+    const x=g._p[0]+g._wx*deriva+g._nx*abre+p.ox*kc;
+    const y=g._p[1]+g._wy*deriva+g._ny*abre-p.oy*kc-alto*kc*sube;
+    if(x<-radio-40 || y<-radio-40 || x>S.w+radio+40 || y>S.h+radio+40) continue;
+    const al=T.op*Math.min(1,a/(bola(p)?.08:.45))*Math.pow(1-e,1.25)*g._cerca;
+    if(al<0.01) continue;
+    // Gira sobre sí mismo y, al envejecer, se ESTIRA en la dirección del viento (la estela).
+    const th=p.rot+p.gir*a, ct=Math.cos(th), st=Math.sin(th), fi=g._fi, cf=Math.cos(fi), sf=Math.sin(fi), sx=1+T.est*e;
+    ctx.setTransform((cf*sx*ct-sf*st)*dpr, (sf*sx*ct+cf*st)*dpr, (-cf*sx*st-sf*ct)*dpr, (-sf*sx*st+cf*ct)*dpr, x*dpr, y*dpr);
+    ctx.globalAlpha=al;
+    ctx.drawImage(_wgHumoSprite(p.col,T.spr,p.v,T.som),-radio,-radio,radio*2,radio*2);
+    // El fuego adentro de la nube (foto 1): un resplandor naranja que se apaga en un segundo y medio.
+    if(T===WG_HUMO_TIPOS.explosion && a<2.2){
+      ctx.globalCompositeOperation='lighter';
+      ctx.globalAlpha=0.75*Math.pow(1-a/2.2,1.3)*g._cerca;
+      ctx.drawImage(_wgHumoSprite('#ff7a1c','velo',0),-radio*.9,-radio*.9,radio*1.8,radio*1.8);
+      ctx.globalCompositeOperation='source-over';
+    }
+  }
+  H.p.length=quedan;
+  // Las llamas de las unidades que arden, encima de su propio humo.
+  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.globalAlpha=1;
+  const t=ahora/1000;
+  for(const g of H.fu.values()){
+    if(!g.fuego || !geo(g)) continue;
+    const s=Math.max(.75,Math.min(1.45,g._k/.05))*Math.min(1.3,g.esc||1);
+    const L=Math.hypot(g._wx,g._wy)||1;
+    _wgHumoLlamas(ctx, g._p[0], g._p[1], s, t+(g.fase||0), g.fuerte, g._wx/L, g._wy/L);
+  }
+  try{ _wgHumoTrazas(ctx, S, ahora, dpr); }catch(e){ console.warn('trazas:', e); }   // v2.9.476
+  ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha=1;
+  return true;
+}
+// ============================================================
+// v2.9.476 — 🔫 EL FUEGO SE VE TODO EL TIEMPO ENTRE LOS QUE ESTÁN EN CONTACTO.
+// Sergio (07-11-2026): «las unidades no están disparando, no sé por qué… y que se
+// disparen los fuegos». Revisada su partida 17 «AZAFRAN X»: el motor SÍ resolvió el
+// fuego —20 empeños en sus 10 minutos de juego—, pero cada par en contacto cambia fuego
+// UNA VEZ POR JORNADA (2 h de juego, lo que mantiene el desgaste calibrado): con
+// «1 h = 1 min» es una ráfaga de cuatro segundos cada dos minutos, y en el medio la mesa
+// se quedaba muda con las unidades pegadas una a la otra.
+//   · Ahora, mientras corre el reloj, cada par enemigo en contacto (a 3 km o menos, el
+//     mismo radio del motor) se tirotea en la pantalla: trazadoras de ida y vuelta (ámbar
+//     las del azul, rojas las del rojo), el fogonazo en la boca, el polvo donde pegan y,
+//     si tiene mortero, algún disparo por elevación que levanta su nube.
+//   · Tira el que tiene con qué: sin munición de cerca no dispara (como en el motor) y el
+//     apoyo (convoy, PC, comunicaciones) sólo contesta. Unidad que no se ve en la lente
+//     de ese bando, no tira en su pantalla.
+//   · Es la PELÍCULA del combate que el motor resuelve por jornada: no gasta munición ni
+//     cambia el desgaste. El parte sigue saliendo en la bitácora como siempre.
+//   · En pausa no se tira: el campo queda quieto.
+// ============================================================
+const WG_CONTACTO_KM = 3;      // el radio del combate de encuentro del motor (`rango_combate_km`)
+const WG_CONTACTO_MAX = 12;    // pares a la vez, los más cercanos primero
+const WG_TRAZA_COL = { azul:'255,214,110', rojo:'255,92,58' };
+function _wgArmasDeCercaCli(u){
+  try{
+    return _wgArmamento(u).filter(a=>a && !a.ingenieria && a.alcance>0 && (!a.indirecto || /^mortero/.test(a.id))
+      && _wgMunicion(u,a.id)>0);
+  }catch(_e){ return []; }
+}
+// Los pares en contacto que se ven en esta pantalla (se rehace con las fuentes del humo, cada segundo).
+function _wgHumoContactos(uds){
+  const H=_wgHumo();
+  if(!H.pares) H.pares=new Map();
+  if(!_wgCorre() || WG.replayando){ H.pares.clear(); return; }
+  const vivos=uds.filter(u=>u && u.estado!=='fuera_combate' && Number.isFinite(Number(u.lng)) && Number.isFinite(Number(u.lat))
+    && !(Number(u.poder_max)>0 && Number(u.poder_actual)/Number(u.poder_max)<=0.2));
+  const cand=[];
+  for(let i=0;i<vivos.length;i++) for(let j=i+1;j<vivos.length;j++){
+    const a=vivos[i], b=vivos[j];
+    if(a.bando===b.bando) continue;
+    if(_wgEsNoCombatienteCli(a) && _wgEsNoCombatienteCli(b)) continue;
+    const d=_wgHav([Number(a.lng),Number(a.lat)],[Number(b.lng),Number(b.lat)]);
+    if(d<=WG_CONTACTO_KM) cand.push({a,b,d});
+  }
+  cand.sort((x,y)=>x.d-y.d);
+  const nuevo=new Map();
+  for(const c of cand.slice(0,WG_CONTACTO_MAX)){
+    const k=String(c.a.id)+'|'+String(c.b.id);
+    const v=H.pares.get(k)||{ prox:H.ahora+300+Math.random()*2200 };
+    v.a=c.a; v.b=c.b; v.d=c.d;
+    nuevo.set(k,v);
+  }
+  H.pares=nuevo;
+}
+// Una ráfaga de `quien` sobre `blanco`, desde `t0` (ms de la página).
+function _wgHumoRafaga(quien, blanco, d, t0){
+  const H=_wgHumo(), armas=_wgArmasDeCercaCli(quien);
+  if(!armas.length) return 0;
+  const R=Math.random;
+  // Las de alcance: el mortero tira por elevación sólo si el blanco no está encima.
+  const sirven=armas.filter(a=>a.alcance>=d*0.85 || /^mortero/.test(a.id));
+  const a=(sirven.length?sirven:armas)[Math.floor(R()*(sirven.length?sirven:armas).length)];
+  const ind=!!a.indirecto && d>0.6;
+  const pesado=/^(canon|misilAT|srAT)$/.test(a.id);
+  const n=ind ? 1+(R()<.4?1:0) : pesado ? 1 : 3+Math.floor(R()*3);
+  const col=WG_TRAZA_COL[quien.bando]||'255,220,150';
+  const lat0=Number(quien.lat), lng0=Number(quien.lng), lat1=Number(blanco.lat), lng1=Number(blanco.lng);
+  const c=Math.max(.2,Math.cos(lat0*Math.PI/180)), jit=(m)=>[(R()*2-1)*m/111320/c,(R()*2-1)*m/110540];
+  const dur=ind ? 950+d*260 : 170+d*175;
+  const desv=(ind?160:90)+d*25;
+  for(let i=0;i<n;i++){
+    const j0=jit(30), j1=jit(desv);
+    H.tz.push({ a:[lng0+j0[0],lat0+j0[1]], b:[lng1+j1[0],lat1+j1[1]], t0:t0+i*(ind?420:95+R()*80), dur:dur*(0.92+R()*0.16),
+      ind, pesado, col, d });
+  }
+  return n;
+}
+// Lo que toca a este cuadro: largar las ráfagas que vencen.
+function _wgHumoTirotear(ahora){
+  const H=_wgHumo();
+  if(!H.pares || !H.pares.size || H.tz.length>90) return;
+  for(const v of H.pares.values()){
+    if(ahora<v.prox) continue;
+    v.prox=ahora+1700+Math.random()*2800;
+    const a=v.a, b=v.b, nca=_wgEsNoCombatienteCli(a), ncb=_wgEsNoCombatienteCli(b);
+    // Abre el fuego el de combate (si los dos lo son, más seguido el más fuerte); el apoyo sólo contesta.
+    let p=a, q=b;
+    if(nca && !ncb){ p=b; q=a; }
+    else if(!nca && !ncb){
+      const pa=Number(a.poder_actual)||1, pb=Number(b.poder_actual)||1;
+      if(Math.random()>pa/(pa+pb)){ p=b; q=a; }
+    }
+    let n=_wgHumoRafaga(p, q, v.d, ahora);
+    if(!n){ [p,q]=[q,p]; if(!_wgEsNoCombatienteCli(p)) n=_wgHumoRafaga(p, q, v.d, ahora); }
+    // La respuesta, un rato después.
+    if(n && Math.random()<.68) _wgHumoRafaga(q, p, v.d, ahora+320+Math.random()*520);
+  }
+}
+// El dibujo de las trazadoras, los fogonazos y los golpes.
+function _wgHumoTrazas(ctx, S, ahora, dpr){
+  const H=_wgHumo();
+  if(!H.tz.length && !H.fl.length) return;
+  const sano=(p)=>p && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Math.abs(p[0])<20000 && Math.abs(p[1])<20000;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.globalCompositeOperation='lighter';
+  ctx.lineCap='round';
+  let q=0;
+  for(let i=0;i<H.tz.length;i++){
+    const z=H.tz[i], k=(ahora-z.t0)/z.dur;
+    if(k>=1){
+      // Pegó: el polvo (o la nube del mortero) y un destello chico. (La que venció con la
+      // pantalla escondida no revienta tarde: se descarta.)
+      if(k<1.6){
+        try{ _wgHumoExplosion(z.b, z.ind||z.pesado ? 'chica' : 'golpe'); }catch(_e){}
+        H.fl.push({ ll:z.b, t0:ahora, vida:z.ind||z.pesado?260:150, r:z.ind||z.pesado?13:6, col:'255,190,110' });
+      }
+      continue;
+    }
+    H.tz[q++]=z;
+    if(k<0) continue;
+    if(!z.boca){ z.boca=1; H.fl.push({ ll:z.a, t0:ahora, vida:120, r:z.ind?12:8, col:z.col }); }
+    const A=S.proj(z.a[0],z.a[1]), B=S.proj(z.b[0],z.b[1]);
+    if(!sano(A) || !sano(B)) continue;
+    const dx=B[0]-A[0], dy=B[1]-A[1], L=Math.hypot(dx,dy);
+    if(L<2) continue;
+    const arco=(t)=>z.ind ? 4*Math.min(140,Math.max(30,L*.38))*t*(1-t) : 0;
+    const k0=Math.max(0,k-(z.ind?0.07:Math.min(0.4,36/L)));
+    const x1=A[0]+dx*k, y1=A[1]+dy*k-arco(k), x0=A[0]+dx*k0, y0=A[1]+dy*k0-arco(k0);
+    ctx.strokeStyle=`rgba(${z.col},.32)`; ctx.lineWidth=z.ind?5:4.5;
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
+    ctx.strokeStyle=`rgba(${z.col},.95)`; ctx.lineWidth=z.ind?2.2:1.8;
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
+    ctx.fillStyle='rgba(255,252,235,.95)';   // la punta encendida
+    ctx.beginPath(); ctx.arc(x1,y1,z.ind?2.4:1.9,0,Math.PI*2); ctx.fill();
+  }
+  H.tz.length=q;
+  // Fogonazos (boca e impacto): un resplandor que dura un instante.
+  let f=0;
+  for(let i=0;i<H.fl.length;i++){
+    const o=H.fl[i], e=(ahora-o.t0)/o.vida;
+    if(e>=1) continue;
+    H.fl[f++]=o;
+    const P=S.proj(o.ll[0],o.ll[1]);
+    if(!sano(P)) continue;
+    const r=o.r*(0.7+0.6*e), al=0.9*(1-e);
+    const gr=ctx.createRadialGradient(P[0],P[1],0,P[0],P[1],r);
+    gr.addColorStop(0,`rgba(255,250,225,${al})`); gr.addColorStop(.35,`rgba(${o.col},${al*.8})`); gr.addColorStop(1,`rgba(${o.col},0)`);
+    ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(P[0],P[1],r,0,Math.PI*2); ctx.fill();
+  }
+  H.fl.length=f;
+  ctx.globalCompositeOperation='source-over';
 }
 // ============================================================
 // v2.9.351 — LA DESCARGA SE VE.
@@ -43264,8 +43763,11 @@ function _wgDibujo(){
       if(_oPrev && _oPrev._arma){ s.tiro=_oPrev._arma; if(!_oPrev._cola) s.lleno=1; }
       else if(_oPrev && _oPrev._plan) s.plan=1;
       if(s.k==='txt' && _oPrev){
-        if(_oPrev._cola){ const hq=Number(_oPrev._cola.h)||0; s.txt=(hq>_wgHoraJuego()+0.01?`⏳ tira ${_wgHoraTxt(hq)} · `:'🔥 sale ya · ')+s.txt; }
-        else if(_oPrev._arma) s.txt='🎯 apuntado · '+s.txt;
+        // v2.9.476: el tiro en cola de un arma que todavía recarga NO sale ya (el motor lo guarda
+        // hasta que pase la jornada); y el apuntado no sale nunca si nadie aprieta FUEGO.
+        if(_oPrev._cola){ const hq=Number(_oPrev._cola.h)||0, rc=_wgRecarga(_uidPrev,_oPrev._arma);
+          s.txt=(hq>_wgHoraJuego()+0.01?`⏳ tira ${_wgHoraTxt(hq)} · `:(rc>0?`⏳ recarga, sale en ${_wgHMin(rc)} · `:'🔥 sale ya · '))+s.txt; }
+        else if(_oPrev._arma) s.txt='🎯 apuntado, falta FUEGO · '+s.txt;
         else if(_oPrev._plan) s.txt='⏸ falta ▶ · '+s.txt;
         else { const sq=_wgOrdenSale(_oPrev); if(sq!=null && sq>_wgHoraJuego()+0.01) s.txt=`⏳ sale ${_wgHoraTxt(sq)} · `+s.txt; }
       }
