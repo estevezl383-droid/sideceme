@@ -5,6 +5,39 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-11-08 — 🌍 Abrir KMZ / KML de Google Earth en 📁 Ejercicios (`index-kmz-20261108.js`)
+
+Parte de `index-ogo-20261030.js` + `pruebas/reemplazos-2026-11-08-kmz.js` (5 reemplazos; `construir-kmz.js`;
+`reemplazos-compilado.js` lo deshace byte por byte). Sergio, con la captura de 📁 Ejercicios y su carpeta «NUEVO EJERCICIO
+TCNL GALVEZ» (AO OSO/PUMA/TIGRE/ZORRO, 01 TEATRO DE OPERACIONES, 060700NOV26.kmz…): «que me permitas cargar documentos KMZ
+y que se guarden luego en el formato del juego… hay áreas de operaciones y fichas enemigas».
+
+- **Qué pasaba**: «📂 Abrir archivo JSON» sólo aceptaba el JSON de la Mesa; los ejercicios armados en Google Earth había
+  que volver a trazarlos a mano.
+- **Fuera del compilado**: `areas-operaciones/abrir-kmz.mjs` (nuevo, sin librerías): abre el ZIP con
+  `DecompressionStream`, lee el KML y arma el MISMO paquete de áreas que baja la Mesa (`sideceme-areas-operaciones`),
+  que sigue por `abrir-archivo.mjs` como siempre. Áreas = polígonos «AO …», «Área de Operaciones» (toma el nombre de
+  su carpeta), «Teatro/Subteatro», «Zona de …» (no «Área de interés», ni DEOP, ni lo de carpetas «CALCO …»); el teatro
+  entra primero y una AO queda activa. Fichas = puntos con «Escalón: …» en la descripción o nombre de unidad (CE, DIV,
+  BRIG…): ENEMIGAS si carpeta/nombre/descripción dicen enemigo, rojo, SATURNO, adversario; si no, propias; escalón por
+  las X/I («(XX)») o el nombre; arma por las palabras (Acor., Mec., Mot., Log., Aérea…); la misma ficha en dos carpetas
+  entra una vez. Lo demás (líneas, puntos del terreno, los calcos ya hechos) no se pasa y queda anotado en
+  `indicaciones`. Varios KMZ elegidos juntos → UN ejercicio. Sólo fichas sin AO → ejercicio con las fichas.
+- **En el compilado**: el import de `abrir-kmz.mjs?v=kmz20261108`; `SIDabrirArchivo` lee con `SIDLeerArchivoMesa`
+  (el JSON sigue igual); `SIDelegirArchivo` junta los elegidos con `SIDUnirArchivos`; el `<input>` acepta
+  `.kmz,.kml` y `multiple`; el botón dice «📂 Abrir archivo JSON o KMZ (selección, áreas, fichas o ejercicio)» y la
+  nota explica qué se toma del KMZ.
+- **En el fuente**: lo mismo en `PanelEjercicios` (el fuente de GENERADOR_CALCOS no tiene todavía el botón del 12-10).
+- **Cómo se comprobó**: `pruebas/abrir-kmz.mjs` (KMZ armado en la prueba: áreas, fichas, repetidas, varios a la vez,
+  KML suelto, sólo fichas, errores, JSON igual que antes); `pruebas/e2e/abrir-kmz.cjs` en la Mesa real con Chrome, con
+  los de prueba y con los KMZ reales de Sergio (`CARPETA_KMZ=…`): 060700NOV26.kmz → 7 áreas (3 subteatros + AO TIGRE,
+  PUMA, ZORRO, OSO), 12 fichas rojas, 25 azules, guardado y dibujado; el teatro + las 4 AO juntos → un ejercicio con las
+  7; PASOS…kmz avisa; sin errores JS. `e2e/abrir-archivo.cjs` y `e2e/areas-tijera.cjs` (con el nombre nuevo del botón),
+  `reemplazos-compilado.js` y `npm test`: pasa todo salvo el caso «ningún gancho cae DENTRO…» de `guia-inicial.mjs`,
+  que ya fallaba con 10 ganchos y ahora suma 2 a propósito (el botón del 12-10 y la línea de imports de la tijera,
+  que este cambio retoca).
+- **Si se recompila desde el fuente**: llevar el lector de KMZ al botón «Abrir archivo» de 📁 Ejercicios.
+
 ## 2026-10-30 — 📜 La F7·P1 ORDEN GENERAL DE OPERACIONES del G-3 con la forma del PMTD 2017 y TODO lo del Estado Mayor (`index-ogo-20261030.js`)
 
 Parte de `index-guardar-ia-20261029.js` + `pruebas/reemplazos-2026-10-30-ogo.js` (11 reemplazos; `construir-ogo.js`;

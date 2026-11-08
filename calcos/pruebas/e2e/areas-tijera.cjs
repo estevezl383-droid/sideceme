@@ -148,7 +148,7 @@ function fabble() {
     // 6 · 📂 Abrir archivo JSON: ejercicio nuevo con lo cortado y los calcos prendidos.
     await page.locator('button[title="Crear, abrir y guardar ejercicios"]').first().dispatchEvent('click')
     await page.getByRole('heading', { name: '📁 Ejercicios' }).waitFor()
-    const [selector] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: '📂 Abrir archivo JSON (selección, áreas o ejercicio)' }).click()])
+    const [selector] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: '📂 Abrir archivo JSON o KMZ (selección, áreas, fichas o ejercicio)' }).click()])
     await selector.setFiles({ name: 'Seleccion_CE-I.json', mimeType: 'application/json', buffer: bytes })
     await page.waitForTimeout(2500)
     const abierto = await leerOps(page)

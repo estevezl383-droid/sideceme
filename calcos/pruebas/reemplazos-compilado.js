@@ -78,7 +78,8 @@
 //   index-cursos-g2-g3-20261029.js + reemplazos-2026-10-29-productos-em.js = index-productos-em-20261029.js
 //   index-productos-em-20261029.js + reemplazos-2026-10-29-areas-logisticas.js = index-areas-logisticas-20261029.js
 //   index-areas-logisticas-20261029.js + reemplazos-2026-10-29-guardar-ia.js = index-guardar-ia-20261029.js
-//   index-guardar-ia-20261029.js + reemplazos-2026-10-30-ogo.js = index-ogo-20261030.js (el vigente)
+//   index-guardar-ia-20261029.js + reemplazos-2026-10-30-ogo.js = index-ogo-20261030.js
+//   index-ogo-20261030.js + reemplazos-2026-11-08-kmz.js = index-kmz-20261108.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -92,6 +93,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-11-08-kmz'),
+    nombre: 'reemplazos-2026-11-08-kmz',
+    // calcos/assets/index-ogo-20261030.js (antes de abrir KMZ/KML de Google Earth en 📁 Ejercicios).
+    anterior: '4d562faa40606288971f5b2ace72533765a6394845e5712d6bdb8ed2b5e561af',
+  },
   {
     lista: require('./reemplazos-2026-10-30-ogo'),
     nombre: 'reemplazos-2026-10-30-ogo',

@@ -50,7 +50,7 @@ async function seleccionFicticia() {
   }
   const elegir = async (nombreArchivo, contenido, pestaña = 'Actual') => {
     if (pestaña !== 'Actual') await page.getByRole('button', { name: pestaña }).dispatchEvent('click')
-    const boton = page.getByRole('button', { name: '📂 Abrir archivo JSON (selección, áreas o ejercicio)' })
+    const boton = page.getByRole('button', { name: '📂 Abrir archivo JSON o KMZ (selección, áreas, fichas o ejercicio)' })
     const [selector] = await Promise.all([page.waitForEvent('filechooser'), boton.click()])
     await selector.setFiles({ name: nombreArchivo, mimeType: 'application/json', buffer: contenido })
   }

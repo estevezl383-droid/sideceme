@@ -304,3 +304,11 @@ afuera, lo apagado no va, el toque sin lazo, el JSON, abrirlo, el servidor con y
 la recepción) y `node calcos/pruebas/e2e/areas-tijera.cjs` (la Mesa en Chromium: el botón de la barra, la
 vista previa con toques, guardar, el JSON y abrirlo con los calcos prendidos; capturas en
 `pruebas/salidas-tijera/`). `areas-lazo.cjs` y `areas-seleccion.cjs` usan ahora la tijera.
+
+## 🌍 Abrir KMZ / KML de Google Earth — 08-NOV-2026
+
+`abrir-kmz.mjs` convierte el KMZ/KML (uno o varios) en el paquete de áreas que ya abre
+`abrir-archivo.mjs`: Áreas de Operaciones y fichas rojas/azules → ejercicio NUEVO, guardado como
+cualquier otro (y de ahí al `ejercicio.json` del Juego de Guerra). Reglas y pruebas en
+`../CAMBIOS-EN-EL-COMPILADO.md` (2026-11-08). Pruebas: `node calcos/pruebas/abrir-kmz.mjs`,
+`node calcos/pruebas/e2e/abrir-kmz.cjs` (`CARPETA_KMZ=…` para los KMZ reales).
