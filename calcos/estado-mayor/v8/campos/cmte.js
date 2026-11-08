@@ -115,7 +115,8 @@ export function decisionTexto(ctx = {}) {
   const razon = casilla(h.decisionCmte, 'Razón de la decisión')
   const mods = casilla(h.decisionCmte, 'Modificaciones que ordena')
   const C = capAprobado(g3, ctx.calco?.fasesCOA || {})
-  const n = numeroDeCap(elegido) || (!elegido && C.recomendado ? C.n : null)
+  // 08-11-2026: también el CAP que el Comandante decidió después del Juego de Guerra (F4·P6-7).
+  const n = numeroDeCap(elegido) || (!elegido && (C.recomendado || C.decidido) ? C.n : null)
   if (!elegido && !n) return ''
   const nom = n ? nombreCap(g3, n) : ''
   const cual = n ? `el Curso de Acción Propio N° ${n}${nom ? ` «${nom}»` : ''}` : `el curso de acción ${plano(elegido)}`
@@ -235,6 +236,7 @@ export function entregas(ctx = {}) {
     concepto = conceptoDelCAP({ g3, fasesCOA: ctx.calco?.fasesCOA || {} })
   } catch {}
   const de3 = [
+    ['F4·P6-7 CAP decidido por el Comandante (Juego de Guerra)', C.decidido ? `CAP ${C.n}${nombreCap(g3, C.n) ? ` «${nombreCap(g3, C.n)}»` : ''}` : ''],
     ['F5·P1 Recomendado al Comandante', C.recomendado ? `CAP ${C.n}${nombreCap(g3, C.n) ? ` «${nombreCap(g3, C.n)}»` : ''}` : ''],
     ['Concepto del CAP', concepto],
     ['F4·P6-7 Matriz de sincronización (sistemas de apoyo)', prioridadesTexto({ ...ctx, calco: { ...(ctx.calco || {}), g3: { sincro: g3.sincro } } })],
