@@ -63,18 +63,23 @@ export function casillas(hoja) {
 }
 
 // ─── El CAP aprobado ────────────────────────────────────────────────────────────────────────────────────────────
-// El que la F5·P1 marcó «RECOMENDADO AL COMANDANTE» (si está); si no, el CAP activo. El activo está donde la Mesa
-// lo busca siempre (fasesCOA.propio, g3.concepto, g3.coa); el otro, en g3._caps.guardados (cap-propios/v1).
+// El que DECIDIÓ el Comandante después del Juego de Guerra (F4·P6-7, g3._caps.decision: evento-critico/v1/decision.mjs,
+// 08-11-2026); si no decidió, el que la F5·P1 marcó «RECOMENDADO AL COMANDANTE»; si no, el CAP activo. El activo está
+// donde la Mesa lo busca siempre (fasesCOA.propio, g3.concepto, g3.coa); el otro, en g3._caps.guardados (cap-propios/v1).
 export function capAprobado(g3 = {}, fasesCOA = {}) {
   const c = g3?._caps || {}
   const activo = c.activo === 2 ? 2 : 1
   const marca = esObj(g3?.decision?._marca) ? g3.decision._marca : {}
   const rec = Object.entries(marca).find(([, v]) => /RECOMENDAD|APROBAD/i.test(String(v || '')))
-  const n = rec ? Number(String(rec[0]).match(/\d+/)?.[0]) || activo : activo
+  const nRec = rec ? Number(String(rec[0]).match(/\d+/)?.[0]) || activo : null
+  const dec = Number(c.decision?.cap)
+  const decidido = dec === 1 || dec === 2 ? dec : null
+  const n = decidido || nRec || activo
   const guardado = n !== activo ? c.guardados?.[n] : null
   return {
     n,
-    recomendado: !!rec,
+    recomendado: nRec != null && nRec === n,
+    decidido: decidido != null,
     concepto: (guardado ? guardado.concepto : g3?.concepto) || {},
     coa: (guardado ? guardado.coa : g3?.coa) || {},
     fases: (guardado ? guardado.fases : fasesCOA?.propio) || [],
@@ -347,7 +352,7 @@ export function bloquePrep(hoja, ctx = {}, carta = {}) {
     `# ${esTres ? 'LA ORDEN PREPARATORIA N° 3 ES CASI LA ORDEN DE OPERACIONES' : 'LA ORDEN PREPARATORIA CON LO QUE YA TRABAJÓ EL ESTADO MAYOR'} — DESARROLLÁ CADA APARTADO COMPLETO`,
     '',
     esTres
-      ? `Va con el CAP APROBADO (el CAP ${C.n}${C.recomendado ? ', el recomendado en la Matriz de decisión' : ''}): acá ya no hay opciones. Contiene las instrucciones FINALES para que las unidades completen su planeamiento y alisten la ejecución, así que cada apartado tiene que estar escrito COMPLETO, como en la Orden General de Operaciones (no un resumen).`
+      ? `Va con el CAP APROBADO (el CAP ${C.n}${C.decidido ? ', el que decidió el Comandante después del Juego de Guerra' : ''}${C.recomendado ? ', el recomendado en la Matriz de decisión' : ''}): acá ya no hay opciones. Contiene las instrucciones FINALES para que las unidades completen su planeamiento y alisten la ejecución, así que cada apartado tiene que estar escrito COMPLETO, como en la Orden General de Operaciones (no un resumen).`
       : 'Lo que ya trabajó el G-3 (abajo) es la base: no lo contradigas.',
     `- «${conc}» es OBLIGATORIO y es el apartado más largo. Escribí el CAP aprobado: la maniobra (forma, esfuerzo principal, esfuerzos secundarios, reserva y cuándo se empeña), FASE POR FASE (qué hace cada unidad, dónde y cuándo), el apoyo de fuegos, la movilidad / contramovilidad / supervivencia (el plan de barreras), las medidas de control, el riesgo aceptado y el estado final. NO lo dejes vacío y NO lo metas dentro de la Intención.`,
     K.intencion ? `- «${K.intencion}»: SÓLO el propósito, el punto decisivo (si lo hay), las tareas clave y el estado final, corto. La maniobra va en el Concepto.` : '',
