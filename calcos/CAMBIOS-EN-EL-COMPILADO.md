@@ -5,6 +5,25 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-11-08 (5) — 🎖️ F5·P1 Matriz de decisión: sólo CAP-1 y CAP-2, sustenta el CAP decidido (`index-matriz-decision-20261108.js`)
+
+Parte de `index-decision-cap-20261108.js` + `pruebas/reemplazos-2026-11-08-matriz-decision.js` (4 reemplazos;
+`construir-matriz-decision.js`; `reemplazos-compilado.js` lo deshace byte por byte). Sergio, con la F5·P1 abierta:
+«se supone que debería generar algo que favorezca a lo que ya se decidió… eran dos cursos de acción, no debe haber
+cabida para otro… y que evalúe todas esas ventajas… todo eso debe llenar».
+
+- La hoja `decision` (F5·P1) tiene `cols: ["CAP-1","CAP-2"]` (antes había un CAP-3): pantalla, vista previa, Word e IA.
+  Lo que hubiera escrito en «…|CAP-3» queda guardado, pero no se ve.
+- `evento-critico/v1/decision.mjs` (`?v=matriz20261108`): `pedidoDecision` también arma el pedido de la F5·P1
+  (`bloqueComparacion`): sólo los dos CAP, los ocho factores en las dos columnas, sin «SIN DATO», y —con la decisión
+  del Comandante tomada en la F4·P6-7— que la comparación SOSTENGA el CAP decidido y lo marque RECOMENDADO; lleva el
+  F3·P6 y las fases de cada CAP. `trasDecision` (nuevo, enchufado en ✓ Aplicar del G-3): la marca
+  «RECOMENDADO AL COMANDANTE» queda en el CAP decidido. `avisoHoja('decision')`: dice el CAP decidido aunque el otro
+  esté a la vista (la F5·P1 compara los dos).
+- El pedido de la IA pregunta la marca con las marcas de la hoja (antes «¿CAP-n es MÁS PROBABLE o MÁS PELIGROSO?»
+  también en la F5·P1; en la H.T. 18 del G-2 queda igual).
+- Pruebas: `pruebas/decision-cap.mjs` (+3 casos), `pruebas/e2e/matriz-decision.cjs` (nueva; también `DPR=2`).
+
 ## 2026-11-08 (4) — 🎖️ La decisión del Comandante (CAP 1 o CAP 2) en la F4·P6-7 (`index-decision-cap-20261108.js`)
 
 Parte de `index-tareas-verdes-20261108.js` + `pruebas/reemplazos-2026-11-08-decision-cap.js` (18 reemplazos;
