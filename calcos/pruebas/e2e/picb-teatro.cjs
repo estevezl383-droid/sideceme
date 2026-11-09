@@ -43,6 +43,18 @@ const ejercicio = todos.filter((n) => !deop.includes(n))
     await page.waitForTimeout(3000)
     await page.locator('.sidpt-btn').waitFor({ state: 'visible', timeout: 15000 })
     console.log('  ✓ ejercicio de teatro: aparece la pestaña 🌎 PICB TEATRO')
+    // No tapa ni queda tapada por las otras pestañas del borde derecho (🧩 Superponer, 🗂️ Despliegue del TO).
+    await page.waitForTimeout(2500)
+    const choques = await page.evaluate(() => {
+      const yo = document.querySelector('.sidpt-btn').getBoundingClientRect()
+      return [...document.body.children].filter((e) => e.className !== 'sidpt-btn' && getComputedStyle(e).position === 'fixed' && /^vertical/.test(getComputedStyle(e).writingMode) && getComputedStyle(e).display !== 'none')
+        .map((e) => ({ t: e.textContent.trim().slice(0, 30), r: e.getBoundingClientRect() }))
+        .filter((x) => x.r.height > 0 && !(x.r.bottom <= yo.top || x.r.top >= yo.bottom)).map((x) => x.t)
+    })
+    assert.deepEqual(choques, [], 'la pestaña 🌎 no se superpone con: ' + choques.join(', '))
+    const centro = await page.evaluate(() => { const r = document.querySelector('.sidpt-btn').getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return e && (e.closest('.sidpt-btn') ? 'sidpt' : e.className) })
+    assert.equal(centro, 'sidpt', 'al centro de la pestaña 🌎 está la pestaña, no otra cosa: ' + centro)
+    console.log('  ✓ la pestaña no se superpone con Superponer ni con Despliegue del TO')
 
     // 3 · Abrir el panel y esperar la carta del teatro.
     await page.locator('.sidpt-btn').click()
