@@ -118,6 +118,11 @@ export function avisoHoja(id, g3 = {}, catalogo = []) {
     if (i < 0 || j <= i) return null
     const e = estado({ g3 })
     if (!e.decidido) return { texto: '⚠️ Falta la decisión del Comandante: CAP 1 o CAP 2 (F4·P6-7).', estilo: AMARILLO }
+    // La F5·P1 compara los DOS CAP: el que esté a la vista da lo mismo.
+    if (id === HOJA_COMPARAR) {
+      const nom = nombreCAP(g3, e.decidido)
+      return { texto: `🎖️ El Comandante decidió el CAP ${e.decidido}${nom ? ` · ${nom}` : ''}: esta comparación lo sustenta.`, estilo: VERDE }
+    }
     if (e.motivo === 'otro-cap') return { texto: `⚠️ A la vista está el CAP ${e.activo}, pero el Comandante decidió el CAP ${e.decidido} (F4·P6-7).`, estilo: AMARILLO }
     const nom = nombreCAP(g3, e.decidido)
     return { texto: `🎖️ CAP ${e.decidido}${nom ? ` · ${nom}` : ''} — decidido por el Comandante.`, estilo: VERDE }
@@ -170,13 +175,101 @@ export function bloqueIA(ctx = {}) {
 export function pedidoDecision(r, hoja, ctx = {}) {
   if (r && typeof r.then === 'function') return r.then((x) => pedidoDecision(x, hoja, ctx))
   try {
-    if (hoja?.id !== HOJA || !r?.ok || typeof r.prompt !== 'string') return r
-    const b = bloqueIA(ctx)
+    if ((hoja?.id !== HOJA && hoja?.id !== HOJA_COMPARAR) || !r?.ok || typeof r.prompt !== 'string') return r
+    const b = hoja.id === HOJA_COMPARAR ? bloqueComparacion(ctx, hoja) : bloqueIA(ctx)
     if (!b) return r
     const marca = '\n\n---\n\n# CÓMO CONTESTAR'
     const i = r.prompt.lastIndexOf(marca)
     return { ...r, prompt: i >= 0 ? `${r.prompt.slice(0, i)}\n\n---\n\n${b}${r.prompt.slice(i)}` : `${r.prompt}\n\n---\n\n${b}` }
   } catch {
     return r
+  }
+}
+
+// ─── F5·P1 Matriz de decisión — ventajas y desventajas ─────────────────────────────────────────────────────────
+// Sergio, 08-11-2026: «en el paso 5 comparación de los cursos de acción se supone que debería generar algo que favorezca
+// a lo que ya se decidió; y eran dos cursos de acción, entonces no debe haber cabida para otro curso de acción… y que
+// evalúe todas esas ventajas». El sistema le exige la comparación DESPUÉS de que el Comandante decidió (F4·P6-7): la
+// matriz compara SÓLO el CAP-1 y el CAP-2, llena los ocho factores en las dos columnas y sustenta el CAP decidido.
+export const HOJA_COMPARAR = 'decision'
+export const COLS_COMPARAR = ['CAP-1', 'CAP-2']
+export const RECOMENDADO = 'RECOMENDADO AL COMANDANTE'
+const FACTORES = ['VENTAJAS', 'DESVENTAJAS', 'RIESGO', 'SIMPLICIDAD', 'FLEXIBILIDAD (ramas y secuelas)', 'SOSTENIBILIDAD LOGÍSTICA', 'EMPLEO DE LA RESERVA', 'CUMPLE LA INTENCIÓN DEL CMTE.']
+const limpio = (s, max = 420) => {
+  const t = String(s ?? '').replace(/\[(IA|Mesa)[^\]]*\]/gi, '').replace(/\s+/g, ' ').trim()
+  return t.length > max ? `${t.slice(0, max - 1).trim()}…` : t
+}
+
+// Lo que la Mesa sabe de un CAP, en renglones: su F3·P6 (sin el bosquejo) y sus fases.
+function capEnTexto(ctx = {}, n) {
+  const g3 = ctx.g3 || {}
+  const coa = n === capActivo(g3) ? g3.coa : g3._caps?.guardados?.[n]?.coa
+  const L = []
+  if (esObj(coa))
+    for (const [k, x] of Object.entries(coa)) {
+      if (k.startsWith('_') || /^bosquejo/i.test(sinTildes(k))) continue
+      const t = limpio(x)
+      if (t) L.push(`- ${k}: ${t}`)
+    }
+  const fases = fasesDeCAP(ctx, n)
+  if (fases.length) {
+    L.push('- Fases:')
+    fases.forEach((f, k) => {
+      const q = [f?.tarea, f?.proposito].map((x) => limpio(x, 200)).filter(Boolean).join(', ')
+      L.push(`  - FASE ${romano(k + 1)}${f?.nombre ? ` — ${limpio(f.nombre, 80)}` : ''}${q ? `: ${q}` : ''}`)
+    })
+  }
+  return L
+}
+
+// 🤖 El pedido de la IA de la F5·P1: los dos CAP, los ocho factores y —si ya decidió— la decisión del Comandante.
+export function bloqueComparacion(ctx = {}, hoja = {}) {
+  const g3 = ctx.g3 || {}
+  const d = decisionDe(g3)
+  const filas = Array.isArray(hoja?.filas) && hoja.filas.length ? hoja.filas : FACTORES
+  const L = ['# LA COMPARACIÓN: SÓLO DOS CURSOS DE ACCIÓN', '']
+  L.push('Esta matriz compara SOLAMENTE los dos cursos de acción propios: «CAP-1» y «CAP-2». NO existe un CAP-3: no lo nombres, no lo inventes y no escribas ninguna clave «…|CAP-3».')
+  L.push(`Cada factor se evalúa en LAS DOS columnas. Los factores son ${filas.length}: ${filas.map((f) => `«${f}»`).join(', ')}. Ninguna casilla queda vacía y ninguna dice «SIN DATO»: si la Mesa no lo dice, deducilo del concepto, de las fases y del juego de guerra.`)
+  L.push('RIESGO, SIMPLICIDAD y FLEXIBILIDAD empiezan con la calificación en mayúsculas (ALTO · MODERADO · BAJO) y siguen con el porqué en una o dos frases concretas de ESTA situación (unidades, lugares, fases). Las demás casillas: dos o tres frases concretas, sin adjetivos vacíos.')
+  if (d) {
+    const n = d.cap
+    const otro = n === 1 ? 2 : 1
+    const nom = nombreCAP(g3, n)
+    L.push('', '# LA DECISIÓN YA ESTÁ TOMADA', '')
+    L.push(`Después del Juego de Guerra (F4·P6-7) el Comandante decidió el CAP ${n}${nom ? ` «${nom}»` : ''}. Esta matriz es el FUNDAMENTO de esa decisión: la comparación tiene que SOSTENER el CAP-${n}.`)
+    L.push(`- En el balance de los ocho factores el CAP-${n} sale MEJOR que el CAP-${otro}: más ventajas de peso, riesgo menor o igual, y SÍ cumple la intención del Comandante.`)
+    L.push(`- Sin mentir: el CAP-${n} también tiene desventajas, pero son ACEPTABLES y se dice con qué se mitigan (reserva, fuegos, obstáculos, coordinación).`)
+    L.push(`- Las desventajas del CAP-${otro} son las que lo dejaron afuera: decilas con claridad, sin caricaturizarlo.`)
+    L.push(`- Nada de lo que escribas puede contradecir la decisión (por ejemplo: un riesgo menor o una mejor sostenibilidad para el CAP-${otro} sin decir por qué igual no conviene).`)
+    L.push(`- La marca: «_marca|CAP-${n}» = «${RECOMENDADO}». «_marca|CAP-${otro}» se omite.`)
+  } else {
+    L.push('', `El Comandante todavía no decidió (F4·P6-7). Compará con honestidad y marcá con «_marca|CAP-n» = «${RECOMENDADO}» el que sale mejor.`)
+  }
+  for (const n of [1, 2]) {
+    const nom = nombreCAP(g3, n)
+    const r = capEnTexto(ctx, n)
+    L.push('', `## CAP-${n}${nom ? ` · ${nom}` : ''}${d?.cap === n ? ' (DECIDIDO POR EL COMANDANTE)' : ''}`)
+    L.push(...(r.length ? r : ['- (La Mesa no tiene más de este CAP: usá el expediente.)']))
+  }
+  const ev = g3.sincro?._evento
+  if (ev && (Number(ev.cap) === 1 || Number(ev.cap) === 2) && Number.isInteger(ev.azul))
+    L.push('', `Evento crítico jugado en el Juego de Guerra: la FASE ${romano(ev.azul + 1)} del CAP ${Number(ev.cap)} contra el ${ev.coa === 'peligroso' ? 'CAE más peligroso' : 'CAE más probable'}.`)
+  return L.join('\n')
+}
+
+// ✓ Aplicar la IA en la F5·P1: con la decisión tomada, la marca «RECOMENDADO AL COMANDANTE» queda en el CAP decidido
+// (lo que haya contestado la IA). Lo demás, como vino. Cualquier error: el valor tal cual.
+export function trasDecision(hoja, valor, ctx = {}) {
+  try {
+    if (hoja?.id !== HOJA_COMPARAR || !esObj(valor)) return valor
+    const d = decisionDe(ctx.g3 || {})
+    if (!d) return valor
+    const marca = esObj(valor._marca) ? { ...valor._marca } : {}
+    // La IA la devuelve con su sello («… [IA — verificar]»): se reconoce por lo que dice, no por el texto exacto.
+    for (const k of Object.keys(marca)) if (/RECOMENDAD/i.test(String(marca[k] ?? ''))) delete marca[k]
+    marca[`CAP-${d.cap}`] = RECOMENDADO
+    return { ...valor, _marca: marca }
+  } catch {
+    return valor
   }
 }
