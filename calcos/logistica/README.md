@@ -96,6 +96,24 @@ esas consideraciones al sugerir… además hay distancias aproximadas». En la p
 
 La distancia de seguridad (12 km el ASDI, 25 km el ARCE) y la DMA siguen siendo las de la Escuela.
 
+## 🚚 El ARCE en todas las fases y los ejes que se heredan (08-11-2026)
+
+Sergio, con el ARCE propuesto en la FASE 1 del CAP 1 y la FASE 2 vacía: «el ASDI que se elige se elige para todas las
+fases del ejercicio, igual las instalaciones… los ejes de abastecimiento y de evacuación los armaré en una determinada
+fase: si lo armo en la fase 3 se queda en la fase 4 y 5… si llego a la fase 5 debo poder modificarlo… si no lo
+modifiqué se queda lo de la fase 3… lo mismo aplica al G-1 con su línea de extraviados».
+
+En el **🎬 C.A. por fases** (`v1/fases-log.mjs`, lo usan `fo` y `Uo` de la Mesa):
+
+| Qué | En qué fases |
+|---|---|
+| Las áreas logísticas (ASDI, ARCE, las propuestas A, B…, el esquema de zonas), sus sectores, flechas y marcos, los datos de planeamiento (`planLog`) | **Todas**, de los dos bandos y de los dos CAP. Lo que se cambia o se borra en una fase, cambia en todas |
+| El Batallón Logístico desplegado en el área y toda instalación propia **dentro** de un área logística | **Todas** (igual) |
+| Los EPA y EPE (↔ Ejes), la Línea de Extraviados y la ruta de PP.GG. del G-1, el eje humanitario del G-5 y las instalaciones propias **fuera** de las áreas (el PCE…) | **Desde la fase en que se arman, hacia adelante**. Cambiados en una fase posterior, quedan en ésa y en las que la siguen; las del medio siguen con lo de antes. Las fases anteriores no se tocan |
+
+Una instalación que se saca del área pasa a ser de las que se heredan (desde esa fase); una que se mete en el área va
+a todas. Las fases guardadas antes de este cambio se ponen al día solas la primera vez que se toca una fase.
+
 ## Archivos (`v1/`)
 
 - `doctrina.js` — los datos y definiciones de los tres textos, con la cita de cada uno.
@@ -107,6 +125,7 @@ La distancia de seguridad (12 km el ASDI, 25 km el ARCE) y la DMA siguen siendo 
   Word propio de `riesgo/v1/docx.js`, que permite pintar las casillas).
 - `planeamiento.js` — perfiles de las unidades (y de una FT por sus piezas), consumos por clase según la operación, a quién apoya cada instalación, ciclo, viajes, flota y frecuencia (factores de referencia editables).
 - `asdi-picb.js` — la propuesta del ASDI / ARCE con la PICB (CMOC) y el calco; `propuesta.js` su pantalla (paso 2).
+- `fases-log.mjs` — el ARCE y sus instalaciones en todas las fases; los ejes, las líneas del EM y las instalaciones de afuera, de la fase en que se arman hacia adelante (`alGuardar`, `alCargar`).
 - `graficos.js` — los gráficos del G-4 (barras, íconos de vehículos, ciclo de la jornada, dona, croquis, embudo) y la imagen PNG.
 - `editor.js`, `runtime.js` — las pantallas y el puente con la Mesa (React, el panel de IA
   `hU`, el formato militar, el catálogo `Ni`, la coordenada `Sc`, Leaflet y el calco vivo
@@ -129,6 +148,8 @@ La distancia de seguridad (12 km el ASDI, 25 km el ARCE) y la DMA siguen siendo 
 
 ```bash
 cd calcos/pruebas
+node fases-log.mjs           # el ARCE en todas las fases, los ejes hacia adelante (Mesa simulada)
+node e2e/fases-log.cjs       # lo mismo en la Mesa real (también DPR=2)
 node logistica.cjs           # doctrina, geometría, análisis, modelos, IA, Word y reemplazos
 node e2e/logistica.cjs       # la Mesa real en Chromium, escritorio y teléfono
 node construir-logistica.js  # vuelve a armar el compilado (y comprueba que es reversible)
