@@ -85,7 +85,8 @@
 //   index-cortada-20261108.js + reemplazos-2026-11-08-pd-corta.js = index-pd-corta-20261108.js
 //   index-pd-corta-20261108.js + reemplazos-2026-11-08-autoguardado.js = index-autoguardado-20261108.js
 //   index-autoguardado-20261108.js + reemplazos-2026-11-08-tareas-verdes.js = index-tareas-verdes-20261108.js
-//   index-tareas-verdes-20261108.js + reemplazos-2026-11-08-decision-cap.js = index-decision-cap-20261108.js (el vigente)
+//   index-tareas-verdes-20261108.js + reemplazos-2026-11-08-decision-cap.js = index-decision-cap-20261108.js
+//   index-decision-cap-20261108.js + reemplazos-2026-11-08-matriz-decision.js = index-matriz-decision-20261108.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -99,6 +100,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-11-08-matriz-decision'),
+    nombre: 'reemplazos-2026-11-08-matriz-decision',
+    // calcos/assets/index-decision-cap-20261108.js (antes de la F5·P1 con dos CAP que sustenta la decisión).
+    anterior: '6b720f24b1f7c8abffb8945a2c9891a47e49ae37be41fefc46ea0e127c9a5730',
+  },
   {
     lista: require('./reemplazos-2026-11-08-decision-cap'),
     nombre: 'reemplazos-2026-11-08-decision-cap',

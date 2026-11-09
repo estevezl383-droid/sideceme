@@ -135,7 +135,10 @@ await caso('las hojas que siguen a la F4·P6-7 dicen el CAP decidido (o que falt
   assert.equal(D.avisoHoja('psd', ej.g3, CAT).texto, '⚠️ Falta la decisión del Comandante: CAP 1 o CAP 2 (F4·P6-7).')
   const d = decidir(ejercicio(), 2)
   assert.equal(D.avisoHoja('opord', d.g3, CAT).texto, '🎖️ CAP 2 · Defensa móvil (FICT.) — decidido por el Comandante.')
-  assert.equal(D.avisoHoja('decision', cambiarCAP(d, 1).g3, CAT).texto, '⚠️ A la vista está el CAP 1, pero el Comandante decidió el CAP 2 (F4·P6-7).')
+  // La F5·P1 compara los dos CAP: con el otro a la vista dice igual el decidido, sin «A la vista está…».
+  assert.equal(D.avisoHoja('decision', cambiarCAP(d, 1).g3, CAT).texto, '🎖️ El Comandante decidió el CAP 2 · Defensa móvil (FICT.): esta comparación lo sustenta.')
+  assert.equal(D.avisoHoja('opord', cambiarCAP(d, 1).g3, CAT).texto, '⚠️ A la vista está el CAP 1, pero el Comandante decidió el CAP 2 (F4·P6-7).')
+  assert.equal(D.avisoHoja('decision', ejercicio().g3, CAT).texto, '⚠️ Falta la decisión del Comandante: CAP 1 o CAP 2 (F4·P6-7).')
   assert.equal(D.avisoHoja('opord', d.g3, null), null)
 })
 await caso('la F4·P6-7 resaltada en la lista de documentos', () => {
@@ -168,6 +171,53 @@ await caso('🤖 el pedido de la matriz lleva la decisión y las fases del CAP d
   // El evento crítico jugado del CAP decidido.
   const g3e = { ...d.g3, sincro: { ...d.g3.sincro, _evento: { cap: 2, azul: 2, rojo: 1, coa: 'peligroso' } } }
   assert.match(D.bloqueIA({ g3: g3e, fasesCOA: d.fasesCOA }), /Evento crítico jugado: la FASE III del CAP 2 contra el CAE más peligroso/)
+})
+await caso('F5·P1 🤖: sólo CAP-1 y CAP-2, los ocho factores y la comparación sustenta el CAP decidido', async () => {
+  const HOJA5 = { id: 'decision', filas: ['VENTAJAS', 'DESVENTAJAS', 'RIESGO', 'SIMPLICIDAD', 'FLEXIBILIDAD (ramas y secuelas)', 'SOSTENIBILIDAD LOGÍSTICA', 'EMPLEO DE LA RESERVA', 'CUMPLE LA INTENCIÓN DEL CMTE.'] }
+  const d = decidir(ejercicio(), 2)
+  // Con el CAP 1 a la vista (lo que tenía Sergio) el pedido sale igual: compara los dos y sostiene el 2.
+  for (const ej of [d, cambiarCAP(d, 1)]) {
+    const ctx = { g3: ej.g3, fasesCOA: ej.fasesCOA }
+    const r = { ok: true, prompt: '# LA HOJA\n\nalgo\n\n---\n\n# CÓMO CONTESTAR\n\n```json' }
+    const p = (await D.pedidoDecision(r, HOJA5, ctx)).prompt
+    assert.ok(p.indexOf('# LA DECISIÓN YA ESTÁ TOMADA') > 0 && p.indexOf('# LA DECISIÓN YA ESTÁ TOMADA') < p.indexOf('# CÓMO CONTESTAR'))
+    assert.match(p, /SOLAMENTE los dos cursos de acción propios: «CAP-1» y «CAP-2»\. NO existe un CAP-3/)
+    assert.match(p, /Los factores son 8: «VENTAJAS», .*«CUMPLE LA INTENCIÓN DEL CMTE\.»\. Ninguna casilla queda vacía/)
+    assert.match(p, /el Comandante decidió el CAP 2 «Defensa móvil \(FICT\.\)»\. .*SOSTENER el CAP-2\./)
+    assert.match(p, /el CAP-2 sale MEJOR que el CAP-1/)
+    assert.match(p, /«_marca\|CAP-2» = «RECOMENDADO AL COMANDANTE»\. «_marca\|CAP-1» se omite\./)
+    assert.match(p, /## CAP-1 · Defensa de área en el Lauca\n- Denominación del CAP: CAP 1 — Defensa de área en el Lauca\n/)
+    assert.match(p, /## CAP-2 · Defensa móvil \(FICT\.\) \(DECIDIDO POR EL COMANDANTE\)/)
+    assert.match(p, /  - FASE V — Contraataque: Tarea Contraataque \(FICT\.\)/)
+    assert.match(p, /  - FASE IV — Contraataque de la masa/)
+    assert.doesNotMatch(p, /\[IA — verificar\]/)
+  }
+  // Sin decisión: los dos CAP y los ocho factores, pero se marca el que sale mejor.
+  const p0 = D.pedidoDecision({ ok: true, prompt: 'x\n\n---\n\n# CÓMO CONTESTAR' }, HOJA5, ejercicio()).prompt
+  assert.match(p0, /NO existe un CAP-3/)
+  assert.match(p0, /todavía no decidió/)
+  assert.doesNotMatch(p0, /YA ESTÁ TOMADA/)
+})
+await caso('F5·P1 ✓ aplicar la IA: «RECOMENDADO AL COMANDANTE» queda en el CAP decidido', () => {
+  const d = decidir(ejercicio(), 2)
+  const H = { id: 'decision' }
+  const v = { 'VENTAJAS|CAP-1': 'a', 'VENTAJAS|CAP-2': 'b', _marca: { 'CAP-1': 'RECOMENDADO AL COMANDANTE [IA — verificar]' } }
+  const t = D.trasDecision(H, v, { g3: d.g3 })
+  assert.deepEqual(t._marca, { 'CAP-2': 'RECOMENDADO AL COMANDANTE' })
+  assert.equal(t['VENTAJAS|CAP-1'], 'a')
+  assert.deepEqual(v._marca, { 'CAP-1': 'RECOMENDADO AL COMANDANTE [IA — verificar]' }, 'no toca el valor de entrada')
+  assert.equal(D.trasDecision(H, v, ejercicio()), v, 'sin decisión: como vino')
+  assert.equal(D.trasDecision({ id: 'sincro' }, v, { g3: d.g3 }), v, 'otra hoja: como vino')
+  assert.equal(D.trasDecision(H, null, { g3: d.g3 }), null)
+})
+await caso('el compilado vigente: la F5·P1 con dos columnas y el arreglo de la marca enchufado', async () => {
+  const { readFileSync } = await import('node:fs')
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
+  const js = readFileSync(new URL('../assets/' + html.match(/assets\/(index-[a-z0-9-]+\.js)/)[1], import.meta.url), 'utf8')
+  assert.ok(js.includes('tipo:"prioridad",cols:["CAP-1","CAP-2"],filas:["VENTAJAS"'))
+  assert.ok(!js.includes('"CAP-3"'))
+  assert.ok(js.includes('Tt[Ke.id]=SIDDecTras(Ke,SIDpt.valor,SIDctxCap)'))
+  assert.ok(js.includes('trasDecision as SIDDecTras} from "../evento-critico/v1/decision.mjs?v=matriz20261108"'))
 })
 await caso('la medida en una línea para el panel', () => {
   assert.equal(M.textoCorto({ azules: 3, rojas: 4, enContacto: 0, km: 23.9, relacion: null, par: ['A', 'B'] }), 'sin contacto · la más cerca a 23,9 km')
