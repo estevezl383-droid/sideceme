@@ -5,6 +5,44 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-11-08 (6) — 🚚 El ARCE y sus instalaciones en TODAS las fases; los EPA/EPE y la Línea de Extraviados, de la fase en que se arman hacia adelante (`index-fases-log-20261108.js`)
+
+Parte de `index-matriz-decision-20261108.js` + `pruebas/reemplazos-2026-11-08-fases-log.js` (5 reemplazos;
+`construir-fases-log.js`; `reemplazos-compilado.js` lo deshace byte por byte). Sergio, con el ARCE propuesto en la
+FASE 1 del CAP 1 y la FASE 2 sin nada: «el ASDI que se elige se elige para todas las fases del ejercicio, igual las
+instalaciones están ahí en todas las fases… los ejes de abastecimiento y de evacuación… si lo armo en la fase 3 se
+queda en la fase 4 y 5… si llego a la fase 5 debo poder modificarlo… si no lo modifiqué se queda lo de la fase 3…
+lo mismo aplica al G-1 con su línea de extraviados». Ver `logistica/README.md`.
+
+- **Qué pasaba**: cada fase del 🎬 C.A. por fases guarda una copia entera del calco y de las fichas; al tocar otra
+  fase (`Uo`) la Mesa ponía la copia de esa fase: el ARCE, sus sectores y el Batallón Logístico quedaban sólo en la
+  fase donde se trazaron, y los ejes nunca pasaban a la fase siguiente.
+- **Fuera del compilado**: `logistica/v1/fases-log.mjs` (nuevo, sin dependencias): `alGuardar` y `alCargar`.
+  · De TODO el ejercicio (todas las fases, los dos bandos, los dos CAP): `zonasLog`, `sectoresLog`, `flechasZona`, los
+    marcos de las áreas (`magnitudes` con origen «zona-…»), `planLog`, las fichas del Batallón Logístico desplegado
+    (`origen: 'plantilla-asdi'`) y toda instalación propia DENTRO de un área logística. Lo que está a la vista manda.
+  · Desde la fase en que se arman, HACIA ADELANTE: `ejesLog` (EPA/EPE), `lineasEM` (Línea de Extraviados, PP.GG., eje
+    humanitario) y las instalaciones propias FUERA de las áreas. Pasa a las fases que siguen mientras éstas tengan lo
+    de antes; la fase con su propio cambio (o que lo borró) se queda con lo suyo y las siguientes heredan de ella.
+  · Cada eje / línea lleva `lid` (la huella de cómo nació); cada fase puesta al día, `logV: 1`. Las fases de antes
+    se ponen al día UNA vez al tocar una fase (lo de todo el ejercicio que tenían se junta con lo de la vista, salvo
+    lo que se acaba de borrar; lo que se hereda y les faltaba viene de la fase anterior).
+- **En el compilado**: el import de `fases-log.mjs?v=20261108-fases-log` (después del de `decision.mjs`); `fo` pasa
+  por `alGuardar`; `Uo` carga la fase de `alCargar(fo(Yn), Yn, …)` —antes leía `Yn`, las fases de ANTES de guardar— y
+  depende también de `yt` y `Lt`. Va además el reemplazo de `reemplazos-2026-11-08-puente-concepto.js` (el import de
+  `concepto-operacion/v1/carta.js` sin `?v=`): esa entrega estaba armada sobre `index-decision-cap` y, subida después
+  de la matriz de decisión, la habría borrado; acá es el mismo cambio sobre el compilado vigente
+  (`pruebas/modulos-una-direccion.cjs` lo vigila).
+- **Cómo se comprobó**: `pruebas/fases-log.mjs` (13 casos con la Mesa simulada: el ARCE de la FASE 1 en todas, lo que
+  se cambia o borra del ARCE en todas, el EPA desde la III, el cambio en la V que se queda en la V y el de la III que
+  sigue a la IV, borrar en la IV, la Línea de Extraviados y el PCE del G-1, una instalación dentro y fuera del área,
+  las fases de antes, el cambio de CAP, el mismo resultado con las mismas entradas); `pruebas/e2e/fases-log.cjs` en
+  la Mesa real con Chrome (también `DPR=2`): el ejercicio con el ARCE sólo en la FASE 1 y la FASE 2 a la vista → el
+  ARCE en las cinco; «➡️ Trazar el EPA» en la FASE 3 → en la 3, 4 y 5; un EPE en la 5 → sólo en la 5. El caso conocido
+  de `guia-inicial.mjs` pasa de 23 a 22 ganchos (el del puente); ningún gancho nuevo.
+- **Si se recompila desde el fuente**: en el fuente, `fo` y `Uo` del componente de la Mesa (las fases del COA) tienen
+  que pasar por `alGuardar` / `alCargar` de `calcos/logistica/v1/fases-log.mjs`.
+
 ## 2026-11-08 (5) — 🎖️ F5·P1 Matriz de decisión: sólo CAP-1 y CAP-2, sustenta el CAP decidido (`index-matriz-decision-20261108.js`)
 
 Parte de `index-decision-cap-20261108.js` + `pruebas/reemplazos-2026-11-08-matriz-decision.js` (4 reemplazos;
