@@ -13,8 +13,10 @@
 //     «Teatro / Subteatro de Operaciones», «Zona de …». «Área de interés», las DEOP y los
 //     polígonos de los calcos del terreno NO son áreas.
 //   · Fichas: los puntos que son unidades (la descripción dice «Escalón:», o el nombre es CE,
-//     DIV, BRIG, RI…). Son ENEMIGAS si la carpeta, el nombre o la descripción dicen enemigo,
-//     rojo, SATURNO, adversario; si no, PROPIAS. El escalón sale de las X/I del símbolo
+//     DIV, BRIG, RI…). El BANDO lo da primero el COLOR DEL ÍCONO (rombo rojo = enemigo, azul =
+//     propio; 09-11-2026, ver «Bando por el color del ícono»); si el ícono no tiene un color claro,
+//     son ENEMIGAS si la carpeta, el nombre o la descripción dicen enemigo, rojo, SATURNO,
+//     adversario; si no, PROPIAS. El escalón sale de las X/I del símbolo
 //     («(XX)» = División) o del nombre; el arma, de las palabras (Acorazada, Mecanizada…).
 //   · Lo demás (líneas, puntos del terreno, los calcos ya hechos en Google Earth) no se pasa:
 //     los calcos del terreno se vuelven a generar en la Mesa con ⚡ Generar calcos.
@@ -34,28 +36,35 @@ async function inflar(datos) {
 }
 
 // Los .kml de adentro del KMZ: { nombre, texto }. doc.kml primero (es el que abre Google Earth).
-export async function kmlsDelZip(bytes) {
+export async function kmlsDelZip(bytes) { return (await archivosDelZip(bytes)).kmls }
+
+// Los .kml y las IMÁGENES de los íconos (files/b1.png…): { kmls, imagenes: Map(ruta → bytes) }.
+export async function archivosDelZip(bytes) {
   const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
   let fin = -1
   for (let i = b.length - 22; i >= Math.max(0, b.length - 65557); i--) if (u32(b, i) === 0x06054b50) { fin = i; break }
   if (fin < 0) throw new Error('no es un KMZ (no se encontró el índice del ZIP)')
   const total = u16(b, fin + 10)
   let p = u32(b, fin + 16)
-  const salida = []
+  const salida = [], imagenes = new Map()
   for (let k = 0; k < total && u32(b, p) === 0x02014b50; k++) {
     const metodo = u16(b, p + 10), comprimido = u32(b, p + 20)
     const largoNombre = u16(b, p + 28), largoExtra = u16(b, p + 30), largoComent = u16(b, p + 32)
     const local = u32(b, p + 42)
     const nombre = new TextDecoder().decode(b.subarray(p + 46, p + 46 + largoNombre))
     p += 46 + largoNombre + largoExtra + largoComent
-    if (!/\.kml$/i.test(nombre) || u32(b, local) !== 0x04034b50) continue
+    const esKml = /\.kml$/i.test(nombre), esImagen = /\.(png|jpe?g|gif|bmp|webp)$/i.test(nombre)
+    if (!(esKml || (esImagen && comprimido < 4e6 && imagenes.size < 400)) || u32(b, local) !== 0x04034b50) continue
     const ini = local + 30 + u16(b, local + 26) + u16(b, local + 28)
     const crudo = b.subarray(ini, ini + comprimido)
-    const datos = metodo === 0 ? crudo : metodo === 8 ? await inflar(crudo) : null
-    if (datos) salida.push({ nombre, texto: new TextDecoder().decode(datos) })
+    let datos = null
+    try { datos = metodo === 0 ? crudo : metodo === 8 ? await inflar(crudo) : null } catch (e) { if (esKml) throw e }
+    if (!datos) continue
+    if (esKml) salida.push({ nombre, texto: new TextDecoder().decode(datos) })
+    else imagenes.set(nombre, datos)
   }
   salida.sort((x, y) => (/(^|\/)doc\.kml$/i.test(y.nombre) ? 1 : 0) - (/(^|\/)doc\.kml$/i.test(x.nombre) ? 1 : 0))
-  return salida
+  return { kmls: salida, imagenes }
 }
 
 // ── El KML ───────────────────────────────────────────────────────────────────────
@@ -77,6 +86,8 @@ export function leerXml(texto) {
       for (let i = pila.length - 1; i > 0; i--) if (pila[i].tag === tag) { pila.length = i; break }
     } else if (m[3]) {
       const nodo = { tag: m[3].replace(/^.*:/, ''), hijos: [], texto: '' }
+      const id = /\bid\s*=\s*(?:"([^"]*)"|'([^']*)')/.exec(m[4] || '')
+      if (id) nodo.attrs = { id: id[1] ?? id[2] }
       actual.hijos.push(nodo)
       if (!m[5]) pila.push(nodo)
     } else if (m[6] !== undefined) actual.texto += desEscapar(m[6])
@@ -96,14 +107,45 @@ function coordenadas(n) {
     .map(p => [Math.round(p[0] * 1e7) / 1e7, Math.round(p[1] * 1e7) / 1e7])
 }
 
-// Cada Placemark con su camino de carpetas: { nombre, desc, estilo, camino[], tipo, coords }.
+// Los estilos del KML: id → { href del ícono, color del ícono (aabbggrr) }. Un StyleMap apunta a su
+// estilo «normal».
+function estilosDe(arbol) {
+  const estilos = new Map(), mapas = new Map()
+  const recorrer = n => {
+    for (const h of n.hijos) {
+      const id = (h.attrs?.id || '').trim()
+      if (h.tag === 'Style' && id) estilos.set(id, iconoDe(h))
+      else if (h.tag === 'StyleMap' && id) {
+        const par = h.hijos.filter(x => x.tag === 'Pair')
+        const normal = par.find(x => textoDe(x, 'key') === 'normal') || par[0]
+        if (normal) mapas.set(id, textoDe(normal, 'styleUrl').replace(/^.*#/, ''))
+      }
+      if (h.hijos.length) recorrer(h)
+    }
+  }
+  recorrer(arbol)
+  for (const [id, destino] of mapas) if (!estilos.has(id) && estilos.has(destino)) estilos.set(id, estilos.get(destino))
+  return estilos
+}
+function iconoDe(estilo) {
+  const is = estilo && hijo(estilo, 'IconStyle')
+  if (!is) return null
+  const href = (buscar(is, 'href')?.texto || '').trim()
+  const color = textoDe(is, 'color')
+  return href || color ? { href, color } : null
+}
+
+// Cada Placemark con su camino de carpetas: { nombre, desc, estilo, camino[], tipo, coords, icono }.
 export function placemarks(arbol, { conLineas = false } = {}) {
-  const salida = []
+  const salida = [], estilos = estilosDe(arbol)
   const recorrer = (n, camino) => {
     for (const h of n.hijos) {
       if (h.tag === 'Folder' || h.tag === 'Document') recorrer(h, [...camino, textoDe(h, 'name')])
       else if (h.tag === 'Placemark') {
         const base = { nombre: textoDe(h, 'name'), desc: sinHtml(textoDe(h, 'description')), estilo: textoDe(h, 'styleUrl'), camino }
+        const propio = iconoDe(hijo(h, 'Style')), delId = estilos.get(base.estilo.replace(/^.*#/, ''))
+        const icono = propio?.href || propio?.color ? { href: propio.href || delId?.href || '', color: propio.color || delId?.color || '' } : delId
+        if (icono) base.icono = icono
         const poli = buscar(h, 'Polygon'), linea = buscar(h, 'LineString'), punto = buscar(h, 'Point')
         if (poli) {
           const ext = buscar(hijo(poli, 'outerBoundaryIs') || poli, 'coordinates')
@@ -125,6 +167,140 @@ const NO_AREA = /AREA DE INTERES|\bDEOP\b|DIRECCION(ES)? ESTRATEGICA|AEREO/i
 const ENEMIGO = /ENEMIG|\bROJ[OA]S?\b|SATURNO|ADVERSARI|HOSTIL|AGRESOR/i
 const PROPIO = /\bAZUL(ES)?\b|PROPI[OA]S?\b|AMIG[OA]S?\b/i
 const UNIDAD = /^(\d+\s*[ªº°a]?\s*)?(C\.?T\.?O|CE|DE|DIV|BRIG|GU|RI|RC|RA|RAA|RCB|RIM|BTN|BAT|BI|REG|RGTO|CIA|ESC|ESCUADRON|AGRP|AGRUP|FF\.?\s?TT|FF\.?\s?EE|FF\.?\s?AA|COMANDO|CUERPO|DIVISION|BRIGADA|REGIMIENTO|BATALLON|COMPANIA|GRUPO)\b/i
+
+// ── Bando por el color del ícono (09-11-2026) ──────────────────────────────────────
+// Sergio cargó «1ª Brig. Acor. «Coraceros» – Chungará.kmz» (y la 2ª, la 3ª y la Brig. Mot. Nº 1):
+// el ícono es un ROMBO ROJO, pero el nombre no dice «enemigo» ni «SATURNO», y entraron como fichas
+// AZULES: «así en ese formato se les pasará a los alumnos y si están en azul está mal… que no
+// vuelva a suceder». Lo que se VE en Google Earth manda: el color del ícono decide el bando, y las
+// palabras quedan para cuando el ícono no tiene un color claro (blanco, amarillo, sin ícono).
+//   1. El tinte del ícono (<IconStyle><color>aabbggrr), si no es blanco.
+//   2. Los píxeles de la imagen del ícono dentro del KMZ (files/b1.png): rojo o azul que domine.
+//   3. El nombre de los íconos de Google (…/paddle/red-diamond.png, blu-circle.png).
+const rgbDeKml = c => { const h = String(c || '').trim().replace(/^#/, ''); return /^[0-9a-f]{8}$/i.test(h) ? [parseInt(h.slice(6, 8), 16), parseInt(h.slice(4, 6), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(0, 2), 16)] : null }
+// Un color «rojo» o «azul» de símbolo militar (rojo #e0443a, #ff0000; azul #4f9cf0, #0000ff, #1f5fbf).
+function bandoDeRgb(r, g, b) {
+  if (r >= 140 && r - g >= 70 && r - b >= 60) return 'enemigo'
+  if (b >= 120 && b - r >= 60 && b - g >= 20) return 'propias'
+  return null
+}
+// Cuenta los píxeles visibles rojos y azules; decide si uno domina claramente.
+export function bandoDePixeles(rgba, canales = 4) {
+  let rojos = 0, azules = 0
+  for (let i = 0; i + canales - 1 < rgba.length; i += canales) {
+    if (canales === 4 && rgba[i + 3] < 128) continue
+    const k = bandoDeRgb(rgba[i], rgba[i + 1], rgba[i + 2])
+    if (k === 'enemigo') rojos++; else if (k === 'propias') azules++
+  }
+  if (rojos >= 12 && rojos >= 3 * azules) return 'enemigo'
+  if (azules >= 12 && azules >= 3 * rojos) return 'propias'
+  return null
+}
+const nombreHref = h => String(h || '').split(/[?#]/)[0].split('/').pop().toLowerCase()
+function bandoDeNombreIcono(href) {
+  const n = nombreHref(href)
+  if (/^(red|rojo|roja)([-_.]|$)|[-_](red|rojo|roja)[-_.]/.test(n)) return 'enemigo'
+  if (/^(blu|blue|azul|ltblu)([-_.]|$)|[-_](blu|blue|azul)[-_.]/.test(n)) return 'propias'
+  return null
+}
+// PNG → RGBA (8 bits por canal). Sin librerías: IHDR + IDAT inflado + filtros. null si no se puede.
+async function inflarZlib(datos) {
+  const ds = new DecompressionStream('deflate')
+  return new Uint8Array(await new Response(new Blob([datos]).stream().pipeThrough(ds)).arrayBuffer())
+}
+export async function rgbaDePng(bytes) {
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+  if (b.length < 33 || b[0] !== 0x89 || b[1] !== 0x50 || b[2] !== 0x4e || b[3] !== 0x47) return null
+  const be32 = i => ((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]) >>> 0
+  let p = 8, ancho = 0, alto = 0, prof = 0, tipo = 0, entrelazado = 0, paleta = null, alfaPaleta = null
+  const idat = []
+  while (p + 8 <= b.length) {
+    const largo = be32(p), t = String.fromCharCode(b[p + 4], b[p + 5], b[p + 6], b[p + 7]), d = b.subarray(p + 8, p + 8 + largo)
+    if (t === 'IHDR') { ancho = be32(p + 8); alto = be32(p + 12); prof = d[8]; tipo = d[9]; entrelazado = d[12] }
+    else if (t === 'PLTE') paleta = d
+    else if (t === 'tRNS') alfaPaleta = d
+    else if (t === 'IDAT') idat.push(d)
+    else if (t === 'IEND') break
+    p += 12 + largo
+  }
+  const canales = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 }[tipo]
+  if (!ancho || !alto || ancho * alto > 4e6 || entrelazado || !canales || !idat.length || ![1, 2, 4, 8, 16].includes(prof)) return null
+  const junto = new Uint8Array(idat.reduce((s, x) => s + x.length, 0))
+  let o = 0
+  for (const x of idat) { junto.set(x, o); o += x.length }
+  let crudo
+  try { crudo = await inflarZlib(junto) } catch { return null }
+  const bitsPx = canales * prof, bpp = Math.max(1, bitsPx >> 3), fila = Math.ceil(ancho * bitsPx / 8)
+  if (crudo.length < alto * (fila + 1)) return null
+  const lineas = new Uint8Array(alto * fila)
+  for (let y = 0; y < alto; y++) {
+    const f = crudo[y * (fila + 1)], src = y * (fila + 1) + 1, dst = y * fila
+    for (let x = 0; x < fila; x++) {
+      const a = x >= bpp ? lineas[dst + x - bpp] : 0, u = y ? lineas[dst - fila + x] : 0, c = x >= bpp && y ? lineas[dst - fila + x - bpp] : 0
+      let v = crudo[src + x]
+      if (f === 1) v += a; else if (f === 2) v += u; else if (f === 3) v += (a + u) >> 1
+      else if (f === 4) { const pp = a + u - c, pa = Math.abs(pp - a), pb = Math.abs(pp - u), pc = Math.abs(pp - c); v += pa <= pb && pa <= pc ? a : pb <= pc ? u : c }
+      lineas[dst + x] = v & 255
+    }
+  }
+  const rgba = new Uint8Array(ancho * alto * 4)
+  const muestra = (y, x, k) => { // canal k del píxel (x, y), escalado a 8 bits
+    if (prof === 16) return lineas[y * fila + (x * canales + k) * 2]
+    if (prof === 8) return lineas[y * fila + x * canales + k]
+    const bit = (x * canales + k) * prof, v = (lineas[y * fila + (bit >> 3)] >> (8 - prof - (bit & 7))) & ((1 << prof) - 1)
+    return tipo === 3 ? v : Math.round(v * 255 / ((1 << prof) - 1))
+  }
+  for (let y = 0; y < alto; y++) for (let x = 0; x < ancho; x++) {
+    const i = (y * ancho + x) * 4
+    if (tipo === 3) {
+      const idx = muestra(y, x, 0)
+      rgba[i] = paleta?.[idx * 3] ?? 0; rgba[i + 1] = paleta?.[idx * 3 + 1] ?? 0; rgba[i + 2] = paleta?.[idx * 3 + 2] ?? 0
+      rgba[i + 3] = alfaPaleta && idx < alfaPaleta.length ? alfaPaleta[idx] : 255
+    } else if (canales <= 2) {
+      rgba[i] = rgba[i + 1] = rgba[i + 2] = muestra(y, x, 0); rgba[i + 3] = canales === 2 ? muestra(y, x, 1) : 255
+    } else {
+      rgba[i] = muestra(y, x, 0); rgba[i + 1] = muestra(y, x, 1); rgba[i + 2] = muestra(y, x, 2); rgba[i + 3] = canales === 4 ? muestra(y, x, 3) : 255
+    }
+  }
+  return rgba
+}
+// Otra imagen (JPG, GIF…): sólo en el navegador, con un lienzo.
+async function rgbaConLienzo(bytes) {
+  if (typeof createImageBitmap !== 'function' || typeof OffscreenCanvas !== 'function') return null
+  try {
+    const bmp = await createImageBitmap(new Blob([bytes]))
+    const w = Math.min(bmp.width, 256), h = Math.min(bmp.height, 256)
+    const cv = new OffscreenCanvas(w, h), cx = cv.getContext('2d')
+    cx.drawImage(bmp, 0, 0, w, h)
+    return cx.getImageData(0, 0, w, h).data
+  } catch { return null }
+}
+// El bando de cada imagen del KMZ: Map(ruta → 'enemigo' | 'propias' | null).
+export async function bandosDeImagenes(imagenes) {
+  const r = new Map()
+  for (const [ruta, bytes] of imagenes || []) {
+    const rgba = (await rgbaDePng(bytes).catch(() => null)) || (await rgbaConLienzo(bytes))
+    r.set(ruta, rgba ? bandoDePixeles(rgba) : null)
+  }
+  return r
+}
+// El bando que dice el ícono del Placemark (o null si el ícono no lo dice). `imagenes` = lo de arriba.
+export function bandoDeIcono(icono, imagenes, carpetaKml = '') {
+  if (!icono) return null
+  const tinte = rgbDeKml(icono.color)
+  if (tinte && tinte[3] > 40 && !(tinte[0] > 230 && tinte[1] > 230 && tinte[2] > 230)) {
+    const k = bandoDeRgb(tinte[0], tinte[1], tinte[2])
+    if (k) return k
+  }
+  const href = String(icono.href || '').trim()
+  if (href && imagenes?.size) {
+    const limpio = href.split(/[?#]/)[0].replace(/^\.\//, '')
+    const ruta = [carpetaKml ? `${carpetaKml}/${limpio}` : limpio, limpio].find(x => imagenes.has(x)) ||
+      [...imagenes.keys()].find(x => x.toLowerCase().endsWith('/' + limpio.toLowerCase()) || x.toLowerCase() === limpio.toLowerCase())
+    if (ruta && imagenes.get(ruta)) return imagenes.get(ruta)
+  }
+  return bandoDeNombreIcono(href)
+}
 
 function escalonDe(nombre, linea) {
   const marca = (linea.match(/\(\s*([XI]{1,5})\s*\)/) || nombre.match(/\(\s*([XI]{1,5})\s*\)/) || [])[1]
@@ -223,7 +399,8 @@ export function paqueteDeKml(lista, { nombre = '' } = {}) {
     if (vistos.has(clave)) continue
     vistos.add(clave)
     const todo = sinTildes(`${ruta.join(' ')} ${nom} ${pm.estilo} ${lineaEsc}`).toUpperCase()
-    const enemigo = ENEMIGO.test(todo) && !(PROPIO.test(ruta.join(' ')) && !ENEMIGO.test(ruta.join(' ')))
+    const enemigo = pm.bandoIcono ? pm.bandoIcono === 'enemigo'
+      : ENEMIGO.test(todo) && !(PROPIO.test(ruta.join(' ')) && !ENEMIGO.test(ruta.join(' ')))
     fichas.push({
       lat, lng, bando: enemigo ? 'enemigo' : 'propias', tipo: 'unidad',
       escalon: escalonDe(pm.nombre, lineaEsc), arma: armaDe(`${pm.nombre} ${lineaEsc}`),
@@ -260,10 +437,24 @@ export function unirArchivos(lista) {
 }
 
 async function textosKml(f) {
-  if (/\.kml$/i.test(f.name)) return [{ nombre: f.name, texto: await f.text() }]
-  const k = await kmlsDelZip(new Uint8Array(await f.arrayBuffer()))
-  if (!k.length) throw new Error(`«${f.name}» no trae ningún KML adentro.`)
-  return k
+  if (/\.kml$/i.test(f.name)) return { kmls: [{ nombre: f.name, texto: await f.text() }], imagenes: new Map() }
+  const z = await archivosDelZip(new Uint8Array(await f.arrayBuffer()))
+  if (!z.kmls.length) throw new Error(`«${f.name}» no trae ningún KML adentro.`)
+  return z
+}
+// Los Placemark de un archivo, cada uno con `bandoIcono` si su ícono dice rojo o azul.
+async function placemarksDeArchivo(f, opciones) {
+  const { kmls, imagenes } = await textosKml(f)
+  const bandos = await bandosDeImagenes(imagenes)
+  const lista = []
+  for (const k of kmls) {
+    const carpeta = k.nombre.includes('/') ? k.nombre.slice(0, k.nombre.lastIndexOf('/')) : ''
+    for (const pm of placemarks(leerXml(k.texto), opciones)) {
+      const b = bandoDeIcono(pm.icono, bandos, carpeta)
+      lista.push(b ? { ...pm, bandoIcono: b } : pm)
+    }
+  }
+  return lista
 }
 
 // El objeto que espera ejercicioDeArchivo (abrir-archivo.mjs): el JSON tal cual, o el paquete de
@@ -277,9 +468,7 @@ export async function leerArchivoMesa(f) {
   if (json.length) throw new Error(`Para abrir varios a la vez tienen que ser todos KMZ o KML de Google Earth («${json[0].name}» no lo es).`)
   const lista = []
   for (const a of archivos) {
-    let kmls
-    try { kmls = await textosKml(a) } catch (e) { throw new Error(`«${a.name}»: ${e.message}`) }
-    for (const k of kmls) lista.push(...placemarks(leerXml(k.texto)))
+    try { lista.push(...await placemarksDeArchivo(a)) } catch (e) { throw new Error(e.message.startsWith('«') ? e.message : `«${a.name}»: ${e.message}`) }
   }
   const nombre = f.nombreSugerido || nombreSinExt(f.name)
   const r = paqueteDeKml(lista, { nombre })
@@ -321,7 +510,7 @@ export function superposicionDeKml(lista, { nombre = '' } = {}) {
     if (!grupos.has(clave)) grupos.set(clave, [])
     const el = grupos.get(clave)
     const nom = sinTildes(pm.nombre).toUpperCase(), ruta = sinTildes(camino.join(' ')).toUpperCase()
-    const enemigo = ENEMIGO.test(`${ruta} ${nom} ${sinTildes(pm.estilo).toUpperCase()}`)
+    const enemigo = pm.bandoIcono ? pm.bandoIcono === 'enemigo' : ENEMIGO.test(`${ruta} ${nom} ${sinTildes(pm.estilo).toUpperCase()}`)
     const color = enemigo ? '#e0443a' : '#4f9cf0'
     if (pm.tipo === 'poligono') {
       const c = abrirAnillo(pm.coords)
@@ -373,10 +562,8 @@ export function fichaDeSuperpuesta(el) {
 
 // Lo que llama superponer.js con los archivos elegidos (KMZ o KML). Un archivo = una capa.
 export async function superposicionDeArchivo(f) {
-  let kmls
-  try { kmls = await textosKml(f) } catch (e) { throw new Error(e.message.startsWith('«') ? e.message : `«${f.name}»: ${e.message}`) }
-  const lista = []
-  for (const k of kmls) lista.push(...placemarks(leerXml(k.texto), { conLineas: true }))
+  let lista
+  try { lista = await placemarksDeArchivo(f, { conLineas: true }) } catch (e) { throw new Error(e.message.startsWith('«') ? e.message : `«${f.name}»: ${e.message}`) }
   const r = superposicionDeKml(lista, { nombre: nombreSinExt(f.name) })
   if (!r.total) throw new Error(`«${f.name}» no trae nada con coordenadas.`)
   return r
