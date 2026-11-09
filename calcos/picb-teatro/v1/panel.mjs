@@ -387,8 +387,29 @@ function boton() {
     btn.setAttribute('aria-expanded', 'false')
     btn.addEventListener('click', () => (S.abierto ? cerrar() : abrir()))
     document.body.appendChild(btn)
+    window.addEventListener('resize', ubicarBoton)
   }
   btn.hidden = !S.nivel.teatro
+  ubicarBoton()
+}
+// Las pestañas del borde derecho (🧩 Superponer, 🗂️ Despliegue del TO…) tienen cada una su altura fija y
+// esta no debe taparlas ni quedar tapada (09-11-2026: en la Mesa publicada quedó debajo del Despliegue).
+// Se ubica justo debajo de la última; si no entra, arriba de la primera.
+function ubicarBoton() {
+  if (!btn || btn.hidden) return
+  const otras = [...document.body.children].filter((e) => {
+    if (e === btn || !(e instanceof HTMLElement)) return false
+    const cs = getComputedStyle(e)
+    return cs.position === 'fixed' && cs.display !== 'none' && cs.visibility !== 'hidden' && /^vertical/.test(cs.writingMode)
+  }).map((e) => e.getBoundingClientRect()).filter((r) => r.height > 0 && r.right >= window.innerWidth - 4)
+  const alto = btn.getBoundingClientRect().height || 150, H = window.innerHeight
+  let top = Math.round(H * 0.46)
+  if (otras.length) {
+    const abajo = Math.max(...otras.map((r) => r.bottom)) + 10, arriba = Math.min(...otras.map((r) => r.top)) - 10 - alto
+    top = abajo + alto <= H - 20 ? abajo : arriba >= 64 ? arriba : Math.max(64, H - alto - 20)
+  }
+  const nuevo = `${Math.round(top)}px`
+  if (btn.style.top !== nuevo) btn.style.top = nuevo
 }
 function abrir() {
   if (!S.nivel.teatro) return
@@ -664,7 +685,7 @@ async function copiarTexto() {
 function arrancar() {
   engancharPuente(); engancharPreservar()
   seguir()
-  setInterval(() => { try { seguir(); engancharPreservar() } catch (e) { console.warn('PICB Teatro:', e) } }, 2000)
+  setInterval(() => { try { seguir(); engancharPreservar(); ubicarBoton() } catch (e) { console.warn('PICB Teatro:', e) } }, 2000)
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar)
 else arrancar()
