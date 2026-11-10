@@ -151,6 +151,17 @@ async function esperar(page, leer, cumple, ms = 20000) {
     await page.evaluate(() => window.__mapa2d.setView([-17.05, -68.3], 10, { animate: false }))
     await page.waitForTimeout(1500)
     await foto('5-organigrama-en-la-carta')
+    // 10-11 tarde: en la lista, DIV-1 pasa de Infantería a Mecanizada ahí mismo, y 📋 Pegar lista carga filas.
+    const filaPuestaDiv1 = org.locator('[data-sid="puesta"]', { has: page.locator('input[value="DIV-1"]') })
+    await filaPuestaDiv1.locator('select[data-sid="arma"]').selectOption('mecanizada')
+    const us3 = await esperar(page, leerUnidades, (u) => u.find((x) => x.designacion === 'DIV-1')?.arma === 'mecanizada')
+    assert.equal(us3.find((x) => x.designacion === 'DIV-1').arma, 'mecanizada', 'DIV-1 cambió a mecanizada en la carta')
+    await clic(org.getByRole('button', { name: '📋 Pegar lista' }))
+    await org.locator('textarea').fill('BRIG. BLIND. 5\nBAT. ING. MOT. 200')
+    await clic(org.getByRole('button', { name: /Cargar 2 a la lista/ }))
+    await org.locator('[data-sid="falta"] input[value="BRIG. BLIND. 5"]').waitFor({ timeout: 5000 })
+    assert.equal(await org.locator('[data-sid="falta"]', { has: page.locator('input[value="BRIG. BLIND. 5"]') }).locator('select[data-sid="arma"]').inputValue(), 'blindada')
+    await org.screenshot({ path: path.join(SALIDAS, '6-organigrama-editable.png') })
     assert.deepEqual(errores, [], 'sin errores de consola')
     console.log('OK: H.T. 17 con CAE-1/CAE-2 y su evaluación llena; O1 arrastrado rehace las flechas; F2·P3 → Agregar a mano → 14 unidades bajo el CE-II.')
   } catch (e) {
