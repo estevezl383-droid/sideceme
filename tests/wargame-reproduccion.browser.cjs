@@ -145,7 +145,7 @@ const server = http.createServer((req, res) => {
     await page.goto(origin + '/index.html');
     assert.equal(await page.evaluate(() => typeof _wgCuadro), 'function');
     assert.equal(await page.evaluate(() => typeof _wgInvoke), 'function');
-    assert.equal(await page.locator('#version-marker').textContent(), 'v2.9.480');
+    assert.equal(await page.locator('#version-marker').textContent(), 'v2.9.481');
     assert.deepEqual(appErrors, []);
     await page.screenshot({ path: path.join(output, 'aplicacion-inicio.png'), fullPage: false });
     await page.close();
