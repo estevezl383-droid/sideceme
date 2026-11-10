@@ -28,6 +28,7 @@ fs.mkdirSync(output, { recursive: true });
       assert.equal(await page.locator('#wg-drones').isVisible(), false);
       await page.evaluate(() => wgIniciar());
       await page.waitForFunction(() => WG.estado.partida.estado === 'en_curso');
+      assert.equal(await page.locator('#wg-hoja').isVisible(),false,'La hoja cerrada no debe cubrir el tablero');
       const options = await page.locator('#wg-reloj-vel option').evaluateAll(els => els.map(e => Number(e.value)));
       assert.deepEqual(options, [2880,1440,720,360]);
       const id = await page.evaluate(() => WG.estado.unidades.find(u => u.bando === 'azul').id);
