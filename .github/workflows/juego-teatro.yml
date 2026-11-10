@@ -1,0 +1,42 @@
+name: Validar juego ficticio a escala teatro
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'assets/wargame-teatro.mjs'
+      - 'supabase/functions/wargame-ops/index.ts'
+      - 'tests/wargame-teatro*'
+      - 'tests/wargame-reproduccion*'
+      - 'tests/helpers/wargame-*'
+      - '.github/workflows/juego-teatro.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      NODE_PATH: /tmp/pruebas-teatro/node_modules
+      SIDECEME_REPRO_SALIDA: /tmp/capturas-teatro
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preparar herramientas de prueba
+        run: |
+          npm install --prefix /tmp/pruebas-teatro --save-exact typescript@5.9.3 playwright@1.51.1 leaflet@1.9.4
+          node /tmp/pruebas-teatro/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Contrato del motor, importación, reloj y ciclo de vida del navegador
+        run: node --test tests/wargame-teatro.test.cjs tests/wargame-teatro-pantalla.test.mjs tests/wargame-reproduccion.test.cjs
+      - name: Probar la pantalla real en escritorio y móvil
+        run: |
+          node tests/wargame-teatro.browser.cjs
+          node tests/wargame-reproduccion.browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: juego-teatro-capturas
+          path: /tmp/capturas-teatro/
+          retention-days: 7

@@ -3822,6 +3822,352 @@ function anclaLogistica(bando: string, unidades: any[], terreno: any[]) {
   }
   return { ref, pt: g.nodos[mejor.i].slice(), dCamino: mejor.d };
 }
+// Reglas abstractas de videojuego aportadas por el usuario; datos y bandos ficticios.
+// Los valores son parámetros lúdicos, sin validación predictiva ni doctrinal.
+// ============================================================
+// v2.9.481 — 🌎 LA ESCALA TEATRO (FF.TT.T.O.). Sergio (09-11-2026): «a nivel FF.TT.T.O. … la más
+// importante el juego de guerra, luego deberá funcionar una belleza… no me friegues el resto».
+// Una partida IMPORTADA A ESCALA TEATRO (la marca `escala: "teatro"` en su fila del reloj; jornada de 24 h)
+// pasa por acá; la táctica sigue por `resolverTurno`, sin cambios, sea cual sea su jornada. A esta escala:
+//   · las fichas son GG.UU. (CE, DIV, BRIG) y su FRENTE es un radio de varios km: hay contacto cuando
+//     dos frentes se tocan (no a 3 km de un batallón);
+//   · el tiempo corre por días (D, D+1…); la marcha es en km POR DÍA, por la ruta que manda la pantalla
+//     (calculada sobre las carreteras del teatro) o a campo traviesa, más lenta;
+//   · el combate se resuelve por PODER RELATIVO: desgaste por día y avance del atacante / repliegue del
+//     defensor en km, según la relación; la GU que baja del 25 % queda fuera de combate;
+//   · cada GU lleva sus DÍAS DE ABASTECIMIENTO (DOS): sin ellos pelea y marcha peor; se reaprovisiona
+//     cerca del puesto de comando propio.
+// Las cifras son parámetros abstractos de equilibrio del videojuego, sin validación predictiva.
+// ============================================================
+const TEATRO: any = {
+  // Marcha por carretera en km POR DÍA (con altos, reabastecimiento y descanso), por medio.
+  marchaKmDia: { motor: 200, rueda: 200, oruga: 150, pie: 30 },
+  // Una GU grande se mueve más lenta que una brigada.
+  factorEscalon: { batallon: 1, regimiento: 1, brigada: 1, division: 0.85, cuerpo: 0.7, ejercito: 0.7 },
+  // Fuera de la ruta, por suelo (severo: sólo a pie, ×0,15).
+  factorSuelo: { libre: 0.55, restringido: 0.3, severo: 0 },
+  // Radio del FRENTE en km.
+  frenteKm: { batallon: 3, regimiento: 5, brigada: 8, division: 14, cuerpo: 22, ejercito: 4 },
+  // Lo que alcanza a ver (exploración, aviación, SANT), en km.
+  obsKm: { batallon: 12, regimiento: 20, brigada: 30, division: 45, cuerpo: 60, ejercito: 40 },
+  // Desgaste por día con relación 1:1; con relación R: atacante ×R^−0,6, defensor ×R^0,6.
+  perdidaDia: 0.06, perdidaMin: 0.01, perdidaMax: 0.18,
+  // Avance del atacante (= repliegue del defensor), km por día, según la relación.
+  avance: [[3, 20], [2, 12], [1.5, 8], [1.2, 3]],
+  postura: { atacar: 1, mover: 1, defender: 1.5, quieta: 1.25, replegar: 0.7 },
+  sueloDefensa: { severo: 1.5, restringido: 1.25, libre: 1 },
+  dosInicial: 5, dosMax: 5, consumo: { combate: 1, marcha: 0.6, quieta: 0.3 }, reaprovDia: 2, reaprovKm: 80,
+  fueraDeCombate: 0.25,
+  pasoKm: 2,
+};
+const VELOCIDADES_TEATRO = [2880, 1440, 720, 360];   // 1 día de juego = 30 s · 1 min · 2 min · 4 min
+const VEL_DEFECTO_TEATRO = 720;
+// La escala NO se deduce de la jornada (la táctica admite de 1 a 24 h): la marca la fila del reloj de la
+// partida (`wg_terreno` tipo «reloj»), que escribe «importar_escenario» con `escala: "teatro"`. Todas las
+// escrituras del reloj conservan lo que la fila ya tenía; la limpieza de una importación nueva la borra.
+function esTeatro(g: any) { return !!g && g.escala === "teatro"; }
+// Los lugares para nombrar en la bitácora («a 12 km de Uyuni»): filas «poblado» (un punto con `nom`).
+const _lugaresTeatro = new Map<any, any>();
+async function lugaresTeatro(pid: any) {
+  const c = _lugaresTeatro.get(pid);
+  if (c && Date.now() - c.t < 10 * 60000) return c.l;
+  const { data } = await sb.from("wg_terreno").select("geojson").eq("partida_id", pid).eq("tipo", "poblado").limit(1000);
+  const l = (data || []).map((r: any) => r.geojson)
+    .filter((g: any) => g && g.type === "Point" && g.nom && Array.isArray(g.coordinates))
+    .map((g: any) => ({ p: [Number(g.coordinates[0]), Number(g.coordinates[1])], nom: String(g.nom) }));
+  if (_lugaresTeatro.size >= 5) _lugaresTeatro.clear();
+  _lugaresTeatro.set(pid, { t: Date.now(), l });
+  return l;
+}
+function sueloTeatro(pt: number[], terreno: any[]) {
+  let r = "libre";
+  for (const t of terreno || []) {
+    if (!t || t.bando || (t.tipo !== "severo" && t.tipo !== "restringido")) continue;
+    if ((t._caja && fueraDeCaja(pt, t)) || !puntoEnGeom(pt, t.geojson)) continue;
+    if (t.tipo === "severo") return "severo";
+    r = "restringido";
+  }
+  return r;
+}
+function esPCTeatro(u: any) {
+  return !!u && (u.escalon === "ejercito" || /^(PC|CG|P\.?C\.?)\b/i.test(String(u.designacion || "")));
+}
+function horaTeatro(h: number) {
+  const total = Math.max(0, Math.floor(h * 60 + 1e-6));
+  const d = Math.floor(total / 1440), hh = Math.floor(total / 60) % 24, mm = total % 60;
+  return `D${d ? "+" + d : ""} ${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+function resolverTeatro(estado: any) {
+  // Sin reloj continuo (turno a turno): el día en 6 pasos de 4 h.
+  if (!estado.tic) {
+    const turno = Number(estado.turno) || 1;
+    const mem: any = { teatro: null };
+    const fin = new Set<any>();
+    let est = { ...estado };
+    const acum: any = { eventos: [], trazas: [], combates: [] };
+    let ult: any = null;
+    for (let k = 0; k < 6; k++) {
+      const T = { horas: 4, cierre: k === 5, hEn: 4 * k, hora: (turno - 1) * 24 + 4 * k, fin, mem, tirosFin: new Set(), tirados: [] };
+      ult = resolverTeatro({ ...est, tic: T });
+      est = { ...est, unidades: ult.unidades, ordenes: (est.ordenes || []).filter((o: any) => !fin.has(o.id)) };
+      acum.eventos.push(...ult.eventos); acum.trazas.push(...ult.trazas); acum.combates.push(...ult.combates);
+    }
+    return { ...ult, ...acum, cerradas: [...fin] };
+  }
+  const T: any = estado.tic;
+  const horas = Math.max(0, Number(T.horas) || 0), dia = horas / 24;
+  const terreno = estado.terreno || [];
+  const lugares: any[] = estado.lugares || [];
+  const fin: Set<any> = T.fin || new Set();
+  const eventos: any[] = [], trazas: any[] = [], combates: any[] = [];
+  const U = new Map<any, any>((estado.unidades || []).map((u: any) => [u.id, { ...u }]));
+  const viva = (u: any) => u && u.estado !== "fuera_combate" && Number(u.poder_actual) > 0;
+  const pos = (u: any) => [Number(u.lng), Number(u.lat)];
+  const frente = (u: any) => TEATRO.frenteKm[u.escalon] ?? 6;
+  const memT = T.mem.teatro = T.mem.teatro || { prog: {}, contacto: {}, dia: {} };
+  memT.prog = memT.prog || {}; memT.contacto = memT.contacto || {}; memT.dia = memT.dia || {};
+  const ahora = (h = 0) => horaTeatro((Number(T.hora) || 0) + h);
+  const lugar = (p: number[]) => {
+    let m: any = null, dm = Infinity;
+    for (const l of lugares) { const d = haversineKm(p, l.p); if (d < dm) { dm = d; m = l; } }
+    if (!m || dm > 70) return "";
+    return dm <= 8 ? `en ${m.nom}` : `a ${Math.round(dm)} km de ${m.nom}`;
+  };
+  const dos = (u: any) => { const c = u.carga && u.carga.teatro; return c && Number.isFinite(Number(c.dos)) ? Number(c.dos) : TEATRO.dosInicial; };
+  const ponDos = (u: any, v: number) => {
+    u.carga = { ...(u.carga || {}), teatro: { ...((u.carga && u.carga.teatro) || {}), dos: Math.max(0, Math.min(TEATRO.dosMax, Math.round(v * 1000) / 1000)) } };
+  };
+  const ev = (texto: string, p: number[] | null, visibles: string[]) =>
+    eventos.push({ tipo: "teatro", descripcion: `🌎 ${ahora()} · ${texto}`, lat: p ? p[1] : null, lng: p ? p[0] : null, bandos_visibles: visibles });
+  const otro = (b: string) => (b === "azul" ? "rojo" : "azul");
+  // La última orden de cada unidad.
+  const orden = new Map<any, any>();
+  for (const o of estado.ordenes || []) {
+    const p = orden.get(o.unidad_id);
+    if (!p || Number(o.id || 0) >= Number(p.id || 0)) orden.set(o.unidad_id, o);
+  }
+  const enContacto = (u: any, p: number[]) => {
+    for (const e of U.values()) {
+      if (!viva(e) || e.bando === u.bando) continue;
+      if (haversineKm(p, pos(e)) <= frente(u) + frente(e)) return e;
+    }
+    return null;
+  };
+  // ── 1 · MARCHA ────────────────────────────────────────────────────────────────
+  const movio = new Set<any>();
+  for (const u of U.values()) {
+    if (!viva(u)) continue;
+    const o = orden.get(u.id);
+    if (!o || !["mover", "atacar", "replegar", "apoyar"].includes(o.tipo)) continue;
+    // El camino: la ruta que mandó la pantalla (por las carreteras) o el destino en línea recta.
+    let puntos: number[][] = Array.isArray(o.ruta) && o.ruta.length ? o.ruta.map((p: any) => [Number(p[0]), Number(p[1])]) : [];
+    if (o.tipo === "atacar" && o.objetivo_id != null) {
+      const obj = U.get(o.objetivo_id);
+      if (!viva(obj)) { fin.add(o.id); ev(`${nombreUnidad(u)}: su objetivo ya no combate.`, pos(u), [u.bando]); continue; }
+      puntos = [pos(obj)];
+    }
+    if (!puntos.length && o.destino_lng != null) puntos = [[Number(o.destino_lng), Number(o.destino_lat)]];
+    if (!puntos.length) continue;
+    const porRuta = Array.isArray(o.ruta) && o.ruta.length > 1 && o.mision === "marcada";
+    let i = Math.max(0, Math.min(puntos.length - 1, Number(memT.prog[o.id] || 0)));
+    // Si el combate la empujó más allá (o se perdió la memoria), no vuelve a puntos que ya dejó atrás.
+    while (i + 1 < puntos.length && haversineKm(pos(u), puntos[i + 1]) < haversineKm(puntos[i], puntos[i + 1])) i++;
+    const contacto0 = enContacto(u, pos(u));
+    // Ya en contacto: el atacante no marcha (avanza lo que gane en el combate); el que se repliega sí.
+    if (contacto0 && o.tipo !== "replegar") continue;
+    const medio = u.medio === "oruga" ? "oruga" : u.medio === "pie" ? "pie" : "motor";
+    let vel = (TEATRO.marchaKmDia[medio] || 30) * (TEATRO.factorEscalon[u.escalon] ?? 1);
+    if (dos(u) <= 0) vel *= 0.3;
+    if (o.tipo === "replegar" && contacto0) vel *= 0.5;
+    let presupuesto = vel * dia;   // km de este paso, a velocidad de carretera
+    const ruta: number[][] = [pos(u)];
+    let p = pos(u), detenida = "", contacto: any = null, llego = false, km = 0;
+    while (presupuesto > 1e-6 && i < puntos.length) {
+      const destino = puntos[i];
+      const d = haversineKm(p, destino);
+      if (d < 0.05) { i++; continue; }
+      const paso = Math.min(TEATRO.pasoKm, d);
+      const t = paso / d;
+      const q = [p[0] + (destino[0] - p[0]) * t, p[1] + (destino[1] - p[1]) * t];
+      let f = 1;
+      if (!porRuta) {
+        const s = sueloTeatro(q, terreno);
+        f = s === "severo" ? (medio === "pie" ? 0.15 : 0) : TEATRO.factorSuelo[s];
+        if (f <= 0) { detenida = "terreno severamente restringido: sólo a pie o por una carretera"; break; }
+      }
+      const costo = paso / f;
+      if (costo > presupuesto) {
+        const parcial = presupuesto * f;
+        p = [p[0] + (q[0] - p[0]) * (parcial / paso), p[1] + (q[1] - p[1]) * (parcial / paso)];
+        km += parcial; presupuesto = 0; ruta.push(p);
+        break;
+      }
+      presupuesto -= costo; km += paso; p = q;
+      if (o.tipo !== "replegar") {
+        const e = enContacto(u, p);
+        if (e) { contacto = e; ruta.push(p); break; }
+      }
+      if (haversineKm(p, destino) < 0.05) i++;
+      if (ruta.length < 80 && (ruta.length === 1 || haversineKm(ruta[ruta.length - 1], p) >= 4)) ruta.push(p);
+    }
+    if (i >= puntos.length) llego = true;
+    memT.prog[o.id] = i;
+    if (km > 0.01) {
+      u.lng = Math.round(p[0] * 1e6) / 1e6; u.lat = Math.round(p[1] * 1e6) / 1e6;
+      movio.add(u.id);
+      if (ruta[ruta.length - 1] !== p) ruta.push(p);
+      trazas.push({ id: u.id, bando: u.bando, ruta, km: Math.round(km * 10) / 10, llego, detenida: !!detenida, contacto: !!contacto });
+    }
+    if (llego) { fin.add(o.id); ev(`${nombreUnidad(u)} LLEGÓ ${lugar(p) || "a su destino"}.`, p, [u.bando]); }
+    else if (detenida && !memT.prog["det" + o.id]) { memT.prog["det" + o.id] = 1; ev(`${nombreUnidad(u)} DETENIDA: ${detenida}.`, p, [u.bando]); }
+  }
+  // ── 2 · CONTACTO: grupos de GG.UU. cuyos frentes se tocan ───────────────────────
+  const vivas = [...U.values()].filter(viva);
+  const padre = new Map<any, any>(vivas.map((u: any) => [u.id, u.id]));
+  const raiz = (x: any): any => { while (padre.get(x) !== x) { padre.set(x, padre.get(padre.get(x))); x = padre.get(x); } return x; };
+  const pares: any[] = [];
+  for (let a = 0; a < vivas.length; a++) for (let b = a + 1; b < vivas.length; b++) {
+    const A = vivas[a], B = vivas[b];
+    if (A.bando === B.bando) continue;
+    const d = haversineKm(pos(A), pos(B));
+    if (d <= frente(A) + frente(B)) { pares.push([A, B, d]); padre.set(raiz(A.id), raiz(B.id)); }
+  }
+  const grupos = new Map<any, any[]>();
+  for (const [A, B] of pares) for (const u of [A, B]) {
+    const r = raiz(u.id);
+    if (!grupos.has(r)) grupos.set(r, []);
+    if (!grupos.get(r)!.includes(u)) grupos.get(r)!.push(u);
+  }
+  const peleo = new Set<any>();
+  const vistosAhora = new Set<string>();
+  for (const miembros of grupos.values()) {
+    const lado: any = { azul: miembros.filter((u: any) => u.bando === "azul"), rojo: miembros.filter((u: any) => u.bando === "rojo") };
+    if (!lado.azul.length || !lado.rojo.length) continue;
+    const postura = (u: any) => {
+      const o = orden.get(u.id);
+      if (!o) return "quieta";
+      if (o.tipo === "atacar" || o.tipo === "mover" || o.tipo === "apoyar") return esPCTeatro(u) ? "quieta" : "atacar";
+      if (o.tipo === "defender") return "defender";
+      if (o.tipo === "replegar") return "replegar";
+      return "quieta";
+    };
+    const ataca: any = { azul: lado.azul.some((u: any) => postura(u) === "atacar"), rojo: lado.rojo.some((u: any) => postura(u) === "atacar") };
+    const efectivo = (u: any, atacando: boolean) => {
+      let p = Number(u.poder_actual) * (TEATRO.postura[atacando ? "atacar" : postura(u)] ?? 1);
+      if (!atacando) p *= TEATRO.sueloDefensa[sueloTeatro(pos(u), terreno)] ?? 1;
+      if (dos(u) <= 0) p *= 0.6;
+      if (esPCTeatro(u)) p *= 0.3;
+      return p;
+    };
+    // Quién ataca: el que tiene GU con misión ofensiva; si los dos, el más fuerte (combate de encuentro).
+    let atac: string | null = ataca.azul && !ataca.rojo ? "azul" : ataca.rojo && !ataca.azul ? "rojo" : null;
+    const P = (b: string, at: boolean) => lado[b].reduce((s: number, u: any) => s + efectivo(u, at), 0);
+    if (ataca.azul && ataca.rojo) atac = P("azul", true) >= P("rojo", true) ? "azul" : "rojo";
+    const clave = miembros.map((u: any) => u.id).sort().join("-");
+    const centro = (l: any[]) => [l.reduce((s, u) => s + u.lng, 0) / l.length, l.reduce((s, u) => s + u.lat, 0) / l.length];
+    const pc = centro(miembros);
+    vistosAhora.add(clave);
+    if (memT.contacto[clave] == null) {
+      memT.contacto[clave] = Number(T.hora) || 0;
+      const az = lado.azul.map(nombreUnidad).join(", "), ro = lado.rojo.map(nombreUnidad).join(", ");
+      ev(`⚔️ CONTACTO ${lugar(pc)}: ${ro} frente a ${az}.`, pc, ["azul", "rojo"]);
+    }
+    for (const u of miembros) peleo.add(u.id);
+    if (!atac) {
+      // Los dos se quedan: patrullas y fuegos de hostigamiento, poco desgaste, nadie gana terreno.
+      for (const u of miembros) u.poder_actual = Math.max(0, Number(u.poder_actual) * (1 - 0.005 * dia));
+      continue;
+    }
+    const def = otro(atac);
+    const pa = P(atac, true), pd = Math.max(0.01, P(def, false));
+    const R = pa / pd;
+    const recorta = (x: number) => Math.max(TEATRO.perdidaMin, Math.min(TEATRO.perdidaMax, x));
+    const fa = recorta(TEATRO.perdidaDia * Math.pow(R, -0.6)) * dia, fd = recorta(TEATRO.perdidaDia * Math.pow(R, 0.6)) * dia;
+    const memD = memT.dia[clave] = memT.dia[clave] || { a: atac, R0: R, pa0: lado[atac].reduce((s: number, u: any) => s + Number(u.poder_actual), 0),
+      pd0: lado[def].reduce((s: number, u: any) => s + Number(u.poder_actual), 0), km: 0 };
+    for (const u of lado[atac]) u.poder_actual = Math.max(0, Number(u.poder_actual) * (1 - fa));
+    for (const u of lado[def]) u.poder_actual = Math.max(0, Number(u.poder_actual) * (1 - fd));
+    // Terreno ganado: el defensor cede, el atacante ocupa.
+    let kmDia = 0;
+    for (const [r, k] of TEATRO.avance) if (R >= r) { kmDia = k; break; }
+    const kmPaso = kmDia * dia;
+    if (kmPaso > 0) {
+      const ca = centro(lado[atac]), cd = centro(lado[def]);
+      const kx = 111.32 * Math.cos((cd[1] * Math.PI) / 180), ky = 110.574;
+      let vx = (cd[0] - ca[0]) * kx, vy = (cd[1] - ca[1]) * ky;
+      const n = Math.hypot(vx, vy) || 1; vx /= n; vy /= n;
+      for (const u of lado[def]) {
+        const firme = postura(u) === "defender" && sueloTeatro(pos(u), terreno) === "severo";
+        const k = firme ? kmPaso * 0.5 : kmPaso;
+        u.lng += (vx * k) / kx; u.lat += (vy * k) / ky;
+        movio.add(u.id);
+      }
+      for (const u of lado[atac]) { u.lng += (vx * kmPaso) / kx; u.lat += (vy * kmPaso) / ky; movio.add(u.id); }
+      memD.km += kmPaso;
+    }
+    if (memD.n == null) {
+      memD.n = 1;
+      const A = lado[atac].slice().sort((x: any, y: any) => Number(y.poder_actual) - Number(x.poder_actual))[0];
+      const D = lado[def].slice().sort((x: any, y: any) => Number(y.poder_actual) - Number(x.poder_actual))[0];
+      combates.push({ a: A.id, b: D.id, ba: A.bando, bb: D.bando, h: Number(((Number(T.hora) || 0)).toFixed(3)), n: 1,
+        ratio: Math.round(R * 100) / 100, resultado: kmDia > 0 ? "avanza" : "contenido", gana: kmDia > 0 ? A.id : D.id, destruida: null, contesta: true,
+        pa: [Number(A.lng.toFixed(5)), Number(A.lat.toFixed(5))], pb: [Number(D.lng.toFixed(5)), Number(D.lat.toFixed(5))] });
+    }
+  }
+  for (const k of Object.keys(memT.contacto)) if (!vistosAhora.has(k)) delete memT.contacto[k];
+  // ── 3 · AL CERRAR EL DÍA: el parte de cada combate ──────────────────────────────
+  if (T.cierre) {
+    for (const [clave, m] of Object.entries(memT.dia) as any[]) {
+      const ids = clave.split("-").map((x: string) => (isNaN(Number(x)) ? x : Number(x)));
+      const miembros = ids.map((id: any) => U.get(id)).filter(Boolean);
+      if (!miembros.length) continue;
+      const a = miembros.filter((u: any) => u.bando === m.a), d = miembros.filter((u: any) => u.bando !== m.a);
+      const pa1 = a.reduce((s: number, u: any) => s + Number(u.poder_actual), 0), pd1 = d.reduce((s: number, u: any) => s + Number(u.poder_actual), 0);
+      const pct = (x: number, y: number) => (y > 0 ? Math.round((1 - x / y) * 100) : 0);
+      const rel = m.R0 >= 1 ? `${(Math.round(m.R0 * 10) / 10).toLocaleString("es-BO")} : 1` : `1 : ${(Math.round((1 / m.R0) * 10) / 10).toLocaleString("es-BO")}`;
+      const pc = [miembros.reduce((s: number, u: any) => s + u.lng, 0) / miembros.length, miembros.reduce((s: number, u: any) => s + u.lat, 0) / miembros.length];
+      const quien = (l: any[]) => l.map(nombreUnidad).join(", ");
+      eventos.push({ tipo: "teatro", lat: pc[1], lng: pc[0], bandos_visibles: ["azul", "rojo"],
+        descripcion: `🌎 PARTE DEL DÍA ${horaTeatro((Number(T.hora) || 0) + horas - 1e-6).split(" ")[0]} · ${lugar(pc) ? lugar(pc) + ": " : ""}${quien(a)} ATACA a ${quien(d)} · relación ${rel} · `
+          + `pérdidas: ${m.a === "rojo" ? "🔴" : "🔵"} ${pct(pa1, m.pa0)} %, ${m.a === "rojo" ? "🔵" : "🔴"} ${pct(pd1, m.pd0)} % · `
+          + (m.km >= 0.5 ? `el atacante gana ${Math.round(m.km)} km.` : "el defensor CONTIENE: nadie gana terreno.") });
+    }
+    memT.dia = {};
+  }
+  // ── 4 · FUERA DE COMBATE ─────────────────────────────────────────────────────────
+  for (const u of U.values()) {
+    if (u.estado === "fuera_combate") continue;
+    if (Number(u.poder_actual) <= TEATRO.fueraDeCombate * Number(u.poder_max || 1)) {
+      u.estado = "fuera_combate";
+      ev(`💥 ${nombreUnidad(u)} queda FUERA DE COMBATE (${Math.round((Number(u.poder_actual) / Number(u.poder_max || 1)) * 100)} %) ${lugar(pos(u))}.`, pos(u), ["azul", "rojo"]);
+      const o = orden.get(u.id);
+      if (o) fin.add(o.id);
+    }
+  }
+  // ── 5 · ABASTECIMIENTO (días de abastecimiento) ─────────────────────────────────
+  const pcs = [...U.values()].filter((u: any) => viva(u) && esPCTeatro(u));
+  for (const u of U.values()) {
+    if (!viva(u) || esPCTeatro(u)) continue;
+    const antes = dos(u);
+    let v = antes - (peleo.has(u.id) ? TEATRO.consumo.combate : movio.has(u.id) ? TEATRO.consumo.marcha : TEATRO.consumo.quieta) * dia;
+    if (!peleo.has(u.id) && pcs.some((c: any) => c.bando === u.bando && haversineKm(pos(u), pos(c)) <= TEATRO.reaprovKm)) v += TEATRO.reaprovDia * dia;
+    ponDos(u, v);
+    if (antes > 0 && dos(u) <= 0) ev(`⛽ ${nombreUnidad(u)} SIN ABASTECIMIENTO: marcha y pelea a menos de la mitad.`, pos(u), [u.bando]);
+  }
+  // ── 6 · LO QUE VE CADA BANDO ────────────────────────────────────────────────────
+  const detecciones: any = { azul: [], rojo: [] };
+  for (const b of ["azul", "rojo"]) {
+    const mias = [...U.values()].filter((u: any) => viva(u) && u.bando === b);
+    for (const e of U.values()) {
+      if (e.bando === b || !viva(e)) continue;
+      if (peleo.has(e.id) || mias.some((u: any) => haversineKm(pos(u), pos(e)) <= (TEATRO.obsKm[u.escalon] ?? 20))) detecciones[b].push(e.id);
+    }
+  }
+  return { unidades: [...U.values()], eventos, zonas: [], zonasBorrar: [], instalBorrar: [], instalActualizar: [],
+    detecciones, trazas, impactos: [], entregas: [], combates };
+}
+
 function resolverTurno(estado: any) {
   // v2.9.430 — UNA ORDEN POR UNIDAD, LA ÚLTIMA. En la base quedaron turnos con
   // dos y tres órdenes para la misma unidad (doble envío desde el navegador):
@@ -5252,7 +5598,11 @@ const VELOCIDADES = [120, 60, 30, 12];
 const TIC_MS = 5000;        // cada cuánto se pide un paso
 const TIC_MIN_MS = 1500;    // dos pasos nunca más seguidos que esto
 const TIC_TOPE_MS = 15000;  // un paso nunca vale más que esto
-function velocidadDe(g: any) { const v = Number(g && g.velocidad); return v > 0 ? v : VEL_DEFECTO; }
+function velocidadDe(g: any) {
+  const v = Number(g && g.velocidad);
+  if (esTeatro(g)) return VELOCIDADES_TEATRO.includes(v) ? v : VEL_DEFECTO_TEATRO;
+  return v > 0 ? v : VEL_DEFECTO;
+}
 // La carta del motor, guardada entre pasos: pesa MB y no cambia. Se vuelve a leer sólo si
 // cambió su firma; las obras (filas con bando) sí se miran en cada paso, son pocas.
 const _cartasMotor = new Map<any, any>();
@@ -5658,8 +6008,18 @@ async function manejar(req: Request): Promise<Response> {
       await sb.from("wg_detecciones").delete().eq("partida_id", partida.id);
       await sb.from("wg_eventos").delete().eq("partida_id", partida.id);
       const { error: eBp } = await sb.from("wg_partidas")
-        .update({ estado: "planificacion", turno_actual: 0 }).eq("id", partida.id);
+        .update({ estado: "planificacion", turno_actual: 0,
+          ...(body.escala === "teatro" ? { duracion_turno_horas: 24 } : {}) }).eq("id", partida.id);
       if (eBp) return err(`No se pudo volver la partida a planificación: ${eBp.message}`, 500);
+      _cartasMotor.delete(partida.id);
+      _lugaresTeatro.delete(partida.id);
+      if (body.escala === "teatro") {
+        const { error } = await guardarReloj(partida.id, null, {
+          escala: "teatro", activo: false, continuo: true, velocidad: VEL_DEFECTO_TEATRO,
+          hEn: 0, mem: {}, g4auto: { rojo: false, azul: false },
+        });
+        if (error) return err(`No se pudo preparar el reloj de teatro: ${error.message}`, 500);
+      }
     }
     let nU = 0, nT = 0;
     let avisoMedios: string | null = null;
@@ -6015,7 +6375,8 @@ async function manejar(req: Request): Promise<Response> {
     // v2.9.461 — ▶ EL TIEMPO CORRE (lo que manda la página nueva: la velocidad).
     if (body.velocidad != null) {
       const previo: any = (fila && fila.geojson) || {};
-      const velocidad = VELOCIDADES.includes(Number(body.velocidad)) ? Number(body.velocidad) : velocidadDe(previo);
+      const permitidas = esTeatro(previo) ? VELOCIDADES_TEATRO : VELOCIDADES;
+      const velocidad = permitidas.includes(Number(body.velocidad)) ? Number(body.velocidad) : velocidadDe(previo);
       const activo = !!body.activo;
       const g: any = { ...previo, activo, continuo: true, velocidad, ticEn: activo ? Date.now() : null, proximo: null };
       const { error } = await guardarReloj(partida.id, fila, g);
@@ -6065,15 +6426,17 @@ async function manejar(req: Request): Promise<Response> {
       const dt = g.ticEn ? t0 - Number(g.ticEn) : TIC_MS;
       if (dt < TIC_MIN_MS) return ok({ temprano: true, reloj: relojPublico(g) });
       const vel = velocidadDe(g);
-      const horas = (Math.min(dt, TIC_TOPE_MS) / 1000) * vel / 3600;
+      let horas = (Math.min(dt, TIC_TOPE_MS) / 1000) * vel / 3600;
       const hDur = Number(partida.duracion_turno_horas) || 2;
       const hEn0 = Number(g.hEn) || 0;
+      if (esTeatro(g)) horas = Math.min(horas, Math.max(0, hDur - hEn0));
       const cierre = hEn0 + horas >= hDur - 1e-9;
       const hora = (turno - 1) * hDur + hEn0;
       const m0: any = g.mem || {};
       const T: any = { horas, cierre, hEn: hEn0, hora, fin: new Set<any>(), tirosFin: new Set<any>(), tirados: [],
         mem: { pares: { ...(m0.pares || {}) }, disparos: { ...(m0.disparos || {}) }, foto: m0.foto || null,
-          tareas: { ...(m0.tareas || {}) }, pelearon: { ...(m0.pelearon || {}) }, vis: m0.vis || null } };
+          tareas: { ...(m0.tareas || {}) }, pelearon: { ...(m0.pelearon || {}) }, vis: m0.vis || null,
+          ...(esTeatro(g) ? { teatro: m0.teatro || null } : {}) } };
       const [rU, rI, rO, rT] = await Promise.all([
         sb.from("wg_unidades").select("*").eq("partida_id", partida.id),
         sb.from("wg_terreno").select("id, tipo, geojson, bando").eq("partida_id", partida.id).like("tipo", "log\\_%").limit(400),
@@ -6089,11 +6452,12 @@ async function manejar(req: Request): Promise<Response> {
       const antes = new Map<any, string>(unidades.map((u: any) => [u.id, sello(u)]));
       // 🤖 El G-4 automático mira una vez por jornada: forma y manda lo que falte.
       const g4ev: any[] = [];
-      if (cierre) { try { await g4Automatico(partida.id, unidades, terreno, instalLog, ordenes, g4ev); } catch (e) { console.error("G-4 automático:", e); } }
+      if (cierre && !esTeatro(g)) { try { await g4Automatico(partida.id, unidades, terreno, instalLog, ordenes, g4ev); } catch (e) { console.error("G-4 automático:", e); } }
       let res: any;
       try {
-        res = resolverTurno({ duracion_turno_horas: hDur, rango_combate_km: body.rango_combate_km || 3, turno,
-          terreno, unidades, ordenes, instalaciones: instalLog, tiros: ((rT as any).data || []).map(filaDeTiro), tic: T });
+        const est0 = { duracion_turno_horas: hDur, rango_combate_km: body.rango_combate_km || 3, turno,
+          terreno, unidades, ordenes, instalaciones: instalLog, tiros: ((rT as any).data || []).map(filaDeTiro), tic: T };
+        res = esTeatro(g) ? resolverTeatro({ ...est0, lugares: await lugaresTeatro(partida.id) }) : resolverTurno(est0);
       } catch (e) {
         return err(`Error en el paso del reloj: ${(e as any)?.message || e}`, 500);
       }
@@ -6904,6 +7268,8 @@ async function manejar(req: Request): Promise<Response> {
     // v2.9.334: las instalaciones del G-4 van APARTE del terreno (no frenan:
     // reabastecen) y sin filtro de bando: cada uno se reabastece en las suyas.
     // ============================================================
+    const relojTurno = await relojDe(partida.id);
+    const teatroTurno = esTeatro(relojTurno && relojTurno.geojson);
     const [rU, rT, rI, rO, rOp, rRp] = await Promise.all([
       sb.from("wg_unidades").select("*").eq("partida_id", partida.id),
       todasLasFilas(() => sb.from("wg_terreno").select("id, tipo, geojson, hasta_turno, bando")
@@ -6920,18 +7286,19 @@ async function manejar(req: Request): Promise<Response> {
     // v2.9.451 — 🤖 EL G-4 AUTOMÁTICO da sus órdenes antes de resolver, como cualquier
     // jugador: forma sus convoyes y los manda. Si falla, el turno se resuelve igual.
     const g4ev: any[] = [];
-    try { await g4Automatico(partida.id, unidades, terreno, instalLog, ordenes, g4ev); }
+    try { if (!teatroTurno) await g4Automatico(partida.id, unidades, terreno, instalLog, ordenes, g4ev); }
     catch (e) { console.error("G-4 automático:", e); }
     let res: any;
     try {
-      res = resolverTurno({
+      const est0 = {
         duracion_turno_horas: partida.duracion_turno_horas, rango_combate_km: body.rango_combate_km || 3,
         turno, // v2.9.226: las zonas interdictadas vencen, y la supresión también
         terreno, unidades, ordenes,
         instalaciones: instalLog,   // v2.9.334
         ordenesPrevias: (rOp as any).data || [],                                      // v2.9.443
         trazasPrevias: ((((rRp as any).data || [])[0] || {}).trazas) || [],           // v2.9.443
-      });
+      };
+      res = teatroTurno ? resolverTeatro({ ...est0, lugares: await lugaresTeatro(partida.id) }) : resolverTurno(est0);
     } catch (e) {
       return err(`Error al resolver el turno: ${(e as any)?.message || e}`, 500);
     }

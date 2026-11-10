@@ -1,5 +1,9 @@
 # Reproducción visual: validación del navegador
 
+La modalidad ficticia de teatro de v2.9.481 se documenta en
+[Juego de guerra a escala teatro](juego-guerra-teatro.md). El estado del traspaso
+registrado más abajo corresponde a esta revisión anterior.
+
 Revisión del 9 de noviembre de 2026, sobre `main` en `1faa167`.
 
 Al ocultar la pestaña después de solicitar un cuadro de animación, el navegador
