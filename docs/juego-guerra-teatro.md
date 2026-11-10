@@ -1,4 +1,4 @@
-# Juego ficticio a escala teatro · v2.9.482
+# Juego ficticio a escala teatro · v2.9.483
 
 Esta modalidad utiliza bandos, fichas y parámetros abstractos de videojuego. Sus
 resultados describen lo que ocurre dentro del juego; no son predicciones ni una
@@ -106,3 +106,24 @@ claves de bando por su cuenta.
 La función anterior es la versión 71, cuyo stub importa el commit
 `f542aeab47f670374c11687927575b25cc98b26a`. La pantalla anterior con los arreglos
 de reproducción está en `b7c108553edd39ceb229548fbf5e69eddc834c45`.
+
+## Formaciones de combate · v2.9.483
+
+Los encuentros de teatro dibujan pequeñas formaciones sobre el lienzo existente
+(2D y 3D), con ráfagas cortas y retirada o desvanecimiento del vencido. Cada
+cuerpo de ejército se abre en tres grupos divisionales: dos de infantería y uno
+mecanizado, situado al centro. Se usa la relación `ratio` del encuentro; cuando
+falta, se compara el poder restante de las dos fichas. El bando mayor muestra
+hasta 96 elementos, 32 por división, y el menor una cantidad proporcional
+repartida entre sus tres divisiones. Siempre queda al menos un símbolo por
+división. No se inventan nombres ni resultados separados para cada una.
+
+La animación utiliza los pares ya filtrados por la lente, respeta PLAY/PAUSA y
+la duración existente del encuentro, y limita la representación a doce pares.
+No cambia el resultado, el motor ni los datos guardados. Para publicar esta
+mejora de pantalla sólo hace falta actualizar `index.html`.
+
+Verificación: `node --test tests/wargame-formaciones.test.cjs
+ tests/wargame-reproduccion.test.cjs` (24 casos). Prueba aislada del renderizador
+en Chromium: dibujo visible, ausencia de dibujo en pausa y al vencer el tiempo;
+no equivale a una partida completa contra el servidor.

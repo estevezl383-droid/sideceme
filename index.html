@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.482</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.483</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -38446,6 +38446,7 @@ function _wgHumoCuadro(ahora){
     const L=Math.hypot(g._wx,g._wy)||1;
     _wgHumoLlamas(ctx, g._p[0], g._p[1], s, t+(g.fase||0), g.fuerte, g._wx/L, g._wy/L);
   }
+  try{ _wgBatallaDibujar(ctx, S, ahora, dpr); }catch(e){ console.warn('formaciones:', e); }
   try{ _wgHumoTrazas(ctx, S, ahora, dpr); }catch(e){ console.warn('trazas:', e); }   // v2.9.476
   ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha=1;
   return true;
@@ -38623,6 +38624,82 @@ function _wgHumoTirotear(ahora){
     if(n && Math.random()<.68) _wgHumoRafaga(q, p, v.d, ahora+320+Math.random()*520);
   }
 }
+// Formaciones pequeñas: representación visual del encuentro, sin modificar el motor.
+function _wgBatallaFormacion(a,b,c){
+  const poder=u=>Math.max(0,Number(u.poder_actual)||0);
+  const pa=poder(a), pb=poder(b);
+  // La relación del encuentro incluye las fuerzas participantes; es preferible
+  // a comparar únicamente las dos fichas principales que aparecen en el parte.
+  const r=Number.isFinite(Number(c.ratio)) && Number(c.ratio)>0 ? Number(c.ratio) : pa>0 && pb>0 ? pa/pb : 1;
+  const pesos=[r,1], mayor=Math.max(...pesos);
+  return pesos.map((p,i)=>{
+    const u=i?b:a, cuerpo=String(u.escalon||'').toLowerCase()==='cuerpo';
+    const n=Math.max(cuerpo?3:1,Math.round(96*(p/mayor)));
+    // Un cuerpo se representa siempre con sus tres divisiones. La central es
+    // mecanizada; en los demás escalones los bloques sólo ordenan los símbolos.
+    const cantidad=cuerpo?3:Math.ceil(n/12), mecanizada=/blind|mec|oruga/.test(String(u.arma)+' '+String(u.medio));
+    const base=Math.floor(n/cantidad), resto=n%cantidad;
+    const divisiones=Array.from({length:cantidad},(_,d)=>({
+      n:base+(d<resto?1:0), mecanizada:cuerpo?d===1:mecanizada
+    }));
+    return {n, cuerpo, divisiones};
+  });
+}
+function _wgBatallaDibujar(ctx,S,ahora,dpr){
+  if(!WG.teatro || !_wgCorre() || WG.replayando) return;
+  const pares=_wgHumo().pares;
+  ctx.save(); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.globalCompositeOperation='source-over';
+  let vistos=0;
+  for(const v of pares.values()){
+    if(!v.v || ++vistos>WG_CONTACTO_MAX) break;
+    const c=v.v.c, k=(ahora-v.v.t0)/(v.v.fin-v.v.t0);
+    if(k<0 || k>=1) continue;
+    const A=S.proj(v.a.lng,v.a.lat), B=S.proj(v.b.lng,v.b.lat);
+    if(!A || !B || ![...A,...B].every(Number.isFinite)) continue;
+    const cx=(A[0]+B[0])/2, cy=(A[1]+B[1])/2;
+    if(cx< -210 || cy< -210 || cx>S.w+210 || cy>S.h+210) continue;
+    const ang=Math.atan2(B[1]-A[1],B[0]-A[0]);
+    const fs=v.formaciones||(v.formaciones=_wgBatallaFormacion(v.a,v.b,c));
+    const despliegue=Math.min(1,k*7), salida=Math.min(1,(1-k)*7);
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
+    for(let lado=0;lado<2;lado++){
+      const u=lado?v.b:v.a, f=fs[lado], signo=lado?-1:1;
+      const pierde=String(c.destruida??(c.gana!=null?(String(c.gana)===String(c.a)?c.b:c.a):''))===String(u.id);
+      const retirada=pierde?Math.max(0,(k-.65)/.35)*22:0;
+      const col=u.bando==='rojo'?'#b86143':'#477b9c';
+      let indice=0;
+      for(let division=0;division<f.divisiones.length;division++) for(let j=0;j<f.divisiones[division].n;j++,indice++){
+        const div=f.divisiones[division], fila=Math.floor(j/4), columna=j%4;
+        const separacion=f.cuerpo?52:38;
+        const x=signo*(-(22+fila*8)*(1.3-.3*despliegue)-retirada);
+        const y=(division-(f.divisiones.length-1)/2)*separacion+(columna-1.5)*7;
+        const paso=Math.sin(ahora/180+indice*1.7)*.65*despliegue;
+        ctx.globalAlpha=despliegue*salida*(pierde&&c.destruida!=null?Math.max(0,1-Math.max(0,k-.35)/.65):.95);
+        ctx.fillStyle='rgba(38,30,20,.12)'; ctx.fillRect(x-7,y+2,11,3);
+        ctx.fillStyle=col; ctx.strokeStyle=col; ctx.lineWidth=1;
+        if(div.mecanizada){
+          ctx.fillRect(x-3+paso,y-2,6,4); ctx.fillRect(x-4+paso,y-3,8,1); ctx.fillRect(x-4+paso,y+2,8,1);
+          ctx.beginPath(); ctx.moveTo(x+paso,y); ctx.lineTo(x+signo*7+paso,y); ctx.stroke();
+        }else{
+          ctx.beginPath();ctx.arc(x+paso,y,1.8,0,Math.PI*2);ctx.fill();
+          ctx.fillRect(x-3+paso,y-1,4,2);
+          ctx.beginPath();ctx.moveTo(x+paso,y);ctx.lineTo(x+signo*5+paso,y);ctx.stroke();
+        }
+        // Ráfagas cortas entre elementos; se apagan con el vencido.
+        const fase=(ahora+indice*137+lado*211)%1300;
+        if(k>.15 && k<.82 && fase<85 && !(pierde&&k>.65) && (lado===0||c.contesta!==false)){
+          ctx.strokeStyle='#efd48a';ctx.lineWidth=.8;ctx.globalAlpha*=.7;
+          ctx.beginPath();ctx.moveTo(x+signo*6,y);ctx.lineTo(x+signo*(14+fase*.25),y+Math.sin(indice)*3);ctx.stroke();
+          ctx.fillStyle='#fff0af';ctx.fillRect(x+signo*7,y-1,2,2);
+        }
+      }
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 // El dibujo de las trazadoras, los fogonazos y los golpes.
 function _wgHumoTrazas(ctx, S, ahora, dpr){
   const H=_wgHumo();
