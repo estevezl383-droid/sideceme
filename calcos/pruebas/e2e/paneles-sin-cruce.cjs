@@ -90,6 +90,8 @@ const tapados = (page, sel) =>
     try {
       await abrirDelServidor(page, 'FABBLE 1.0')
       assert.ok(await page.evaluate(() => document.body.classList.contains('sid-pandora')), 'con la piel Pandora')
+      // Desde la vista plegada, el tablero de pasos se despliega a mano.
+      if (await page.locator(`${PANEL}.plegado`).count()) await page.locator(`${PANEL} .asa`).dispatchEvent('click')
       // El tablero de abajo desplegado (como en la captura de Sergio).
       const plegada = page.locator('.contenedor-mapa > button[style*="1150"]')
       if (await plegada.count()) await plegada.first().dispatchEvent('click')

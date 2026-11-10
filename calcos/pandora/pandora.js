@@ -78,14 +78,67 @@
     else body.style.removeProperty('--sid-pd-tablero')
   }
 
+  // El vidrio se vuelve a componer sobre cada cuadro del mapa. Durante un gesto
+  // basta el mismo fondo translúcido: se restaura el desenfoque al terminar.
+  var mapaMovimiento = null, moviendo = false, acercando = false
+  function actualizarMovimiento() {
+    var activo = moviendo || acercando
+    if (body.classList.contains('sid-mapa-moviendo') !== activo) body.classList.toggle('sid-mapa-moviendo', activo)
+    if (!activo) programar()
+  }
+  function empezarMovimiento() { moviendo = true; actualizarMovimiento() }
+  function terminarMovimiento() { moviendo = false; actualizarMovimiento() }
+  function empezarZoom() { acercando = true; actualizarMovimiento() }
+  function terminarZoom() { acercando = false; actualizarMovimiento() }
+  function soltarMapa() {
+    if (mapaMovimiento) {
+      mapaMovimiento.off('movestart', empezarMovimiento)
+      mapaMovimiento.off('moveend', terminarMovimiento)
+      mapaMovimiento.off('zoomstart', empezarZoom)
+      mapaMovimiento.off('zoomend', terminarZoom)
+      mapaMovimiento.off('unload', soltarMapa)
+    }
+    mapaMovimiento = null
+    moviendo = acercando = false
+    actualizarMovimiento()
+  }
+  function seguirMovimiento() {
+    var m = window.__mapa2d
+    if (m === mapaMovimiento) return
+    if (mapaMovimiento) soltarMapa()
+    if (!m || !m.getContainer().isConnected) return
+    mapaMovimiento = m
+    m.on('movestart', empezarMovimiento)
+    m.on('moveend', terminarMovimiento)
+    m.on('zoomstart', empezarZoom)
+    m.on('zoomend', terminarZoom)
+    m.on('unload', soltarMapa)
+  }
+
   var pendiente = false
   function programar() {
     if (pendiente) return
     pendiente = true
-    requestAnimationFrame(function () { pendiente = false; clasificar(); barraLibre() })
+    requestAnimationFrame(function () {
+      pendiente = false
+      seguirMovimiento()
+      clasificar()
+      if (!moviendo && !acercando) barraLibre()
+    })
   }
   window.addEventListener('resize', programar)
-  new MutationObserver(programar).observe(document.body, { childList: true, subtree: true })
+  new MutationObserver(function (ms) {
+    // Leaflet termina de crearse después del primer render de React.
+    if (window.__mapa2d && window.__mapa2d !== mapaMovimiento) { programar(); return }
+    for (var i = 0; i < ms.length; i++) {
+      var t = ms[i].target
+      if (t.nodeType !== 1) t = t.parentElement
+      // Los tiles, vectores y rótulos de la carta no cambian los paneles.
+      if (t && t.closest('.leaflet-container, .maplibregl-map')) continue
+      programar()
+      return
+    }
+  }).observe(document.body, { childList: true, subtree: true })
 
   // La Mesa ya inicia con Preparación plegada en su propio estado. No se deben
   // pulsar otros botones «Ocultar»: también existen en el pedido de IA y en los calcos.

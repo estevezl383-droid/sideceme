@@ -75,7 +75,7 @@ const TILE_DEM = pngLiso([128, 14, 0]) // terrarium: 128·256 + 14 − 32768 = 3
 async function abrir({ ancho = 1440, alto = 900, movil = false, consulta = '', preparar, escalaPantalla = 1 } = {}) {
   const { chromium } = cargarPlaywright()
   const { srv, url } = await servir()
-  const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
+  const browser = await chromium.launch({ ...(process.env.SIDECEME_CHROMIUM ? { executablePath: process.env.SIDECEME_CHROMIUM } : {}), args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
   const ctx = await browser.newContext({ viewport: { width: ancho, height: alto }, deviceScaleFactor: escalaPantalla, isMobile: movil, hasTouch: movil })
   const page = await ctx.newPage()
   const errores = []

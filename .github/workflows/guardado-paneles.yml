@@ -17,6 +17,8 @@ on:
       - 'calcos/pruebas/e2e/carpeta-profesor.cjs'
       - 'calcos/pruebas/e2e/autoguardado.cjs'
       - 'calcos/pruebas/e2e/paneles-sin-cruce.cjs'
+      - 'calcos/pruebas/e2e/fluidez.cjs'
+      - 'calcos/pruebas/e2e/navegador.js'
       - 'calcos/pruebas/e2e/modalidad.cjs'
       - 'calcos/pruebas/e2e/aviso-version.cjs'
       - 'calcos/pruebas/e2e/servidor-falso.js'
@@ -55,6 +57,7 @@ jobs:
         run: |
           node calcos/pruebas/e2e/autoguardado.cjs
           node calcos/pruebas/e2e/paneles-sin-cruce.cjs
+          node calcos/pruebas/e2e/fluidez.cjs
           node calcos/pruebas/e2e/modalidad.cjs
           node calcos/pruebas/e2e/carpeta-profesor.cjs
           node calcos/pruebas/e2e/aviso-version.cjs
