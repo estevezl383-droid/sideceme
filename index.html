@@ -29941,10 +29941,22 @@ const WG_COL = { rojo:'#e23b3b', azul:'#1f6dff' };
 // ============================================================
 const WG_ANIM_TOPE_MS = 45000;   // ninguna película del juego dura tanto
 const WG_SYNC_TOPE_MS = 30000;   // ni un sondeo tarda tanto en volver
-// Un cuadro de animación que NO se muere si la pestaña pasa a segundo plano.
+// El temporizador se arma también cuando la pestaña está visible: puede ocultarse
+// DESPUÉS de pedir el rAF, antes de que el navegador lo entregue. Los dos caminos
+// compiten por un solo cuadro; el ganador cancela al otro para no duplicar el lazo.
 function _wgCuadro(fn){
-  if(typeof document!=='undefined' && document.hidden) return setTimeout(()=>fn(performance.now()), 33);
-  return requestAnimationFrame(fn);
+  let listo=false, raf=null, temporizador=null;
+  const ejecutar=(ahora)=>{
+    if(listo) return;
+    listo=true;
+    if(raf!==null) cancelAnimationFrame(raf);
+    if(temporizador!==null) clearTimeout(temporizador);
+    fn(ahora);
+  };
+  const oculta=typeof document!=='undefined' && document.hidden;
+  temporizador=setTimeout(()=>ejecutar(performance.now()), oculta?33:250);
+  if(!oculta) raf=requestAnimationFrame(ejecutar);
+  return oculta?temporizador:raf;
 }
 // Las banderas de animación se sellan con la hora en que se levantaron, sin
 // tocar el resto del código: quien haga `WG._accion=true` queda fechado solo.
@@ -29989,6 +30001,7 @@ async function _wgInvoke(accion, extra){
   }else if(!tok){
     return {ok:false,error:'Tu sesión venció. Volvé a entrar a SIDECEME, o pedile al árbitro el enlace de tu bando.'};
   }
+  let espera=null;
   try{
     // v2.9.210 — TOPE DE ESPERA. Si la llamada nunca vuelve (red caída, túnel a
     // medias, Supabase con problemas), antes la promesa quedaba colgada PARA
@@ -29998,8 +30011,8 @@ async function _wgInvoke(accion, extra){
     const llamada = sb.functions.invoke('wargame-ops',{ body:Object.assign({accion, token:tok}, extra||{}) });
     // v2.9.455: resolver el turno es lo único pesado (guarda todas las fichas): 45 s de paciencia.
     const segs = (accion==='resolver_turno') ? 45 : 20;
-    const tope = new Promise((_,rechaza)=>setTimeout(()=>rechaza(new Error(
-      'El servidor no respondió en '+segs+' segundos ('+accion+'). Revisá tu conexión y probá de nuevo.')),segs*1000));
+    const tope = new Promise((_,rechaza)=>{ espera=setTimeout(()=>rechaza(new Error(
+      'El servidor no respondió en '+segs+' segundos ('+accion+'). Revisá tu conexión y probá de nuevo.')),segs*1000); });
     const { data, error } = await Promise.race([llamada, tope]);
     if(data && data.ahora_ms) _wgRelojMuestra(_t0, Date.now(), Number(data.ahora_ms));
     if(error){
@@ -30011,6 +30024,7 @@ async function _wgInvoke(accion, extra){
     }
     return data||{ok:false,error:'sin respuesta'};
   }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
+  finally{ if(espera!==null) clearTimeout(espera); }
 }
 function _wgEsInstructor(){ const ses=getSession(); return !!(ses && ses.tipo==='docente'); }
 // ============================================================
