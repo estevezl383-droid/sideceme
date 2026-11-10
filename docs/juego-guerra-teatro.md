@@ -1,4 +1,4 @@
-# Juego ficticio a escala teatro · v2.9.481
+# Juego ficticio a escala teatro · v2.9.482
 
 Esta modalidad utiliza bandos, fichas y parámetros abstractos de videojuego. Sus
 resultados describen lo que ocurre dentro del juego; no son predicciones ni una
@@ -23,6 +23,23 @@ validación de capacidades militares reales.
 Las fichas pequeñas y las instalaciones del modo anterior no se convierten en
 fichas de esta modalidad. El panel muestra puntos y reservas de juego; no utiliza
 el catálogo de sistemas de armas, drones ni convoyes automáticos.
+
+### Movimiento y polvo · v2.9.482
+
+El temporizador del refresco «en vivo» utiliza una propiedad distinta de la cola
+de marcha. Activarlo, rearmarlo o apagarlo ya no borra los recorridos que están
+animando las fichas. El panel de movimientos indica **esperando PLAY** cuando el
+reloj está en pausa y ofrece PLAY a quien puede manejarlo.
+
+El polvo distingue brigadas, divisiones y cuerpos de ejército en 2D y 3D. Los
+cuerpos generan tres bocanadas por emisión, de mayor tamaño y duración, repartidas
+a lo ancho y detrás de la ficha. Se limita a 160 partículas simultáneas y se
+limpia al terminar el recorrido. Las unidades a pie no generan este efecto.
+
+La corrección sólo cambia la pantalla: publicar `index.html`; el motor y las
+partidas guardadas conservan su versión. La validación incluye el avance de los
+marcadores reales con sondeo activo en escritorio y móvil y cuatro cuerpos
+simultáneos en el laboratorio.
 
 ## Compatibilidad y persistencia
 

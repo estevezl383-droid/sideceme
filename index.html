@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.481</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.482</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -31412,9 +31412,10 @@ function wgPanelLogistica(){
 // ============================================================
 const WG_VIVO_MS = 7000;
 function _wgVivoLatiendo(){
-  clearTimeout(WG._vivo);
+  clearTimeout(WG._vivoTimer); WG._vivoTimer=null;
   if(!WG.vivo) return;
-  WG._vivo=setTimeout(async()=>{
+  // El temporizador no puede ocupar WG._vivo: ahí viven las marchas que anima el mapa.
+  WG._vivoTimer=setTimeout(async()=>{
     try{
       const p=(WG.estado&&WG.estado.partida)||{};
       const ocupado = WG.replayando || WG.modoColocar || WG.modoReplegar
@@ -46632,9 +46633,12 @@ function wgSincRel(k,v){
 function _wgMatrizHTML(){
   if(WG.teatro){
     const filas=_wgMatrizFilas(), planes=filas.filter(f=>f.plan);
+    const pausa=!_wgCorre(), lanzadas=filas.some(f=>!f.plan);
     return '<div class="wg-sy-t">🌎 MOVIMIENTOS DEL JUEGO</div>'
-      +filas.map(f=>`<div class="wg-s2nota">${f.nom} · ${_rgEsc(f.tarea)} · ${f.plan?'preparado':'en curso'}</div>`).join('')
-      +(planes.length?`<button class="wg-sy-go" onclick="wgTeatroEjecutar(null,this)">▶ LANZAR ${planes.length} MOVIMIENTO(S)</button>`:'<div class="wg-s2nota">Seleccioná una ficha y marcá su destino.</div>');
+      +(pausa&&lanzadas?'<div class="wg-s2nota"><b>⏸ RELOJ EN PAUSA.</b> Los movimientos enviados esperan a que se pulse PLAY.</div>'
+        +(_wgManejaReloj() && !_wgEsMaqueta() && !WG.mon && WG.estado.partida.estado==='en_curso'?'<button class="wg-sy-go" onclick="wgReloj(true)">▶ PLAY · INICIAR MOVIMIENTOS</button>':''): '')
+      +filas.map(f=>`<div class="wg-s2nota">${f.nom} · ${_rgEsc(f.tarea)} · ${f.plan?'preparado':pausa?'esperando PLAY':'lanzado'}</div>`).join('')
+      +(planes.length?`<button class="wg-sy-go" onclick="wgTeatroEjecutar(null,this)">▶ LANZAR ${planes.length} MOVIMIENTO(S)</button>`:!filas.length?'<div class="wg-s2nota">Seleccioná una ficha y marcá su destino.</div>':'');
   }
   const filas=_wgMatrizFilas();
   const { H, manda }=_wgSincCalculo(filas);
@@ -47856,7 +47860,7 @@ function _wgVivoLargo(q){ let km=0; for(let i=1;i<q.length;i++) km+=_wgHav(q[i-1
 function _wgVivoEncolar(id, pts, fin){
   const k=String(id), u=_wgUnidadPorId(id);
   if(!u || !Array.isArray(pts) || !pts.length) return;
-  WG._vivo=WG._vivo||{};
+  if(!WG._vivo || typeof WG._vivo!=='object') WG._vivo={};
   let f=WG._vivo[k];
   if(!f) f=WG._vivo[k]={ id:k, q:[[Number(u.lng),Number(u.lat)]], v:0, t0:performance.now(), fin:false, ph:(Number(id)%7)*0.9 };
   for(const p of pts){
@@ -47879,18 +47883,36 @@ function _wgVivoIndice(){
   WG._vivoIdx={ fi, le, m3 };
 }
 function _wgVivoPolvo(f,pos,rumbo,ahora,en3D){
-  if(ahora-(f.tp||0)<240 || (WG._vivoHumo||[]).length>48) return;
+  const u=_wgUnidadPorId(f.id);
+  if(!u || u.medio==='pie' || WG.verUnidades===false) return;
+  // A escala teatro una ficha representa varias columnas. El polvo del cuerpo
+  // es más ancho, abundante y persistente; el modo táctico conserva su tamaño.
+  const grande=WG.teatro && ['brigada','division','cuerpo'].includes(u.escalon);
+  const escala=grande?({brigada:1.6,division:2.35,cuerpo:3.3}[u.escalon]):1;
+  const cantidad=grande?(u.escalon==='cuerpo'?3:2):1;
+  const duracion=grande?(u.escalon==='cuerpo'?1.9:u.escalon==='division'?1.55:1.25):1;
+  const H=WG._vivoHumo=WG._vivoHumo||[], tope=WG.teatro?160:48;
+  if(ahora-(f.tp==null?-Infinity:f.tp)<(grande?360:240) || H.length>=tope) return;
   f.tp=ahora;
-  const lado=(Math.random()-.5)*0.0022, jx=Math.cos(rumbo)*lado, jy=-Math.sin(rumbo)*lado;
-  const lng=pos[0]+jx/Math.max(0.2,Math.cos(pos[1]*Math.PI/180)), lat=pos[1]+jy;
-  const vida=1300+Math.random()*700, w=Math.round(18+Math.random()*12);
-  let m=null;
-  if(!en3D && WG.map){
-    const dxp=Math.round(-Math.sin(rumbo)*12+(Math.random()*6-3)), dyp=Math.round(Math.cos(rumbo)*12-5);
-    try{ m=L.marker([lat,lng],{interactive:false,zIndexOffset:-500,icon:L.divIcon({className:'wg-polvo',iconSize:[0,0],iconAnchor:[0,0],
-      html:`<i style="width:${w}px;height:${w}px;--dur:${Math.round(vida)}ms;--dx:${dxp}px;--dy:${dyp}px;--gir:${Math.round(Math.random()*70-35)}deg;--op:${(0.45+Math.random()*0.3).toFixed(2)}"></i>`})}).addTo(WG.map); }catch(_e){ m=null; }
+  const mapa=en3D?WG.map3d:WG.map;
+  const zoom=mapa&&mapa.getZoom?mapa.getZoom():8;
+  const cos=Math.max(.2,Math.cos(pos[1]*Math.PI/180));
+  const gradosPx=360/Math.pow(2,zoom+8);
+  for(let i=0;i<cantidad && H.length<tope;i++){
+    const lado=grande?(i-(cantidad-1)/2)*escala*5+(Math.random()-.5)*8:0;
+    const atras=grande?(8+i*6)*escala:0;
+    const j=(Math.random()-.5)*.0022;
+    const lng=pos[0]+Math.cos(rumbo)*j/cos+(Math.cos(rumbo)*lado-Math.sin(rumbo)*atras)*gradosPx;
+    const lat=pos[1]-Math.sin(rumbo)*j+(-Math.sin(rumbo)*lado-Math.cos(rumbo)*atras)*gradosPx*cos;
+    const vida=(1300+Math.random()*700)*duracion, w=Math.round((18+Math.random()*12)*escala);
+    let m=null;
+    if(!en3D && WG.map){
+      const dxp=Math.round((-Math.sin(rumbo)*12+(Math.random()*6-3))*escala), dyp=Math.round((Math.cos(rumbo)*12-5)*escala);
+      try{ m=L.marker([lat,lng],{interactive:false,zIndexOffset:-500,icon:L.divIcon({className:'wg-polvo',iconSize:[0,0],iconAnchor:[0,0],
+        html:`<i style="width:${w}px;height:${w}px;--dur:${Math.round(vida)}ms;--dx:${dxp}px;--dy:${dyp}px;--gir:${Math.round(Math.random()*70-35)}deg;--op:${(0.45+Math.random()*0.3).toFixed(2)}"></i>`})}).addTo(WG.map); }catch(_e){ m=null; }
+    }
+    H.push({ lng, lat, t0:ahora, vida, r0:w*.55, m });
   }
-  (WG._vivoHumo=WG._vivoHumo||[]).push({ lng, lat, t0:ahora, vida, r0:w*0.55, m });
 }
 function _wgVivoPolvoPaso(ahora,en3D){
   const H=WG._vivoHumo||[];
@@ -48231,6 +48253,7 @@ function _wgRelojTic(){
         ? `<button class="wg-pill wg-fuerte" onclick="wgResultados()">📊 Resultados</button>`
           +(WG.soy==='arbitro'?`<button class="wg-pill" onclick="wgReanudar()" title="Vuelve a abrir la partida">▶️ Reanudar</button>`:'')
         : '');
+    if(WG.teatro && WG.hoja==='matriz') wgPanelMatriz();
   }
   chip.style.display='none';   // v2.9.461: ya no hay cuenta regresiva de turno
 }
