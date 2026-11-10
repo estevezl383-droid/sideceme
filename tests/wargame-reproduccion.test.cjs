@@ -176,3 +176,93 @@ test('la pantalla de monitoreo conserva su acceso de lectura', async () => {
   assert.match((await c.run('reloj', { activo: true })).error, /sólo mira/);
   assert.equal(c.calls.length + c.timers.size, 0);
 });
+
+function marcha({ teatro = true, escalon = 'cuerpo', medio = 'motor' } = {}) {
+  const c = clock(), posiciones = [], nubes = [];
+  const unidad = { id: 1, lng: 1, lat: 1, escalon, medio };
+  const classes = new Set();
+  const ficha = { __uid: 1, _map: {}, setLatLng: p => posiciones.push(p),
+    _icon: { firstChild: { style: {}, classList: {
+      contains: k => classes.has(k), add: k => classes.add(k), remove: k => classes.delete(k),
+    } } } };
+  const WG = { teatro, vivo: true, _vivo: {}, estado: { unidades: [unidad] },
+    capa: { eachLayer: fn => fn(ficha) }, map: { getZoom: () => 8, removeLayer() {} } };
+  const ctx = vm.createContext({ ...c, WG, document: { hidden: false }, Math: Object.assign(Object.create(Math), { random: () => .5 }),
+    _wgUnidadPorId: id => String(id) === '1' ? unidad : null,
+    _wgHav: (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) * 111,
+    _wgCuadro: fn => c.requestAnimationFrame(fn), _wgEn3D: () => false, _wgOrientar() {},
+    WG_VIVO_MS: 7000, wgEstado: async () => {},
+    L: { divIcon: value => value, marker: (p, options) => ({ addTo() { nubes.push({ p, options }); return this; } }) },
+  });
+  vm.runInContext(extract('function _wgVivoLatiendo(){', 'function wgVivo(btn){'), ctx);
+  vm.runInContext(extract('const WG_TIC_MS=5000;', '// EL ESTADO QUE LLEGA NO HACE SALTAR A NADIE'), ctx);
+  return { ...c, ctx, WG, unidad, posiciones, nubes };
+}
+
+test('activar el refresco en vivo antes de mover no sustituye la cola de marcha por un temporizador', () => {
+  const m = marcha();
+  m.setTimeout(() => {}, 7000); // En el navegador ya existen otros temporizadores.
+  m.ctx._wgVivoLatiendo();
+  assert.doesNotThrow(() => m.ctx._wgVivoEncolar(1, [[1.1, 1]], true));
+  m.frame(1000); m.frame(2000);
+  assert.ok(m.unidad.lng > 1 && m.unidad.lng < 1.1);
+  assert.ok(m.posiciones.at(-1)[1] > m.posiciones[0][1], 'También avanza el marcador visible');
+});
+
+test('rearmar o apagar el refresco conserva una marcha que ya está avanzando', () => {
+  const m = marcha();
+  m.ctx._wgVivoEncolar(1, [[1.1, 1]], true);
+  const cola = m.WG._vivo, recorrido = cola['1'];
+  m.ctx._wgVivoLatiendo(); m.ctx._wgVivoLatiendo();
+  assert.equal(m.WG._vivo, cola);
+  assert.equal(m.timers.size, 1);
+  m.WG.vivo = false; m.ctx._wgVivoLatiendo();
+  assert.equal(m.timers.size, 0);
+  assert.equal(m.WG._vivo['1'], recorrido);
+  m.frame(1000); m.frame(2000);
+  assert.ok(m.unidad.lng > 1);
+});
+
+test('la ficha alcanza su destino y termina de disipar el polvo sin dejar otro lazo pendiente', () => {
+  const m = marcha();
+  m.ctx._wgVivoEncolar(1, [[1.1, 1]], true);
+  for (let t = 1000; m.frames.size && t < 30000; t += 250) m.frame(t);
+  assert.equal(m.unidad.lng, 1.1);
+  assert.equal(Object.keys(m.WG._vivo).length, 0);
+  assert.equal(m.WG._vivoHumo.length, 0);
+  assert.equal(m.WG._vivoAnda, false);
+  assert.equal(m.frames.size, 0);
+});
+
+test('el cuerpo de ejército levanta una columna de polvo mayor y más persistente que la brigada', () => {
+  const cuerpo = marcha(), brigada = marcha({ escalon: 'brigada' }), tactica = marcha({ teatro: false });
+  for (const m of [cuerpo, brigada, tactica]) m.ctx._wgVivoPolvo({ id: '1' }, [1, 1], 0, 1000, false);
+  const a = cuerpo.WG._vivoHumo, b = brigada.WG._vivoHumo, c = tactica.WG._vivoHumo;
+  assert.ok(a.length > b.length && b.length > c.length);
+  assert.ok(a[0].r0 > b[0].r0 && b[0].r0 > c[0].r0);
+  assert.ok(a[0].vida > b[0].vida);
+  assert.equal(c[0].r0, 24 * .55, 'El tamaño del modo táctico se conserva');
+});
+
+test('el polvo respeta su presupuesto de partículas y las unidades a pie no lo generan', () => {
+  const m = marcha(), pie = marcha({ medio: 'pie' });
+  for (let i = 0; i < 100; i++) m.ctx._wgVivoPolvo({ id: '1' }, [1, 1], 0, 1000, false);
+  assert.ok(m.WG._vivoHumo.length <= 160);
+  pie.ctx._wgVivoPolvo({ id: '1' }, [1, 1], 0, 1000, false);
+  assert.equal((pie.WG._vivoHumo || []).length, 0);
+  pie.ctx._wgVivoEncolar(1, [[1.1, 1]], true); pie.frame(1000);
+  assert.equal((pie.WG._vivoHumo || []).length, 0);
+});
+
+test('la vista 3D recibe el polvo del cuerpo con su tamaño y termina limpiándolo', () => {
+  const m = marcha(), dibujos = [];
+  m.WG.map3d = { getZoom: () => 8, getSource: () => ({ setData: data => dibujos.push(data) }) };
+  m.ctx._wgVivoPolvo({ id: '1' }, [1, 1], Math.PI / 2, 1000, true);
+  assert.equal(m.nubes.length, 0, 'El 3D no crea marcadores de Leaflet');
+  m.ctx._wgVivoPolvoPaso(1600, true);
+  assert.equal(dibujos[0].features.length, 3);
+  assert.ok(dibujos[0].features.every(f => f.properties._r > 40 && f.properties._op > 0));
+  assert.ok(dibujos[0].features.every(f => f.geometry.coordinates[0] < 1), 'La estela queda detrás de la marcha');
+  m.ctx._wgVivoPolvoPaso(6000, true);
+  assert.equal(dibujos.at(-1).features.length, 0);
+});
