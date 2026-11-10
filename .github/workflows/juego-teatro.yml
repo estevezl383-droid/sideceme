@@ -7,6 +7,7 @@ on:
       - 'supabase/functions/wargame-ops/index.ts'
       - 'tests/wargame-teatro*'
       - 'tests/wargame-reproduccion*'
+      - 'tests/wargame-formaciones*'
       - 'tests/helpers/wargame-*'
       - '.github/workflows/juego-teatro.yml'
   workflow_dispatch:
@@ -29,7 +30,7 @@ jobs:
           npm install --prefix /tmp/pruebas-teatro --save-exact typescript@5.9.3 playwright@1.51.1 leaflet@1.9.4
           node /tmp/pruebas-teatro/node_modules/playwright/cli.js install --with-deps chromium
       - name: Contrato del motor, importación, reloj y ciclo de vida del navegador
-        run: node --test tests/wargame-teatro.test.cjs tests/wargame-teatro-pantalla.test.mjs tests/wargame-reproduccion.test.cjs
+        run: node --test tests/wargame-teatro.test.cjs tests/wargame-teatro-pantalla.test.mjs tests/wargame-reproduccion.test.cjs tests/wargame-formaciones.test.cjs
       - name: Probar la pantalla real en escritorio y móvil
         run: |
           node tests/wargame-teatro.browser.cjs
