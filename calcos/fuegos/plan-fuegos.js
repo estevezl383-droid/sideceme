@@ -1331,6 +1331,15 @@ tr.fuera td { color: #b000b0; }
     get plan() {
       return puente ? planActual() : null
     },
+    // Los medios de apoyo de fuego de ahora (con su posición y su alcance): el plan de fuegos de cada CAP los usa
+    // para que cada concentración la dispare una unidad de artillería (cap-propios/v1/fuegos-cap.mjs, 11-11-2026).
+    get medios() {
+      try {
+        return puente ? datos().medios : []
+      } catch {
+        return []
+      }
+    },
     get abierto() {
       return !!raiz
     },
