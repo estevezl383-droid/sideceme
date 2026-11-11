@@ -1,8 +1,9 @@
 // 💡 El panel «La Mesa propone 2 CAP para este ejercicio», arriba de la F3·P6 (y de la F3·P4) en el Tablero del
 // G-3, y los botones «CAP 1 / CAP 2» del 🎬 C.A. por fases. La lógica está en proponer.mjs; acá sólo se dibuja.
 // JavaScript sin compilar: React llega por configurarCAP() (lo llama el compilado antes del primer render).
-import { proponer, capsDe, fasesPorCAP, llevarAHoja, FORMAS, armarCAP } from './proponer.mjs?v=iti20261025'
-import { pedido, HOJAS_POR_CAP } from './proponer.mjs?v=iti20261025'
+import { proponer, capsDe, fasesPorCAP, llevarAHoja, FORMAS, armarCAP } from './proponer.mjs?v=ruta20261111'
+import { pedido, HOJAS_POR_CAP, pasosCAP, existeCAP, cerradoCAP } from './proponer.mjs?v=ruta20261111'
+import { planFuegosCAP } from './fuegos-cap.mjs?v=ruta20261111'
 // Con versión: lo nuevo (la lectura tolerante del JSON, las posiciones por fase, las tareas con su unidad) tiene que
 // llegar aunque el navegador tenga guardados los archivos de antes.
 import { pedidoCarta, leerRespuesta } from './carta-ia.mjs?v=iti20261025'
@@ -113,6 +114,25 @@ export function pedidoCAP(r, hoja, ctx = {}) {
   }
 }
 
+// 🎬 Lo que necesita la Mesa para armar las fases de un CAP: cada unidad en su lugar en cada fase (posiciones.mjs) y
+// cada tarea táctica con su unidad (tareas-fase.mjs).
+function armadoDe(c, P, ctx, formas, extra = {}) {
+  return {
+    cap: c,
+    formas,
+    posiciones: (us, ops, x) => posicionesCAP(c, { unidades: us, ops, marcas: ctx.g3?.conceptoCarta?.marcas || [], A: P.A, previas: x?.previas }),
+    conTareas: (fs) => tareasPorFase(fs, { n: c.n }),
+    ...extra,
+  }
+}
+// ¿Se puede pasar al CAP n? Uno que todavía no existe sólo aparece cuando el activo está terminado (11-11-2026).
+function puedeIr(g3, n) {
+  const C = capsDe(g3)
+  if (n === C.activo || existeCAP(g3, n)) return { ok: true, nuevo: false }
+  if (cerradoCAP(g3, C.activo)) return { ok: true, nuevo: true }
+  return { ok: false, msg: `🔒 El CAP ${n} se arma DESPUÉS de terminar el CAP ${C.activo}: completá sus pasos (F3·P3 → F3·P6, fuegos, barrera y fases) y tocá «✓ Terminar el CAP ${C.activo}». Ahí aparece «➕ Generar el CAP ${n}», que empieza de nuevo desde la F3·P3.` }
+}
+
 // Los CAP cuyas fases están todas iguales y el oficial dijo que NO las armemos al tocar una (no se pregunta otra vez).
 const noArmar = new Set()
 
@@ -135,10 +155,17 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
   const A = P.A
   const formas = { 1: P.caps[0].forma, 2: P.caps[1].forma }
 
+  const irA = (n) => {
+    if (n === C.activo) return
+    const v = puedeIr(ctx.g3, n)
+    if (!v.ok) return setMsg(v.msg)
+    setMsg('')
+    onAccion?.(v.nuevo ? 'nuevo' : 'cambiar', { n, formas })
+  }
   const botonCAP = (c) =>
-    h('button', { key: c.n, style: E.cap(c.n === C.activo), 'data-cap': c.n, onClick: () => c.n !== C.activo && (setMsg(''), onAccion?.('cambiar', { n: c.n, formas })) },
+    h('button', { key: c.n, style: { ...E.cap(c.n === C.activo), ...(puedeIr(ctx.g3, c.n).ok ? {} : { opacity: 0.55 }) }, 'data-cap': c.n, onClick: () => irA(c.n) },
       `${c.n === C.activo ? '● ' : ''}CAP ${c.n} · ${c.nomForma}${c.n === decidido ? ' 🎖️' : ''}`,
-      h('div', { style: { fontWeight: 400, fontSize: 10.5, marginTop: 2 } }, `${nf[c.n] || 0} fase(s) 🔵${c.n === decidido ? ' · 🎖️ decidido por el Comandante' : c.n === C.activo ? ' · el que estás trabajando' : ' · guardado'}`))
+      h('div', { style: { fontWeight: 400, fontSize: 10.5, marginTop: 2 } }, `${nf[c.n] || 0} fase(s) 🔵${c.n === decidido ? ' · 🎖️ decidido por el Comandante' : c.n === C.activo ? (cerradoCAP(ctx.g3, c.n) ? ' · ✓ terminado' : ' · el que estás trabajando') : existeCAP(ctx.g3, c.n) ? ' · guardado' : puedeIr(ctx.g3, c.n).ok ? ' · ➕ generarlo' : ' · 🔒 después del otro'}`))
 
   // Las fases de cada CAP que ya están en la carta: las del activo (fasesCOA.propio) y las del guardado.
   const ROM = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
@@ -161,13 +188,7 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
   }
   // 🎬 Armar las fases de un CAP: cada unidad en su lugar en cada fase (posiciones.mjs) y cada tarea táctica con su
   // unidad (tareas-fase.mjs). El del CAP guardado lo arma ahí mismo y pasa a él (proponer.mjs, armarGuardado).
-  const armado = (c, extra = {}) => ({
-    cap: c,
-    formas,
-    posiciones: (us, ops, x) => posicionesCAP(c, { unidades: us, ops, marcas: ctx.g3?.conceptoCarta?.marcas || [], A: P.A, previas: x?.previas }),
-    conTareas: (fs) => tareasPorFase(fs, { n: c.n }),
-    ...extra,
-  })
+  const armado = (c, extra = {}) => armadoDe(c, P, ctx, formas, extra)
   const botonesFase = (c) => {
     const fs = fasesDe(c.n)
     if (!fs.length) return h('div', { style: E.fases }, `🎬 Todavía sin fases en la carta: tocá «🎬 Armar las fases» ${c.n === C.activo ? '(abajo)' : 'de este CAP (abajo)'} o pedíselas a la IA.`)
@@ -201,6 +222,7 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
   // El CAP guardado se arma desde su tarjeta (sin pasar antes a él): «el CAP 2 no está funcionando nada».
   const botonArmarGuardado = (c) =>
     c.n !== C.activo &&
+    existeCAP(ctx.g3, c.n) &&
     h('button', { style: { ...E.btn, borderColor: COLOR_CAP[c.n] || AZUL }, 'data-armar-cap': c.n, onClick: () => (setMsg(''), onAccion?.('fases', armado(c))) },
       `🎬 Armar las ${c.fases.length} fases 🔵 de este CAP (CAP ${c.n}) y verlas en la carta`)
 
@@ -275,10 +297,148 @@ export function botonesCAP(info, fasesCOA) {
     }
     return h('div', { style: { display: 'flex', gap: 5, margin: '4px 0 6px', alignItems: 'center', flexWrap: 'wrap' }, 'data-cap-botones': '1' },
       [1, 2].map((n) =>
-        h('button', { key: n, 'data-cap': n, title: n === decidido ? 'Decidido por el Comandante (F4·P6-7)' : undefined, style: { ...E.cap(n === C.activo), flex: '0 0 auto', padding: '4px 8px', fontSize: 11.5 }, onClick: () => n !== C.activo && info.acc?.('cambiar', { n }) }, `${n === C.activo ? '● ' : ''}CAP ${n}${nomF(n)} (${nf[n] || 0})${n === decidido ? ' 🎖️' : ''}`)),
+        h('button', { key: n, 'data-cap': n, title: n === decidido ? 'Decidido por el Comandante (F4·P6-7)' : undefined, style: { ...E.cap(n === C.activo), flex: '0 0 auto', padding: '4px 8px', fontSize: 11.5 }, onClick: () => {
+          if (n === C.activo) return
+          const v = puedeIr(info.g3, n)
+          if (!v.ok) return typeof window !== 'undefined' && window.alert(v.msg)
+          info.acc?.(v.nuevo ? 'nuevo' : 'cambiar', { n })
+        } }, `${n === C.activo ? '● ' : ''}CAP ${n}${nomF(n)} (${nf[n] || 0})${n === decidido ? ' 🎖️' : ''}`)),
       h('span', { style: { fontSize: 10.5, color: '#8fa3b5' } }, 'El otro CAP queda guardado con sus fases.'),
       botonFlechas({ flex: '0 0 auto', borderColor: COLOR_CAP[C.activo] || AZUL }))
   } catch {
+    return null
+  }
+}
+
+// ─── 🔵 El recorrido de cada CAP (11-11-2026) ────────────────────────────────────────────────────────────────
+// Sergio: «armar los dos cursos de acción propio está muy confuso… cada curso de acción debe seguir los pasos
+// (F3·P3 → F3·P6)… primero se termine un curso de acción, CAP 1, y luego vuelva la opción para generar otro curso de
+// acción desde el principio… en cada curso de acción es necesario colocar su plan de fuegos y su barrera de
+// obstáculos… después todo normal: la aplicación desarrolla su fase 1, fase 2, fase 3».
+// En 📄 Documentos → «3 · Desarrollar los cursos de acción propios» (completo) y arriba de la F3·P3 a la F3·P6
+// (compacto). r: { g3, acc (la acción de la Mesa), abrir(hojaId|null), tab(id), defensa(), ctx, hoja, compacto }
+const VERDE = '#7dffb0'
+const ER = {
+  raiz: { border: `1.5px solid ${AZUL}`, borderRadius: 9, background: 'rgba(90,169,255,0.09)', padding: '9px 10px', margin: '6px 0', display: 'flex', flexDirection: 'column', gap: 6, color: '#e6eef6' },
+  tit: { font: '800 13.5px Arial', color: '#fff' },
+  sub: { fontSize: 12, color: '#b9c9da', lineHeight: 1.4 },
+  caps: { display: 'flex', gap: 6 },
+  cap: (on, ok) => ({ flex: 1, padding: '6px 8px', borderRadius: 7, border: `1.5px solid ${on ? AZUL : 'rgba(255,255,255,0.18)'}`, background: on ? 'rgba(90,169,255,0.25)' : 'rgba(255,255,255,0.03)', color: ok ? '#fff' : '#8fa3b5', font: '700 12.5px Arial', textAlign: 'left', cursor: on ? 'default' : 'pointer' }),
+  paso: (hecho, sig, aqui) => ({ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 8px', borderRadius: 7, cursor: 'pointer', textAlign: 'left', fontSize: 13, color: '#e6eef6', border: `1px solid ${aqui ? '#fff' : sig ? '#ffd479' : hecho ? 'rgba(125,255,176,0.45)' : 'rgba(255,255,255,0.14)'}`, background: aqui ? 'rgba(255,255,255,0.12)' : sig ? 'rgba(255,212,121,0.12)' : 'rgba(0,0,0,0.18)' }),
+  num: { font: '800 12px Arial', color: '#ff8fa3', minWidth: 42 },
+  det: { fontSize: 11.5, color: '#9fc0d4' },
+  btn: { ...E.btn, fontSize: 12.5, fontWeight: 700 },
+  fin: { ...E.btn, fontSize: 13, fontWeight: 800, textAlign: 'center', background: 'rgba(125,255,176,0.18)', borderColor: VERDE, color: '#eafff2' },
+  chip: (hecho, aqui) => ({ padding: '3px 7px', borderRadius: 12, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: `1px solid ${aqui ? '#fff' : hecho ? VERDE : 'rgba(255,255,255,0.25)'}`, background: aqui ? AZUL : hecho ? 'rgba(125,255,176,0.15)' : 'rgba(0,0,0,0.2)', color: '#fff' }),
+}
+export function rutaCAP(r = {}) {
+  try {
+    if (!R.jsx || !r.g3) return null
+    const g3 = r.g3
+    const ctx = { ...(r.ctx || {}), g3 }
+    const C = capsDe(g3)
+    const n = C.activo
+    const otro = n === 1 ? 2 : 1
+    const acc = (que, d) => r.acc?.(que, d)
+    let P = null
+    try {
+      P = proponer(ctx, C.formas)
+    } catch {}
+    const cap = P?.caps?.find((c) => c.n === n) || null
+    const formas = P ? { 1: P.caps[0].forma, 2: P.caps[1].forma } : undefined
+    const plan = ctx.SIDplan !== undefined ? ctx.SIDplan : (typeof window !== 'undefined' && window.MesaFuegos?.plan) || null
+    const pasos = pasosCAP(g3, { ops: ctx.ops || {}, plan, fases: (ctx.fasesCOA?.propio || []).length })
+    const hechos = pasos.filter((p) => p.hecho).length
+    const sig = pasos.find((p) => !p.hecho) || null
+    const cerrado = cerradoCAP(g3, n)
+    const existeOtro = existeCAP(g3, otro)
+    const decidido = [1, 2].includes(Number(g3._caps?.decision?.cap)) ? Number(g3._caps.decision.cap) : null
+    const irTab = (t) => (r.abrir?.(null), r.tab?.(t))
+
+    const armarFuegos = () =>
+      acc('fuegosCAP', {
+        armar: (p) => {
+          const MF = typeof window !== 'undefined' ? window.MesaFuegos : null
+          return planFuegosCAP({ plan: p ?? MF?.plan ?? null, medios: MF?.medios || [], unidades: ctx.unidades || [], ops: ctx.ops || {}, cap, tipo: P?.tipo, modelo: MF?.modelo })
+        },
+      })
+    const armarFases = () => cap && acc('fases', armadoDe(cap, P, ctx, formas))
+    // Lo que hace tocar cada paso (y sus botones).
+    const tocar = (p) => {
+      if (p.hoja) return r.abrir?.(p.hoja)
+      if (p.id === 'fuegos') return irTab('fuegos')
+      if (p.id === 'barrera') return irTab('barreras')
+      if (p.id === 'fases') return r.abrir?.('coa')
+    }
+    const extras = (p) => {
+      if (r.compacto) return null
+      if (p.id === 'fuegos') return h('div', { style: { display: 'flex', gap: 5, flexWrap: 'wrap', margin: '2px 0 4px 49px' } },
+        h('button', { style: ER.btn, 'data-ruta-fuegos': '1', onClick: armarFuegos }, `🔥 Armar el plan de fuegos del CAP ${n} con la artillería`),
+        h('button', { style: { ...ER.btn, fontWeight: 400 }, onClick: () => irTab('fuegos') }, 'Ver / corregir en 🔥 Fuegos'))
+      if (p.id === 'barrera') return h('div', { style: { display: 'flex', gap: 5, flexWrap: 'wrap', margin: '2px 0 4px 49px' } },
+        r.defensa && h('button', { style: ER.btn, 'data-ruta-barrera': '1', onClick: () => (r.abrir?.(null), r.defensa()) }, `🛡️ Trazar la barrera de obstáculos del CAP ${n}`),
+        h('button', { style: { ...ER.btn, fontWeight: 400 }, onClick: () => irTab('barreras') }, 'Ver el plan de barreras'))
+      if (p.id === 'fases') return h('div', { style: { display: 'flex', gap: 5, flexWrap: 'wrap', margin: '2px 0 4px 49px' } },
+        cap && h('button', { style: ER.btn, 'data-ruta-fases': '1', onClick: armarFases }, `🎬 Armar las ${cap.fases.length} fases del CAP ${n} (FASE I, II, III…)`))
+      return null
+    }
+    const terminar = () => {
+      const faltan = pasos.filter((p) => !p.hecho)
+      if (faltan.length && typeof window !== 'undefined' && !window.confirm(`Al CAP ${n} todavía le falta:\n\n${faltan.map((p) => `• ${p.num} ${p.nom}`).join('\n')}\n\n¿Lo das por terminado igual?`)) return
+      acc('cerrar')
+    }
+    const nuevo = () => {
+      if (typeof window !== 'undefined' && !window.confirm(`➕ Generar el CAP ${otro}\n\nEmpieza DE NUEVO desde la F3·P3 (Formación inicial de las fuerzas): la F3·P3, F3·P4, F3·P5 y F3·P6 en blanco, la carta sin tareas, sin barrera y sin fuegos, y sin fases.\n\nEl CAP ${n} queda guardado TAL CUAL (con su carta) y vuelve al tocar su botón.\n\n¿Seguimos?`)) return
+      if (acc('nuevo', { n: otro, formas }) !== false) r.abrir?.('organizacion')
+    }
+
+    const botonCap = (k) => {
+      const on = k === n
+      const ex = on || existeCAP(g3, k)
+      const est = on ? (cerradoCAP(g3, k) ? '✓ terminado' : `paso ${Math.min(hechos + 1, pasos.length)} de ${pasos.length}`) : ex ? (cerradoCAP(g3, k) ? '✓ terminado · guardado' : 'guardado') : cerrado ? '➕ generarlo' : '🔒 después del otro'
+      return h('button', {
+        key: k,
+        'data-ruta-cap': k,
+        style: ER.cap(on, ex || cerrado),
+        onClick: () => {
+          if (on) return
+          if (ex) return acc('cambiar', { n: k, formas })
+          if (cerrado) return nuevo()
+          if (typeof window !== 'undefined') window.alert(`🔒 Primero terminá el CAP ${n}. Después aparece «➕ Generar el CAP ${k}», que empieza de nuevo desde la F3·P3.`)
+        },
+      }, `${on ? '● ' : ''}CAP ${k}${k === decidido ? ' 🎖️' : ''}`, h('div', { style: { fontWeight: 400, fontSize: 11 } }, est))
+    }
+
+    if (r.compacto) {
+      return h('div', { style: { ...ER.raiz, gap: 5 }, 'data-ruta': 'compacta' },
+        h('div', { style: { ...ER.tit, fontSize: 12.5 } }, `🔵 Estás armando el CAP ${n}${cerrado ? ' (✓ terminado)' : ''} · ${hechos} de ${pasos.length} pasos`),
+        h('div', { style: { display: 'flex', gap: 4, flexWrap: 'wrap' } },
+          pasos.map((p, i) => h('button', { key: p.id, 'aria-label': `Paso ${i + 1} del CAP ${n}: ${p.nom}`, style: ER.chip(p.hecho, p.hoja && p.hoja === r.hoja), title: p.nom, onClick: () => tocar(p) }, `${p.hecho ? '✓ ' : ''}${p.num}`)),
+          !cerrado && h('button', { style: { ...ER.chip(false, false), borderColor: VERDE }, 'data-ruta-terminar': '1', onClick: terminar }, `✓ Terminar el CAP ${n}`),
+          cerrado && !existeOtro && h('button', { style: { ...ER.chip(false, false), borderColor: VERDE }, 'data-ruta-nuevo': '1', onClick: nuevo }, `➕ Generar el CAP ${otro}`)),
+        sig && sig.hoja !== r.hoja && !cerrado && h('div', { style: ER.det }, `Siguiente: ${sig.num} ${sig.nom}${sig.detalle ? ` (${sig.detalle})` : ''}.`))
+    }
+
+    return h('div', { style: ER.raiz, 'data-ruta': 'completa' },
+      h('div', { style: ER.tit }, '🔵 Los cursos de acción propios, UNO POR VEZ'),
+      h('div', { style: ER.sub }, `Cada CAP sigue los mismos pasos: F3·P3 → F3·P6, su plan de fuegos (lo dispara la artillería), su barrera de obstáculos y sus fases. Terminás el CAP 1 y recién ahí se genera el CAP 2 desde el principio. (La F3·P1 Potencia relativa de combate es una sola para los dos.)`),
+      h('div', { style: ER.caps }, [1, 2].map(botonCap)),
+      h('div', { style: { ...ER.tit, fontSize: 12.5, marginTop: 2 } }, `CAP ${n}${cap ? ` · ${cap.nomForma}` : ''} — ${hechos} de ${pasos.length} pasos`),
+      pasos.map((p, i) => h('div', { key: p.id },
+        h('button', { style: { ...ER.paso(p.hecho, p === sig && !cerrado, false), width: '100%' }, 'data-ruta-paso': p.id, 'aria-label': `Paso ${i + 1} del CAP ${n}: ${p.nom}${p.hecho ? ' (hecho)' : ''}`, onClick: () => tocar(p) },
+          h('span', null, p.hecho ? '✅' : p === sig ? '👉' : '⬜'),
+          h('span', { style: ER.num }, `${i + 1}. ${p.num}`),
+          h('span', { style: { flex: 1 } }, p.nom, p.detalle ? h('div', { style: ER.det }, p.detalle) : null),
+          h('span', null, '▸')),
+        extras(p))),
+      !cerrado && h('button', { style: ER.fin, 'data-ruta-terminar': '1', onClick: terminar }, `✓ Terminar el CAP ${n}`),
+      cerrado && h('div', { style: { ...E.ok, fontSize: 12.5 } }, `✓ El CAP ${n} está terminado.`),
+      cerrado && !existeOtro && h('button', { style: ER.fin, 'data-ruta-nuevo': '1', onClick: nuevo }, `➕ Generar el CAP ${otro} — empieza de nuevo desde la F3·P3`),
+      cerrado && existeOtro && !cerradoCAP(g3, otro) && h('button', { style: ER.fin, onClick: () => acc('cambiar', { n: otro, formas }) }, `➡️ Seguir con el CAP ${otro}`),
+      cerrado && existeOtro && cerradoCAP(g3, otro) && h('div', { style: { ...E.ok, fontSize: 12.5 } }, '✓ Los dos CAP están terminados: sigue «4 · Analizar los cursos de acción (Juego de Guerra)».'),
+      cerrado && h('button', { style: { ...ER.btn, fontWeight: 400, alignSelf: 'flex-start' }, onClick: () => acc('reabrir') }, `✏️ Reabrir el CAP ${n} para corregirlo`))
+  } catch (e) {
+    if (typeof console !== 'undefined') console.warn('rutaCAP', e)
     return null
   }
 }

@@ -359,23 +359,97 @@ export const capsDe = (g3) => {
   const c = g3?._caps || {}
   return { activo: c.activo === 2 ? 2 : 1, formas: c.formas || {}, guardados: c.guardados || {} }
 }
-export function cambiarCAP({ fasesCOA = {}, g3 = {} } = {}, n) {
+// 🔵 Desde el 11-11-2026 (Sergio: «cada curso de acción debe seguir los pasos» F3·P3 → F3·P6, con su plan de fuegos y
+// su barrera de obstáculos) cada CAP tiene TAMBIÉN su F3·P3 (formación inicial: el cuadro y la reserva), su F3·P5
+// (comandos) y las marcas de la F3·P4 en la carta. Un CAP guardado ANTES de eso (sin `v: 2`) no las tenía: al volver a
+// él se quedan las que están (eran de los dos), así nada de lo hecho se borra.
+export const HOJAS_CAP_V2 = ['organizacion', 'organizacionInicial', 'comandos', 'conceptoCarta']
+export const CLAVES_G3_CAP = [...HOJAS_POR_CAP, ...HOJAS_CAP_V2]
+// Lo del calco que es de cada CAP (lo que se ve cuando no hay una fase a la vista): las tareas tácticas de la F3·P3, la
+// barrera de obstáculos y las posiciones defensivas. El plan de fuegos y dónde está cada ficha propia, también.
+export const CLAVES_OPS_CAP = ['tareas', 'obstaculos', 'posDef']
+const conAlgo = (v) => v != null && Object.keys(v).length > 0
+export function cambiarCAP({ fasesCOA = {}, g3 = {} } = {}, n, { vista = null } = {}) {
   const C = capsDe(g3)
   if (n !== 1 && n !== 2) return { fasesCOA, g3, cambio: false }
   if (n === C.activo) return { fasesCOA, g3, cambio: false }
-  const guardar = { fases: Array.isArray(fasesCOA.propio) ? fasesCOA.propio : [] }
-  for (const h of HOJAS_POR_CAP) if (g3[h] !== undefined) guardar[h] = g3[h]
+  const guardar = { fases: Array.isArray(fasesCOA.propio) ? fasesCOA.propio : [], v: 2 }
+  for (const h of CLAVES_G3_CAP) if (g3[h] !== undefined) guardar[h] = g3[h]
+  if (vista) guardar.vista = vista
   const traer = C.guardados[n] || {}
+  const deAntes = conAlgo(traer) && traer.v !== 2
   const g = { ...g3 }
-  for (const h of HOJAS_POR_CAP) {
+  for (const h of CLAVES_G3_CAP) {
+    if (deAntes && HOJAS_CAP_V2.includes(h)) continue
     if (traer[h] !== undefined) g[h] = traer[h]
     else delete g[h]
   }
   const guardados = { ...C.guardados, [C.activo]: guardar }
   delete guardados[n]
   g._caps = { ...(g3._caps || {}), activo: n, formas: C.formas, guardados }
-  return { fasesCOA: { ...fasesCOA, propio: Array.isArray(traer.fases) ? traer.fases : [] }, g3: g, cambio: true }
+  return { fasesCOA: { ...fasesCOA, propio: Array.isArray(traer.fases) ? traer.fases : [] }, g3: g, cambio: true, vista: traer.vista || null }
 }
+
+// ─── 🔵 El recorrido de cada CAP (11-11-2026) ────────────────────────────────────────────────────────────────
+// Primero se termina el CAP 1 (F3·P3 → F3·P6, su plan de fuegos, su barrera y sus fases) y recién después aparece
+// «➕ Generar el CAP 2», que empieza otra vez desde la F3·P3 con la carta limpia.
+const hayTexto = (v) => {
+  if (v == null) return false
+  if (typeof v === 'string') return v.replace(/\[Mesa — verificar\]/g, '').trim().length > 0
+  if (typeof v === 'number') return true
+  if (Array.isArray(v)) return v.some(hayTexto)
+  if (typeof v === 'object') return Object.entries(v).some(([k, x]) => !k.startsWith('_') && hayTexto(x))
+  return false
+}
+export const PASOS_CAP = [
+  { id: 'organizacion', num: 'F3·P3', nom: 'Formación inicial de las fuerzas', hoja: 'organizacion' },
+  { id: 'concepto', num: 'F3·P4', nom: 'Concepto amplio de la operación', hoja: 'concepto' },
+  { id: 'comandos', num: 'F3·P5', nom: 'Asignación de comandos de unidad', hoja: 'comandos' },
+  { id: 'coa', num: 'F3·P6', nom: 'Enunciado y bosquejo del CAP', hoja: 'coa' },
+  { id: 'fuegos', num: '🔥', nom: 'Plan de fuegos del CAP (lo dispara la artillería)' },
+  { id: 'barrera', num: '🚧', nom: 'Barrera de obstáculos del CAP' },
+  { id: 'fases', num: '🎬', nom: 'Las fases del CAP (FASE I, II, III…)' },
+]
+// ¿Existe ya el CAP n? El activo, uno guardado desde el recorrido (`v: 2`, aunque esté vacío: generarlo otra vez
+// borraría su carta) o uno de antes con algo adentro (fases o una hoja escrita).
+export function existeCAP(g3 = {}, n) {
+  const C = capsDe(g3)
+  if (n === C.activo) return true
+  const gu = C.guardados[n]
+  return !!gu && (gu.v === 2 || (gu.fases || []).length > 0 || CLAVES_G3_CAP.some((h) => hayTexto(gu[h])))
+}
+export const cerradoCAP = (g3 = {}, n) => !!g3?._caps?.cerrados?.[n]
+// Cómo va el CAP activo, paso por paso. info: { ops (el calco a la vista), plan (el de fuegos), fases (cuántas tiene) }
+export function pasosCAP(g3 = {}, { ops = {}, plan = null, fases = 0 } = {}) {
+  const blancos = (plan?.blancos || []).filter(Boolean)
+  const conMedio = blancos.filter((b) => b.medio).length
+  const obst = (ops?.obstaculos || []).length
+  return PASOS_CAP.map((p) => {
+    if (p.hoja) return { ...p, hecho: hayTexto(g3[p.hoja]) }
+    if (p.id === 'fuegos') return { ...p, hecho: blancos.length > 0 && conMedio === blancos.length, detalle: blancos.length ? `${blancos.length} concentración(es)${conMedio < blancos.length ? `, ${blancos.length - conMedio} sin unidad que la dispare` : ''}` : 'sin concentraciones' }
+    if (p.id === 'barrera') return { ...p, hecho: obst > 0, detalle: obst ? `${obst} obstáculo(s) en la carta` : 'sin obstáculos' }
+    return { ...p, hecho: fases >= 2, detalle: fases ? `${fases} fase(s) 🔵` : 'sin fases' }
+  })
+}
+// Lo del calco a la vista que es del CAP (para guardarlo con él al cambiar).
+export function vistaDe(M = {}) {
+  const ops = M.ops || {}
+  const v = { ops: {}, plan: M.plan ?? null, pos: {} }
+  for (const k of CLAVES_OPS_CAP) v.ops[k] = Array.isArray(ops[k]) ? ops[k] : []
+  for (const u of M.unidades || []) {
+    if (!u || u.id == null || u.deFaseEnemiga != null || u.bando === 'enemigo' || u.bando === 'enemigas' || (u.tipo || 'unidad') !== 'unidad') continue
+    if (Number.isFinite(+u.lng) && Number.isFinite(+u.lat)) v.pos[u.id] = { lng: +u.lng, lat: +u.lat }
+  }
+  return v
+}
+function ponerVista(M, v) {
+  if (!v) return
+  M.setOps?.((o) => ({ ...(o || {}), ...(v.ops || {}) }))
+  M.setPlan?.(v.plan ?? null)
+  const pos = v.pos || {}
+  if (Object.keys(pos).length) M.setUnidades?.((us) => (us || []).map((u) => (u && pos[u.id] ? { ...u, ...pos[u.id] } : u)))
+}
+const conCaps = (g3, cambios) => ({ ...g3, _caps: { ...(g3?._caps || {}), ...cambios } })
 // Las formas que se ven en el panel quedan guardadas (si no se habían elegido) para que el 🎬 C.A. por fases las nombre.
 export function conFormas(g3 = {}, formas = {}) {
   const C = capsDe(g3)
@@ -524,13 +598,56 @@ export function accion(que, d = {}, M = {}) {
     }
     if (que === 'cambiar') {
       const fc = M.flush ? M.flush(M.fasesCOA || {}) : M.fasesCOA || {}
-      const r = cambiarCAP({ fasesCOA: fc, g3: M.g3 || {} }, d.n)
+      const r = cambiarCAP({ fasesCOA: fc, g3: M.g3 || {} }, d.n, { vista: vistaDe(M) })
       if (!r.cambio) return false
       M.setFases?.(r.fasesCOA)
       M.setG3?.(d.formas ? conFormas(r.g3, d.formas) : r.g3)
       if (M.activa?.bando === 'propio') M.setActiva?.(null)
+      // La carta del CAP que vuelve: sus tareas, su barrera, su plan de fuegos y sus fichas (si se guardó así).
+      ponerVista(M, r.vista)
       const nf = (r.fasesCOA.propio || []).length
-      M.aviso?.(`🔵 Ahora trabajás el CAP ${d.n}${nf ? ` (${nf} fase(s) 🔵)` : ' (todavía sin fases 🔵)'}: sus fases, su F3·P4 y su F3·P6. El otro CAP quedó guardado tal cual.`)
+      M.aviso?.(`🔵 Ahora trabajás el CAP ${d.n}${nf ? ` (${nf} fase(s) 🔵)` : ' (todavía sin fases 🔵)'}: su F3·P3 a F3·P6, su plan de fuegos, su barrera y sus fases. El otro CAP quedó guardado tal cual.`)
+      return true
+    }
+    // ✓ Dar por terminado el CAP activo (y ✏️ reabrirlo para corregir).
+    if (que === 'cerrar' || que === 'reabrir') {
+      const C = capsDe(M.g3)
+      const cerrados = { ...(M.g3?._caps?.cerrados || {}) }
+      if (que === 'cerrar') cerrados[C.activo] = Date.now()
+      else delete cerrados[C.activo]
+      M.setG3?.(conCaps(M.g3 || {}, { activo: C.activo, cerrados }))
+      M.aviso?.(que === 'cerrar' ? `✓ CAP ${C.activo} terminado.${existeCAP(M.g3, C.activo === 1 ? 2 : 1) ? '' : ` Ahora podés generar el CAP ${C.activo === 1 ? 2 : 1}: empieza de nuevo en la F3·P3.`}` : `✏️ El CAP ${C.activo} está abierto otra vez para corregirlo.`)
+      return true
+    }
+    // ➕ Generar el otro CAP desde el principio: la F3·P3 a F3·P6 en blanco, sin tareas, sin barrera, sin fuegos y sin
+    // fases; las fichas no se mueven (juntarlas en la FASE I del otro CAP borraba quién es la reserva: la Mesa la lee
+    // de dónde está cada una). Lo del CAP anterior queda guardado tal cual (también su carta) y vuelve al tocar su botón.
+    if (que === 'nuevo') {
+      const C = capsDe(M.g3)
+      const n = d.n === 1 || d.n === 2 ? d.n : C.activo === 1 ? 2 : 1
+      if (existeCAP(M.g3, n)) return accion('cambiar', { n, formas: d.formas }, M)
+      const fc = M.flush ? M.flush(M.fasesCOA || {}) : M.fasesCOA || {}
+      const r = cambiarCAP({ fasesCOA: fc, g3: M.g3 || {} }, n, { vista: vistaDe(M) })
+      if (!r.cambio) return false
+      M.setFases?.(r.fasesCOA)
+      M.setG3?.(conCaps(d.formas ? conFormas(r.g3, d.formas) : r.g3, { nuevos: { ...(M.g3?._caps?.nuevos || {}), [n]: Date.now() } }))
+      if (M.activa) M.setActiva?.(null)
+      const limpio = {}
+      for (const k of CLAVES_OPS_CAP) limpio[k] = []
+      M.setOps?.((o) => ({ ...(o || {}), ...limpio }))
+      M.setPlan?.((p) => (p && typeof p === 'object' ? { ...p, blancos: [] } : p))
+      M.aviso?.(`➕ CAP ${n}: empieza de nuevo. Paso 1: F3·P3 Formación inicial de las fuerzas. La carta quedó sin tareas, sin barrera y sin fuegos; las fichas quedan donde están: ubicalas para este CAP. El CAP ${C.activo} quedó guardado tal cual (con su carta).`)
+      return true
+    }
+    // 🔥 El plan de fuegos del CAP, armado con la artillería (d.armar(plan) → { plan, msg } lo arma fuegos-cap.mjs).
+    if (que === 'fuegosCAP') {
+      const res = d.armar?.(M.plan ?? null) || null
+      if (!res || res.error) {
+        M.error?.(res?.error || 'No se pudo armar el plan de fuegos.')
+        return false
+      }
+      M.setPlan?.(res.plan)
+      if (res.msg) M.aviso?.(res.msg)
       return true
     }
     if (que === 'fases') {
