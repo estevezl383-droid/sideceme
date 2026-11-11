@@ -165,7 +165,7 @@ guarda el suyo**, como ya guardaba las fichas y el calco:
 
 ## Dónde se guarda
 
-`g3._caps = { activo: 1 | 2, formas: { 1, 2 }, guardados: { <el otro>: { fases, coa, concepto } } }`. El expediente
+`g3._caps = { activo: 1 | 2, formas: { 1, 2 }, cerrados, guardados: { <el otro>: { v: 2, fases, coa, concepto, organizacion, comandos, …, vista } } }` (ver arriba, 11-11-2026). El expediente
 de la IA no lo lee (sólo las hojas conocidas). Las piezas del concepto que están EN LA CARTA (obstáculos, fuegos) son
 del calco y no cambian con el CAP.
 
@@ -195,4 +195,35 @@ del calco y no cambian con el CAP.
 - En el compilado (`pruebas/reemplazos-2026-10-25-itinerario.js`): el import y el `useEffect` del itinerario y la fase
   a la vista para la capa de la F3·P3.
 - Pruebas: `pruebas/cap-propios.mjs`, `pruebas/cap-carta.mjs`, `pruebas/cap-texto.mjs`, `pruebas/json-tolerante.mjs`, `pruebas/cap-posiciones.mjs`, `pruebas/cap-tareas-fase.mjs` (con la respuesta de ejemplo
-  `pruebas/cap-carta-ejemplo.js`), `pruebas/e2e/cap-propios.cjs`, `pruebas/e2e/cap-carta.cjs`, `pruebas/e2e/fuegos-fase.cjs` y `pruebas/e2e/itinerario.cjs`.
+  `pruebas/cap-carta-ejemplo.js`), `pruebas/e2e/cap-propios.cjs`, `pruebas/e2e/cap-carta.cjs`, `pruebas/e2e/fuegos-fase.cjs` y `pruebas/e2e/itinerario.cjs`.## 🔵 Los CAP UNO POR VEZ: cada uno con su F3·P3 → F3·P6, su plan de fuegos, su barrera y sus fases (11-11-2026)
+
+Sergio: «armar los dos cursos de acción propio está muy confuso… cada curso de acción debe seguir los pasos (F3·P3,
+P4, P5, P6)… primero se termine un curso de acción CAP 1 y luego vuelva la opción para generar otro desde el principio…
+en cada curso de acción es necesario colocar su plan de fuegos y su barrera de obstáculos… los planes de fuegos
+automáticamente deben salir de las unidades de artillería… después todo normal: fase 1, fase 2, fase 3».
+
+- **Qué estaba mal**: sólo la F3·P4 y la F3·P6 eran de cada CAP; la F3·P3, la F3·P5, las tareas tácticas, la barrera
+  y el plan de fuegos eran UNO para los dos (el CAP 2 arrancaba con lo del CAP 1 encima).
+- **Ahora** son de cada CAP (`CLAVES_G3_CAP`): `organizacion`, `organizacionInicial`, `concepto`, `conceptoCarta`,
+  `comandos`, `coa`; y de la carta a la vista (`vista` del guardado): `ops.tareas`, `ops.obstaculos`, `ops.posDef`, el
+  plan de fuegos y dónde está cada ficha propia. La F3·P1 (Potencia relativa de combate) es una sola: es del análisis,
+  no de un CAP.
+- **📄 Documentos → 3** (y compacto arriba de la F3·P3 a la F3·P6): el recorrido del CAP activo, 7 pasos ✅/👉/⬜
+  (F3·P3, F3·P4, F3·P5, F3·P6, 🔥 fuegos, 🚧 barrera, 🎬 fases), cada uno abre su hoja o su pestaña; «✓ Terminar el
+  CAP 1» (avisa lo que falta) → «➕ Generar el CAP 2 — empieza de nuevo desde la F3·P3»: hojas en blanco, carta sin
+  tareas, sin barrera y sin fuegos, sin fases; las fichas quedan donde están (juntarlas cambiaba quién es la reserva). El CAP 1 queda
+  guardado con su carta y vuelve al tocar su botón. «✏️ Reabrir» para corregir un CAP terminado.
+- El CAP 2 no se puede abrir (🔒) hasta terminar el CAP 1 — en el recorrido, en el panel de la F3·P4/F3·P6 y en el
+  🎬 C.A. por fases. Un ejercicio que ya tenía los dos sigue igual.
+- **🔥 Armar el plan de fuegos del CAP con la artillería** (`v1/fuegos-cap.mjs`): los medios del 🔥 Fuegos
+  (`MesaFuegos.medios`, sólo artillería y lanzacohetes con posición); los blancos del CAP: fuego de protección final
+  delante de cada unidad de primera línea (defensa), las 8 fichas enemigas más cercanas (contrapreparación /
+  preparación) y cada obstáculo de su barrera. Cada concentración queda asignada (`medio`) a la unidad de artillería
+  que la alcanza y tiene menos blancos (el esfuerzo principal elige primero); si ninguna alcanza, la más cercana (el
+  🔥 Fuegos la pinta de fucsia). Lo puesto a mano no se toca (sólo se rehacen las `auto: 'cap'`).
+- **Ejercicios de antes**: un CAP guardado sin `v: 2` no tenía su F3·P3/F3·P5/carta: al volver a él se quedan las que
+  están (no se borra nada); desde ese momento cada uno guarda las suyas.
+- `g3._caps.cerrados = { 1: t }`, `g3._caps.nuevos = { 2: t }`, `guardados[n] = { v: 2, fases, <hojas>, vista }`.
+- Pruebas: `pruebas/cap-ruta.mjs` (9), `pruebas/e2e/cap-ruta.cjs` (también `DPR=2`).
+
+
