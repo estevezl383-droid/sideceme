@@ -5,6 +5,18 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-11-11 — 🔵 Los CAP uno por vez: F3·P3 → F3·P6, fuegos con la artillería, barrera y fases (`index-ruta-cap-20261111.js`)
+
+Parte de `index-cae-organigrama-20261110.js` + `pruebas/reemplazos-2026-11-11-ruta-cap.js` (9 reemplazos;
+`construir-ruta-cap.js`, reversible byte por byte). Ver `cap-propios/README.md` (11-11-2026).
+
+- Imports: `panel.js?v=ruta20261111` (con `rutaCAP as SIDCapRuta`) y `proponer.mjs?v=ruta20261111` (la acción).
+- `SIDcapAcc` recibe `plan:planFuegos` (y lo tiene en sus dependencias); el `ctx` del Tablero del G-3 lleva `SIDplan`.
+- `TLe` (📄 Documentos) recibe `SIDruta` y dibuja el recorrido en «3 · Desarrollar los cursos de acción propios»;
+  la hoja abierta (F3·P3 a F3·P6) dibuja el recorrido compacto arriba del panel de los CAP.
+- Fuera del compilado: `fuegos/plan-fuegos.js` (`MesaFuegos.medios`, `?v=20261111-ruta-cap` en index.html).
+- **Si se recompila desde el fuente**: pasar esos 9 cambios al fuente.
+
 ## 2026-11-08 (6) — 🚚 El ARCE y sus instalaciones en TODAS las fases; los EPA/EPE y la Línea de Extraviados, de la fase en que se arman hacia adelante (`index-fases-log-20261108.js`)
 
 Parte de `index-matriz-decision-20261108.js` + `pruebas/reemplazos-2026-11-08-fases-log.js` (5 reemplazos;
