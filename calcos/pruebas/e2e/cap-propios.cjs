@@ -89,6 +89,13 @@ async function esperar(page, leer, cumple, ms = 10000) {
     const p3 = await esperar(page, (p) => posU(p, 'divmec2'), (q) => km(q, p1) > 5)
     assert.ok(km(p3, p1) > 5, `FASE III: se movió a su sector (${p1} → ${p3})`)
 
+    // ── CAP 2: 🔒 hasta terminar el CAP 1 (11-11-2026: los CAP uno por vez) ──
+    await clic(panel.locator('button[data-cap="2"]'))
+    await page.waitForTimeout(300)
+    assert.notEqual((await leerG3(page))?._caps?.activo, 2, 'el CAP 2 no se abre sin terminar el CAP 1')
+    assert.match(await panel.innerText(), /🔒 El CAP 2 se arma DESPUÉS de terminar el CAP 1/)
+    await clic(page.locator('[data-ruta="compacta"] [data-ruta-terminar]'))
+    await esperar(page, leerG3, (g) => g._caps?.cerrados?.[1])
     // ── CAP 2: lo del CAP 1 queda guardado ──
     await clic(panel.locator('button[data-cap="2"]'))
     g3 = await esperar(page, leerG3, (g) => g._caps?.activo === 2)
