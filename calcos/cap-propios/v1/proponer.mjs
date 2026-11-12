@@ -764,7 +764,7 @@ function armarGuardado(d, M, C) {
   const fases = fasesDe(d, M, previas)
   if (!fases.length) return false
   const ver = Math.max(0, Math.min(fases.length - 1, Number(d.ver) || 0))
-  if (previas.length && !d.sinPreguntar && !confirmarDe(M)(`El CAP ${n} ya tiene ${previas.length} fase(s) 🔵 (guardado).\n\nArmarlas de nuevo las REEMPLAZA por las ${fases.length} de la propuesta. Donde pusiste cada ficha en la FASE III queda como su puesto; lo demás que hayas movido o escrito en esas fases se pierde.\n\nDespués la Mesa pasa al CAP ${n} y muestra su FASE ${ROMANOS[ver] || ver + 1}.\n\n¿Seguimos?`)) return false
+  if (previas.length && !d.sinPreguntar && !confirmarDe(M)(`El CAP ${n} ya tiene ${previas.length} fase(s) 🔵 (guardado).\n\n🔄 REARMAR CON OTRA PROPUESTA: esto NO completa las fases que faltan. BORRA las ${previas.length} fases que tenés y pone en su lugar las ${fases.length} que propone la Mesa.\n\n• Se conserva: dónde pusiste cada ficha en la FASE III (queda como su puesto).\n• Se pierde: todo lo demás que moviste o escribiste en esas fases.\n\nPara seguir con TUS fases, tocá Cancelar y pasá de una a otra con los botones FASE I, II, III…: cada fase parte de donde dejaste las fichas en la anterior.\n\n(Si rearmás, la Mesa pasa al CAP ${n} y muestra su FASE ${ROMANOS[ver] || ver + 1}.)\n\n¿Rearmar igual?`)) return false
   const g3 = { ...(M.g3 || {}), _caps: { ...(M.g3?._caps || {}), activo: C.activo, formas: C.formas, guardados: { ...C.guardados, [n]: { ...(C.guardados[n] || {}), fases } } } }
   if (!accion('cambiar', { n, formas: d.formas }, { ...M, g3 })) return false
   const tocar = () => M.activarFase?.('propio', ver)
@@ -904,7 +904,7 @@ export function accion(que, d = {}, M = {}) {
       const fases = fasesDe(d, M, previas)
       if (!fases.length) return false
       const ya = (M.fasesCOA?.propio || []).length
-      if (ya && !d.sinPreguntar && !confirmarDe(M)(`El CAP ${d.cap.n} ya tiene ${ya} fase(s) 🔵.\n\nArmarlas de nuevo las REEMPLAZA por las ${fases.length} de la propuesta. Donde pusiste cada ficha en la FASE III queda como su puesto; lo demás que hayas movido o escrito en esas fases se pierde.\n\n¿Seguimos?`)) return false
+      if (ya && !d.sinPreguntar && !confirmarDe(M)(`El CAP ${d.cap.n} ya tiene ${ya} fase(s) 🔵.\n\n🔄 REARMAR CON OTRA PROPUESTA: esto NO completa las fases que faltan. BORRA las ${ya} fases que tenés y pone en su lugar las ${fases.length} que propone la Mesa.\n\n• Se conserva: dónde pusiste cada ficha en la FASE III (queda como su puesto).\n• Se pierde: todo lo demás que moviste o escribiste en esas fases.\n\nPara seguir con TUS fases, tocá Cancelar y pasá de una a otra con los botones FASE I, II, III…: cada fase parte de donde dejaste las fichas en la anterior.\n\n¿Rearmar igual?`)) return false
       M.setFases?.((fc) => ({ ...(M.flush ? M.flush(fc) : fc), propio: fases }))
       if (d.formas && M.g3) {
         const g = conFormas(M.g3, d.formas)

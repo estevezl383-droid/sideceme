@@ -185,7 +185,10 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
   const quietas = (fs) => {
     if (fs.length < 2) return null
     const en = fs.map((f) => new Map(movibles(f?.unidades || [], A).map((u) => [u.id, u])))
-    const ids = [...en[0].keys()].filter((id) => en.every((m) => m.has(id)))
+    // (12-11-2026: la ficha que el oficial puso a mano pasa a las fases que siguen —fases-log.mjs— y queda en el mismo
+    // lugar a propósito: no es una fase «quieta».)
+    const aMano = new Set(fs.flatMap((f) => (Array.isArray(f?.aMano) ? f.aMano : []).map(String)))
+    const ids = [...en[0].keys()].filter((id) => !aMano.has(String(id)) && en.every((m) => m.has(id)))
     const lugar = (u) => `${(+u.lng).toFixed(4)},${(+u.lat).toFixed(4)}`
     const fijas = ids.filter((id) => en.every((m) => lugar(m.get(id)) === lugar(en[0].get(id))))
     if (!fijas.length) return null
@@ -198,7 +201,7 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
     const fs = fasesDe(c.n)
     if (!fs.length) return h('div', { style: E.fases }, `🎬 Todavía sin fases en la carta: tocá «🎬 Armar las fases» ${c.n === C.activo ? '(abajo)' : 'de este CAP (abajo)'} o pedíselas a la IA.`)
     const q = quietas(fs)
-    const deNuevo = c.n === C.activo ? 'Tocá «🎬 Armar las fases» de nuevo' : `Tocá «🎬 Armar las fases de este CAP» (acá abajo)`
+    const deNuevo = c.n === C.activo ? 'Tocá «🔄 Rearmar las fases con otra propuesta»' : `Tocá «🔄 Rearmar las fases de este CAP con otra propuesta» (acá abajo)`
     // Si todas las fases tienen las fichas en el mismo lugar, tocar una no cambia nada: la Mesa ofrece armarlas ya.
     const tocar = (i) => {
       setMsg('')
@@ -229,7 +232,9 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
     c.n !== C.activo &&
     existeCAP(ctx.g3, c.n) &&
     h('button', { style: { ...E.btn, borderColor: COLOR_CAP[c.n] || AZUL }, 'data-armar-cap': c.n, onClick: () => (setMsg(''), onAccion?.('fases', armado(c))) },
-      `🎬 Armar las ${c.fases.length} fases 🔵 de este CAP (CAP ${c.n}) y verlas en la carta`)
+      fasesDe(c.n).length
+        ? `🔄 Rearmar las fases de este CAP (CAP ${c.n}) con otra propuesta`
+        : `🎬 Armar las ${c.fases.length} fases 🔵 de este CAP (CAP ${c.n}) y verlas en la carta`)
 
   const tarjeta = (c) =>
     h('div', { key: c.n, style: E.tarjeta(c.n === C.activo), 'data-tarjeta-cap': c.n },
@@ -261,7 +266,9 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
     abierto && h('div', { style: { display: 'flex', flexDirection: 'column', gap: 5 } },
       hoja?.id === 'coa' && h('button', { style: E.btn, onClick: llevar }, `🌱 Llevar el CAP ${activo.n} a esta hoja (sólo las casillas vacías)`),
       hoja?.id === 'coa' && h('button', { style: E.btn, 'data-cap-texto': '1', onClick: () => (setMsg(''), onAccion?.('texto', escritor(ctx))) }, '📝 Llevar la carta a la F3·P6 de los dos CAP (lo que quedó en las fases 🔵: unidades, tareas, obstáculos y fuegos)'),
-      h('button', { style: E.btn, onClick: () => (setMsg(''), onAccion?.('fases', armado(activo))) }, `🎬 Armar las ${activo.fases.length} fases 🔵 del CAP ${activo.n} (todas las fichas: juntas con el CE, a sus trabajos de barreras, a su puesto con su tarea…)`)),
+      h('button', { style: E.btn, onClick: () => (setMsg(''), onAccion?.('fases', armado(activo))) }, (ctx.fasesCOA?.propio || []).length
+        ? `🔄 Rearmar las fases del CAP ${activo.n} con otra propuesta (borra las ${(ctx.fasesCOA?.propio || []).length} que tenés)`
+        : `🎬 Armar las ${activo.fases.length} fases 🔵 del CAP ${activo.n} (todas las fichas: juntas con el CE, a sus trabajos de barreras, a su puesto con su tarea…)`)),
     msg && h('div', { style: E.ok }, msg),
     // 🤖 La IA desarrolla los dos CAP y la Mesa los pone en la carta (la caja de la IA de la Mesa: copiar, abrir en
     // Claude / ChatGPT / Gemini, pegar la respuesta y ✓ Aplicar).
@@ -384,7 +391,9 @@ export function rutaCAP(r = {}) {
         r.defensa && h('button', { style: ER.btn, 'data-ruta-barrera': '1', onClick: () => (r.abrir?.(null), r.defensa()) }, `🛡️ Trazar la barrera de obstáculos del CAP ${n}`),
         h('button', { style: { ...ER.btn, fontWeight: 400 }, onClick: () => irTab('barreras') }, 'Ver el plan de barreras'))
       if (p.id === 'fases') return h('div', { style: { display: 'flex', gap: 5, flexWrap: 'wrap', margin: '2px 0 4px 49px' } },
-        cap && h('button', { style: ER.btn, 'data-ruta-fases': '1', onClick: armarFases }, `🎬 Armar las ${cap.fases.length} fases del CAP ${n} (FASE I, II, III…)`))
+        cap && (pasos.find((x) => x.id === 'fases')?.hecho || (ctx.fasesCOA?.propio || []).length
+          ? h('button', { style: ER.btn, 'data-ruta-fases': '1', title: 'NO completa las fases que faltan: borra las que tenés y pone otra propuesta de la Mesa. Para seguir con las tuyas, tocá FASE I, II, III… (cada fase parte de donde dejaste las fichas en la anterior).', onClick: armarFases }, `🔄 Rearmar las fases del CAP ${n} con otra propuesta`)
+          : h('button', { style: ER.btn, 'data-ruta-fases': '1', onClick: armarFases }, `🎬 Armar las ${cap.fases.length} fases del CAP ${n} (FASE I, II, III…)`)))
       return null
     }
     const terminar = () => {
