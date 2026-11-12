@@ -248,6 +248,50 @@ function heredarFaltante(previa, fase, areas) {
   return f
 }
 
+// ─── Las fichas propias de fase en fase (Sergio, 12-11-2026) ─────────────────────────────────────────────────────
+//   «si en la fase I muevo las fichas, voy a la fase II, las fichas parten de donde las dejé en la fase 1… y si de la
+//   fase 2 voy a la fase 3 que partan de donde las dejé en la fase 2» (las fases del CAP guardan una copia de cada
+//   ficha y, al pasar a la siguiente, volvían a donde las había puesto la propuesta).
+// Ficha propia que se mueve a mano (no la enemiga de referencia, no la logística: ésas van arriba).
+export const esPropiaMovible = (u) => !!u && typeof u === 'object' && u.id != null && !esEnemiga(u) && u.deFaseEnemiga == null && !esLogistica(u)
+const lugarDe = (u) => [Number(u?.lng), Number(u?.lat)]
+function seMovio(a, b) {
+  const [x1, y1] = lugarDe(a)
+  const [x2, y2] = lugarDe(b)
+  if (!Number.isFinite(x2) || !Number.isFinite(y2)) return false
+  if (!Number.isFinite(x1) || !Number.isFinite(y1)) return true
+  return Math.abs(x1 - x2) > 1e-7 || Math.abs(y1 - y2) > 1e-7
+}
+// La ficha que se movió en la fase activa queda «a mano» en esa fase (`aMano`: sus id) y su lugar pasa a las fases que
+// siguen. Una fase donde esa ficha ya está puesta a mano se queda con lo suyo, y las que siguen a ésa ya partían de
+// ella: ahí se corta. Las fases de antes no se tocan.
+export function fichasHaciaAdelante(lst, idx, antes, ahora) {
+  const viejas = new Map(lista(antes?.unidades).filter(esPropiaMovible).map((u) => [String(u.id), u]))
+  const movidas = lista(ahora?.unidades).filter((u) => esPropiaMovible(u) && viejas.has(String(u.id)) && seMovio(viejas.get(String(u.id)), u))
+  if (!movidas.length) return lst
+  const out = lst.slice()
+  const nuevo = new Map(movidas.map((u) => [String(u.id), u]))
+  out[idx] = { ...out[idx], aMano: [...new Set([...lista(out[idx]?.aMano).map(String), ...nuevo.keys()])] }
+  const vivas = new Set(nuevo.keys())
+  for (let j = idx + 1; j < out.length && vivas.size; j++) {
+    const f = out[j]
+    if (!f || typeof f !== 'object') continue
+    const suyas = new Set(lista(f.aMano).map(String))
+    for (const id of [...vivas]) if (suyas.has(id)) vivas.delete(id)
+    let cambio = false
+    const us = lista(f.unidades).map((u) => {
+      const id = u?.id != null ? String(u.id) : null
+      if (!id || !vivas.has(id) || !esPropiaMovible(u)) return u
+      const m = nuevo.get(id)
+      if (!seMovio(u, m)) return u
+      cambio = true
+      return { ...u, lng: m.lng, lat: m.lat }
+    })
+    if (cambio) out[j] = { ...f, unidades: us }
+  }
+  return out
+}
+
 // ─── Lo que llama la Mesa ────────────────────────────────────────────────────────────────────────────────────────
 // `fo` (guardar la fase activa): antes = las fases antes de guardar; despues = con la fase activa ya guardada (lo que
 // está a la vista); activa = { bando, idx } o null; unidades / ops = lo que está a la vista.
@@ -262,6 +306,7 @@ export function alGuardar(antes, despues, { activa = null, unidades = [], ops = 
       const viejo = faseConLids(antes?.[activa.bando]?.[activa.idx])
       const ahora = fc[activa.bando][activa.idx]
       fc = { ...fc, [activa.bando]: propagar(fc[activa.bando], activa.idx, viejo, ahora, areas) }
+      if (activa.bando === 'propio') fc = { ...fc, propio: fichasHaciaAdelante(fc.propio, activa.idx, viejo, ahora) }
     }
     for (const b of ['propio', 'enemigo']) {
       if (!Array.isArray(fc[b])) continue
@@ -314,4 +359,4 @@ export function alCargar(guardadas, antes, { activa = null, unidades = [], ops =
   }
 }
 
-if (typeof window !== 'undefined') window.SIDFasesLog = { alGuardar, alCargar, globalesDe, VERSION }
+if (typeof window !== 'undefined') window.SIDFasesLog = { alGuardar, alCargar, globalesDe, fichasHaciaAdelante, VERSION }
