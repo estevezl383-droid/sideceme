@@ -223,8 +223,15 @@ export function flujoNormal(f) {
     // disgregarla en piezas genéricas.
     puras: v.puras === true,
     reserva: { piezas: Array.isArray(r.piezas) ? r.piezas.filter((p) => p && p.id != null) : [], pos: Array.isArray(r.pos) && r.pos.length === 2 ? r.pos : null, agId: r.agId || null },
+    // 12-11-2026 (Sergio: «al final quiénes se convierten en reserva, quiénes son operaciones de sostenimiento y
+    // quiénes apoyo de fuegos»): las otras dos bolsas del final, como la reserva.
+    sost: { piezas: piezasDeBolsa(v.sost) },
+    fuegos: { piezas: piezasDeBolsa(v.fuegos) },
   }
 }
+const piezasDeBolsa = (b) => (b && typeof b === 'object' && Array.isArray(b.piezas) ? b.piezas.filter((p) => p && p.id != null) : [])
+// Las bolsas del final de la F3·P3 (además de las tareas): la reserva, el sostenimiento y el apoyo de fuegos.
+const BOLSAS = ['reserva', 'sost', 'fuegos']
 export const oiDe = (t) => (t && t.oi && typeof t.oi === 'object' ? t.oi : {})
 export const nuevoId = (pre = 'oi') => `${pre}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
@@ -233,7 +240,8 @@ export const nuevoId = (pre = 'oi') => `${pre}-${Date.now().toString(36)}${Math.
 // las OC); después las que faltan designar, en el orden en que se pusieron. `n` es el número
 // de la tarea en ese orden de colocación (T1, T2…), para nombrarla antes de designarla.
 export function tareasDeLaOrganizacion(ops) {
-  const lista = (ops?.tareas || []).map((t, i) => ({ t, i })).filter(({ t }) => t?.centro && oiDe(t).operacion !== FUERA && oiDe(t).operacion !== 'reserva')
+  // (las tareas de UNA fase que puso la IA —`capIA`— no son de la F3·P3: 12-11-2026)
+  const lista = (ops?.tareas || []).map((t, i) => ({ t, i })).filter(({ t }) => t?.centro && !t.capIA && oiDe(t).operacion !== FUERA && oiDe(t).operacion !== 'reserva')
   lista.forEach((x, k) => (x.n = k + 1))
   return lista.sort((a, b) => ordenOp(oiDe(a.t).operacion) - ordenOp(oiDe(b.t).operacion) || a.i - b.i)
 }
@@ -306,6 +314,8 @@ export function balance({ ops, g3, unidades }, simb) {
     return { t, i, n, oi, op, designada: !!designada, prop, propSugerida: sug, enemigo, requeridas: req, piezas: asignadas, dispuestas: disp, falta: Math.max(0, req - disp), sobra: Math.max(0, disp - req), nivel }
   })
   const reserva = vigentes(flujo.reserva.piezas)
+  const sost = vigentes(flujo.sost?.piezas)
+  const fuegos = vigentes(flujo.fuegos?.piezas)
   const libres = piezas.filter((p) => !usadas.has(p.id))
   const totalManiobra = piezas.reduce((s, p) => s + pesoPieza(p, G), 0)
   const totalRequerido = tareas.reduce((s, x) => s + x.requeridas, 0)
@@ -318,6 +328,8 @@ export function balance({ ops, g3, unidades }, simb) {
     piezas,
     tareas,
     reserva,
+    sost,
+    fuegos,
     libres,
     libresManiobra,
     perdidas,
@@ -369,9 +381,8 @@ export function moverPieza({ ops, flujo }, pieza, destino) {
     if (destino === oi.id) piezas = [...piezas, pieza]
     return piezas.length === (oi.piezas || []).length && destino !== oi.id ? t : { ...t, oi: { ...oi, piezas } }
   })
-  let res = sin(f.reserva.piezas)
-  if (destino === 'reserva') res = [...res, pieza]
-  return { ops: { ...ops, tareas }, flujo: { ...f, reserva: { ...f.reserva, piezas: res } } }
+  const bolsa = (k) => (destino === k ? [...sin(f[k]?.piezas), pieza] : sin(f[k]?.piezas))
+  return { ops: { ...ops, tareas }, flujo: { ...f, reserva: { ...f.reserva, piezas: bolsa('reserva') }, sost: { piezas: bolsa('sost') }, fuegos: { piezas: bolsa('fuegos') } } }
 }
 
 // ─── Textos ──────────────────────────────────────────────────────────────────────────
@@ -454,6 +465,16 @@ export function filasCuadro({ ops, g3, unidades }, simb) {
       'Relación de comando': 'Orgánica',
     })
   }
+  for (const [k, op, tarea] of [['sost', 'SOST — Operación de sostenimiento', 'Sostener la operación (abastecimiento, sanidad, mantenimiento, tránsito).'], ['fuegos', 'AP. FUEGOS — Apoyo de fuegos', 'Apoyar con sus fuegos a la OD y a las OC (lo dispara la artillería).']])
+    if ((b[k] || []).length)
+      filas.push({
+        Operación: op,
+        'Agrupación / unidad genérica': b.flujo.puras ? nombresDeFuerza(b[k], unidades, simb).join(' + ') : resumenPiezas(b[k], G, simb).join(', '),
+        'Tarea que cumple': tarea,
+        'Enemigo en su sector': '—',
+        'Proporción requerida frente al enemigo en su sector': '—',
+        'Relación de comando': 'Orgánica',
+      })
   const bajo = bajoControl(b, unidades, simb)
   if (bajo.length)
     filas.push({
@@ -692,7 +713,7 @@ export function piezaParaQuitar(x, simbolo) {
 export function unidadesPuras(bal, unidades, simb) {
   const lugar = new Map()
   for (const x of bal.tareas) for (const p of x.piezas) lugar.set(p.id, x.oi.id)
-  for (const p of bal.reserva) lugar.set(p.id, 'reserva')
+  for (const k of BOLSAS) for (const p of bal[k] || []) lugar.set(p.id, k)
   const out = []
   for (const u of (unidades || []).filter(esPropia)) {
     const piezas = bal.piezas.filter((p) => p.de === u.id)

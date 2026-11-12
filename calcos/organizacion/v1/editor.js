@@ -159,7 +159,8 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
   // Cada tarea de la carta necesita un id propio para guardar su orientación, sus fuerzas y
   // su operación.
   useEffect(() => {
-    if ((opsT.tareas || []).some((t) => t && t.centro && !oiDe(t).id)) conOcultas((o) => ({ ...o, tareas: (o.tareas || []).map((t) => (t && t.centro && !oiDe(t).id ? { ...t, oi: { ...oiDe(t), id: nuevoId() } } : t)) }))
+    // (las de una fase que puso la IA —`capIA`— no son de la F3·P3: no reciben id; 12-11-2026)
+    if ((opsT.tareas || []).some((t) => t && t.centro && !t.capIA && !oiDe(t).id)) conOcultas((o) => ({ ...o, tareas: (o.tareas || []).map((t) => (t && t.centro && !t.capIA && !oiDe(t).id ? { ...t, oi: { ...oiDe(t), id: nuevoId() } } : t)) }))
   }, [opsT.tareas])
 
   const aviso = (tipo, txt) => setMsg({ tipo, txt })
@@ -293,7 +294,7 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
   const ponerUnidad = (pu, destino) => {
     const toda = (pu.donde[destino] || 0) === pu.piezas.length
     moverVarias(pu.piezas, toda ? null : destino)
-    if (!toda) aviso('ok', `🪖 ${pu.nombre} entera ${destino === 'reserva' ? 'a la reserva' : `cumple la ${bal.tareas.find((y) => y.oi.id === destino)?.op.corto || 'tarea'}`}. Tocala de nuevo para sacarla.`)
+    if (!toda) aviso('ok', `🪖 ${pu.nombre} entera ${destino === 'reserva' ? 'a la reserva' : destino === 'sost' ? 'al sostenimiento (SOST)' : destino === 'fuegos' ? 'al apoyo de fuegos' : `cumple la ${bal.tareas.find((y) => y.oi.id === destino)?.op.corto || 'tarea'}`}. Tocala de nuevo para sacarla.`)
   }
   const setPuras = (v) => setFlujo((f) => ({ ...f, puras: v }))
   const repartirPuras = () => {
@@ -497,12 +498,17 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
     h('button', { key: 'nada', onClick: () => designar(x.oi.id, ''), style: { ...E.chip, ...(!x.designada ? { background: 'rgba(255,255,255,0.18)' } : {}) }, title: 'Sin designar todavía' }, '—'),
   ]
   // Unidades PURAS: la lista de mis unidades; tocar una la pone ENTERA en esta tarea.
-  const dondeEsta = (k) => (k === 'reserva' ? RESERVA.corto : bal.tareas.find((y) => y.oi.id === k)?.op.corto || '?')
-  const elegirUnidades = (destino) =>
-    h(
+  const dondeEsta = (k) => (k === 'reserva' ? RESERVA.corto : k === 'sost' ? 'SOST' : k === 'fuegos' ? 'AP. FUEGOS' : bal.tareas.find((y) => y.oi.id === k)?.op.corto || '?')
+  // 12-11-2026 (Sergio: «si ya le di la tarea a la DIV-4, ya no debería estar disponible otra vez»): en cada tarea se
+  // ofrecen sólo las unidades LIBRES y la que ya la cumple; las que ya tienen otra tarea se nombran abajo, en gris.
+  const ocupadaEn = (pu, destino) => Object.keys(pu.donde).filter((k) => k !== destino && k !== 'libre')
+  const elegirUnidades = (destino) => {
+    const ofrecer = listaPuras.filter((pu) => (pu.donde[destino] || 0) > 0 || (pu.donde.libre || 0) > 0)
+    const ocupadas = listaPuras.filter((pu) => !ofrecer.includes(pu))
+    return h(
       'div',
       { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-      ...listaPuras.map((pu) => {
+      ...ofrecer.map((pu) => {
         const aca = pu.donde[destino] || 0
         const toda = aca === pu.piezas.length
         const otros = Object.keys(pu.donde).filter((k) => k !== destino && k !== 'libre')
@@ -515,8 +521,42 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
           h('span', { style: { fontSize: 10.5, color: toda ? VERDE : aca ? '#ffb35c' : '#8fa2bd' } }, toda ? '✓ esta tarea' : aca ? `parte acá (${aca}/${pu.piezas.length})` : otros.length ? `en ${otros.map(dondeEsta).join(', ')}` : 'libre'),
         )
       }),
+      ocupadas.length > 0 && h('div', { className: 'oi-ocupadas', style: { fontSize: 10.5, color: '#8fa2bd', lineHeight: 1.4, padding: '2px 4px' } }, `Ya tienen tarea (no se ofrecen; para cambiarla, sacala de allá): ${ocupadas.map((pu) => `${pu.nombre} (${ocupadaEn(pu, destino).map(dondeEsta).join(', ')})`).join(' · ')}`),
       !listaPuras.length && h('div', { style: E.aviso }, 'No hay unidades propias en el calco.'),
     )
+  }
+  // 🪖 Al final, las unidades que no tienen tarea: reserva, sostenimiento (SOST) o apoyo de fuegos (Sergio, 12-11-2026:
+  // «quiénes se convierten en reserva, quiénes son operaciones de sostenimiento y quiénes apoyo de fuegos»).
+  const FINALES = [
+    { id: 'reserva', corto: 'RES', nom: 'Reserva', color: RESERVA.color },
+    { id: 'sost', corto: 'SOST', nom: 'Sostenimiento', color: '#7dffb0' },
+    { id: 'fuegos', corto: 'AP. FUEGOS', nom: 'Apoyo de fuegos', color: '#ffb35c' },
+  ]
+  const sinTarea = (pu) => Object.keys(pu.donde).every((k) => k === 'libre' || FINALES.some((f) => f.id === k))
+  const tarjetaFinales = () => {
+    const restantes = listaPuras.filter(sinTarea)
+    const en = (f) => restantes.filter((pu) => (pu.donde[f.id] || 0) > 0)
+    return h(
+      'div',
+      { key: 'reserva', style: { ...E.tarjeta, borderColor: `${RESERVA.color}88` }, className: 'oi-fuerzas oi-finales', 'data-op': 'reserva' },
+      h('div', { style: E.fila }, h('span', { style: { ...E.chip, background: RESERVA.color, color: '#10202a', cursor: 'default' } }, 'AL FINAL'), h('b', null, 'Las unidades sin tarea: ¿reserva, sostenimiento o apoyo de fuegos?')),
+      h('div', { style: E.ayuda }, 'Tocá lo que es cada una (tocá otra vez para dejarla libre). Así queda organizado todo: con tarea (OD / OC), RES, SOST o AP. FUEGOS.'),
+      ...restantes.map((pu) =>
+        h(
+          'div',
+          { key: pu.u.id, className: 'oi-pura oi-final', style: { ...E.tipo, color: '#e6eef6', flexWrap: 'wrap' } },
+          svg(svgPieza(pu.simbolo, 28, '#0e1320'), E.simbolo),
+          h('b', { style: { flex: 1, fontSize: 11.5, minWidth: 110 } }, pu.nombre),
+          ...FINALES.map((f) => {
+            const on = (pu.donde[f.id] || 0) === pu.piezas.length
+            return h('button', { key: f.id, 'data-final': f.id, 'aria-pressed': on ? 'true' : 'false', onClick: () => ponerUnidad(pu, f.id), title: on ? `Sacarla de ${f.nom.toLowerCase()}` : `${pu.nombre}: ${f.nom.toLowerCase()}`, style: { ...E.chip, ...(on ? { background: f.color, color: '#10202a', borderColor: f.color } : {}) } }, `${on ? '✓ ' : ''}${f.corto}`)
+          }),
+        ),
+      ),
+      !restantes.length && h('div', { style: E.ayuda }, 'Todas las unidades tienen tarea.'),
+      restantes.length > 0 && h('div', { className: 'oi-finales-resumen', style: { ...E.ayuda, color: '#cfe0f5' } }, FINALES.map((f) => `${f.corto}: ${en(f).map((pu) => pu.nombre).join(', ') || '—'}`).join(' · ') + (restantes.some((pu) => (pu.donde.libre || 0) > 0) ? ` · sin decidir: ${restantes.filter((pu) => (pu.donde.libre || 0) > 0).map((pu) => pu.nombre).join(', ')}` : '')),
+    )
+  }
   const filaTipo = (destino, x, tp) => {
     const dentro = (x ? x.piezas : bal.reserva).filter((p) => p.simbolo === tp.simbolo).length
     if (!dentro && !tp.libres.length) return null
@@ -665,7 +705,8 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
     bal.tareas.length > 0 && h('div', { style: E.fila }, h('b', null, `Disponibles: ${genericas(bal.totalManiobra, bal.G)} de maniobra`), h('span', null, `· requeridas: ${n1(bal.totalRequerido)}`), bal.deficiencia > 0 ? h('span', { style: E.falta }, `· FALTAN ${n1(bal.deficiencia)}`) : h('span', { style: E.ok }, `· sobran ${n1(bal.sobrante)}`)),
     bal.tareas.length > 0 && h('div', { style: E.fila }, h('button', { style: E.btnPrin, onClick: puras ? repartirPuras : repartir }, puras ? '⚡ Proponer: una unidad entera por tarea' : '⚡ Proponer el reparto de la maniobra'), h('button', { style: E.btn, onClick: vaciar }, '🧹 Vaciar el reparto')),
     ...porOrden.map(tarjetaFuerzas),
-    bal.tareas.length > 0 &&
+    bal.tareas.length > 0 && puras && tarjetaFinales(),
+    bal.tareas.length > 0 && !puras &&
       h(
         'div',
         { key: 'reserva', style: { ...E.tarjeta, borderColor: `${RESERVA.color}88` }, className: 'oi-fuerzas', 'data-op': 'reserva' },
