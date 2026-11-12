@@ -14,6 +14,15 @@
 //     pruebas) y que desarrolle el CAP activo;
 //   · guarda el CAP que no se está trabajando (`cambiarCAP`): sus fases 🔵, su F3·P4 y su F3·P6 van a g3._caps y
 //     vuelven al elegirlo. Todo lo demás de la Mesa (documentos, Word, Juego de Guerra) sigue viendo «el» CAP activo.
+//
+// 12-11-2026 (Sergio, armando el CAP 2): «mi FASE III es la que yo armé… no me la debería haber movido; separá lo que
+// genera la Mesa de lo que concibo yo». Si la F3·P3 del CAP tiene la OD con su unidad, los papeles salen de AHÍ (la OD, cada
+// OC, el SOST, la reserva y el apoyo de fuegos que eligió el oficial: `organizacionDeF3P3`), no del análisis de la Mesa;
+// la FASE III es su dispositivo y las demás fases se calculan alrededor (posiciones.mjs).
+import { tareasDeLaCarta, duenoDeTarea, claveTarea, deFase } from './tareas-fase.mjs?v=iti20261025'
+// Sólo las unidades del mando propio (lo que depende del CE), como la F3·P3 (organizacion/v1/mando.js, sin versión: la
+// misma dirección que usa la hoja).
+import { delMando } from '../../organizacion/v1/mando.js'
 
 const sinTildes = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
 const norm = (s) => sinTildes(s).toLowerCase()
@@ -167,6 +176,16 @@ export function analizar({ unidades = [], ops = {}, cmoc = {}, ordenSup = {}, un
     para,
     aoNom,
     nObstaculos: (ops?.obstaculos || []).length,
+    // La reserva que marcó el oficial en la F3·P4 («RES · DIV-6»): la de la F3·P3 si allá no eligió ninguna.
+    reservaMarcada: resMarca,
+    // La F3·P3 del oficial (de este CAP): si tiene la OD con su unidad, manda (12-11-2026).
+    org: (() => {
+      try {
+        return organizacionDeF3P3({ ops, g3, unidades: us, propia: nombrePropio })
+      } catch {
+        return null
+      }
+    })(),
   }
 }
 
@@ -179,9 +198,137 @@ export function formasPorDefecto(A) {
   return [primera, otra]
 }
 
+// ─── 🪖 La F3·P3 del oficial (12-11-2026) ─────────────────────────────────────────────────────────────────────
+// Lo que diseñó el oficial en la F3·P3 de ESTE CAP: cada tarea táctica con su OD / OC / SOST y la unidad que la cumple, y
+// las unidades que puso al final como reserva, sostenimiento (SOST) o apoyo de fuegos (organizacion/v1: el flujo
+// g3.organizacionInicial con `reserva`, `sost` y `fuegos`). Si tiene la OD con su unidad, los papeles salen de acá.
+const OPS_F3P3 = ['od', 'oc1', 'oc2', 'oc3', 'oc4', 'oc5', 'sost']
+const CORTO_OP = { od: 'OD', oc1: 'OC 1', oc2: 'OC 2', oc3: 'OC 3', oc4: 'OC 4', oc5: 'OC 5', sost: 'SOST' }
+const TAREA_NOM = { atacar_fuego: 'Atacar con fuego', seguir_asumir: 'Seguir y asumir', seguir_apoyar: 'Seguir y apoyar' }
+export const nombreTarea = (id) => TAREA_NOM[id] || String(id || 'tarea').replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
+export function organizacionDeF3P3({ ops = {}, g3 = {}, unidades = [], propia = '' } = {}) {
+  const fl = g3?.organizacionInicial || {}
+  let enMando = unidades || []
+  try {
+    enMando = delMando(enMando, String(propia || '')).unidades || enMando
+  } catch {}
+  const propias = enMando.filter((u) => u && esUnidad(u) && !esEnemiga(u) && !/^rojo/i.test(String(u.bando || '')) && u.deFaseEnemiga == null)
+  const porId = new Map(propias.filter((u) => !u.esAgrupacion).map((u) => [String(u.id), u]))
+  const deLasPiezas = (ps) => {
+    const out = []
+    for (const p of ps || []) {
+      const u = porId.get(String(p?.de))
+      if (u && !out.includes(u)) out.push(u)
+    }
+    return out
+  }
+  const tareas = []
+  tareasDelCAP(ops)
+    .filter((t) => t?.centro && t?.oi?.operacion !== 'fuera' && t?.oi?.operacion !== 'reserva')
+    .forEach((t, i) => {
+      const op = t?.oi?.operacion
+      if (!OPS_F3P3.includes(op)) return
+      const us = deLasPiezas(t.oi.piezas)
+      const u = duenoDeTarea(t, propias) || us[0] || null
+      tareas.push({ op, corto: CORTO_OP[op], n: i + 1, t, u, us: us.length ? us : u ? [u] : [] })
+    })
+  tareas.sort((a, b) => OPS_F3P3.indexOf(a.op) - OPS_F3P3.indexOf(b.op) || a.n - b.n)
+  const conTarea = new Set(tareas.flatMap((x) => x.us))
+  const bolsa = (k) => deLasPiezas(fl?.[k]?.piezas).filter((u) => !conTarea.has(u))
+  return { tareas, od: tareas.find((x) => x.op === 'od' && x.u) || null, reserva: bolsa('reserva'), sost: bolsa('sost'), fuegos: bolsa('fuegos') }
+}
+// Los papeles de un CAP con la F3·P3 del oficial: la OD (★), cada OC y SOST con SU tarea (la FASE III es ésa, donde él la
+// puso), la reserva, el sostenimiento y el apoyo de fuegos que eligió. Lo que no repartió (la artillería si no eligió
+// apoyo de fuegos, los ingenieros) lo pone la Mesa como siempre.
+function rolesDeF3P3(forma, A) {
+  const O = A.org
+  const ofe = A.tipo === 'ofensiva'
+  const R = []
+  const odNom = O.od ? `${O.od.corto} (${lista(O.od.us.map(nom))})` : 'la OD'
+  for (const x of O.tareas) {
+    if (!x.u) continue
+    const T = nombreTarea(x.t.tarea)
+    const texto = String(x.t.oi?.texto || '').trim()
+    const esOD = x.op === 'od'
+    const esSost = x.op === 'sost'
+    const rol = esOD ? 'Operación decisiva (OD)' : esSost ? 'Operación de sostenimiento (SOST)' : `Operación de configuración ${x.op.slice(2)} (${x.corto})`
+    const fases = esSost
+      ? ['Concentrarse con el grueso', 'Desplazarse a su zona', `${T} (T${x.n}, tu F3·P3)`, 'Sostener la operación', 'Sostener la reorganización']
+      : ofe
+        ? ['Concentrarse en la zona de reunión', 'Desplazarse a la base de partida', `${T} (T${x.n}, tu F3·P3)`, 'Explotar en profundidad', 'Consolidar sobre el objetivo']
+        : ['Concentrarse en su zona de reunión', 'Desplazarse a su sector', `Ocupar su puesto: ${T} (T${x.n}, tu F3·P3)`, `${T} (T${x.n})`, 'Consolidar su sector']
+    const tareasFase = esSost ? null : esOD ? [null, null, null, ofe ? ['destruir', 'conquistar'] : ['destruir', 'bloquear'], ofe ? ['asegurar', 'mantener'] : ['mantener', 'asegurar']] : [null, null, null, ['fijar', 'contener'], ['mantener', 'asegurar']]
+    R.push({
+      unidades: x.us.length ? x.us : [x.u],
+      rol,
+      tarea: `${T} (T${x.n})${texto ? ` — T: ${texto}` : ''}`,
+      proposito: esOD ? 'el esfuerzo principal: cumple directamente la misión' : esSost ? 'para sostener la operación' : `para crear las condiciones para que la ${odNom} tenga éxito`,
+      ...(esOD ? { principal: true } : {}),
+      fases,
+      ...(tareasFase ? { tareasFase } : {}),
+      deF3P3: true,
+      op: x.op,
+      t: { centro: x.t.centro, tarea: x.t.tarea },
+    })
+  }
+  // La reserva: la que eligió al final de la F3·P3; si no eligió, la que marcó en la F3·P4 («RES · …») si no tiene tarea.
+  const conTarea = new Set(O.tareas.flatMap((x) => [x.u, ...x.us]).filter(Boolean))
+  const reserva = O.reserva.length ? O.reserva : A.reservaMarcada && !conTarea.has(A.reservaMarcada) && !O.sost.includes(A.reservaMarcada) && !O.fuegos.includes(A.reservaMarcada) ? [A.reservaMarcada] : []
+  if (reserva.length)
+    R.push(ofe
+      ? { unidades: reserva, rol: 'Reserva', tarea: 'Reserva: explotar el éxito de la OD', proposito: 'para explotar la brecha o rechazar un contraataque', fases: ['Concentrarse en la zona de reunión', 'Seguir a la OD', 'Lista para empeñarse', 'Explotar el éxito', 'Consolidar'], tareasFase: [null, null, null, ['seguir_asumir', 'seguir_apoyar'], null], deF3P3: true, op: 'reserva' }
+      : { unidades: reserva, rol: 'Reserva', tarea: `Reserva: contraatacar en apoyo de la ${odNom}`, proposito: 'para restablecer la posición si el enemigo la penetra', fases: ['Concentrarse en su zona de reunión', 'Desplazarse a su zona de reunión de reserva', 'Reconocer los ejes de contraataque', 'Lista para empeñarse (punto de decisión)', 'Contraatacar y restablecer la posición'], tareasFase: [null, null, null, null, ['destruir', 'derrotar']], deF3P3: true, op: 'reserva' })
+  if (O.sost.length) R.push({ unidades: O.sost, rol: 'Sostenimiento (SOST)', tarea: 'Sostener la operación (abastecimiento, sanidad, mantenimiento, tránsito)', proposito: 'para que las operaciones no se detengan', fases: ['Concentrarse con el grueso', 'Desplazarse a su zona', 'Instalar el sostenimiento', 'Sostener la operación', 'Sostener la reorganización'], deF3P3: true, op: 'sost' })
+  const usadas = new Set(R.flatMap((r) => r.unidades))
+  const art = O.fuegos.length ? O.fuegos : A.apoyo.filter((u) => ['artilleria', 'lanzacohetes', 'morteros'].includes(u.arma) && !usadas.has(u))
+  if (art.length) R.push({ unidades: art, rol: 'Apoyo de fuegos', tarea: `Prioridad de fuegos a la ${odNom}`, proposito: 'para batir al enemigo donde se lo quiere detener', fases: ['Concentrarse con el grueso', 'Ocupar posiciones de tiro', 'Registrar los fuegos sobre los obstáculos', `Fuegos en apoyo de la ${odNom}`, 'Fuegos en apoyo de la reserva'], deF3P3: true, op: 'fuegos' })
+  const ing = A.apoyo.filter((u) => u.arma === 'ingenieria' && !usadas.has(u) && !art.includes(u))
+  if (ing.length) R.push({ unidades: ing, rol: 'Ingenieros', tarea: `Plan de barreras con prioridad en el sector de la ${odNom}`, proposito: 'para canalizar y retardar al enemigo donde lo baten los fuegos', fases: ['Concentrarse con el grueso', 'Reconocer los sitios de obstáculos', 'Construir el plan de barreras', 'Mantener la movilidad de la reserva', 'Abrir pasos para el contraataque'], deF3P3: true, op: 'ing' })
+  const ocs = O.tareas.filter((x) => x.u && x.op !== 'od')
+  const distingue = `TU F3·P3 es la FASE III: la ${odNom} ${O.od ? nombreTarea(O.od.t.tarea).toLowerCase() : ''}${ocs.length ? `, ${lista(ocs.map((x) => `la ${x.corto} (${lista(x.us.map(nom))})`))}` : ''}${reserva.length ? ` y ${lista(reserva.map(nom))} de reserva` : ''}, cada una en su tarea; las demás fases salen de ahí`
+  return { R, av: A.avenidas[0] || null, distingue }
+}
+// Las cinco fases cuando manda la F3·P3: la III es el dispositivo del oficial.
+function fasesDeF3P3(fs, A, forma, R = []) {
+  const O = A.org
+  const res = R.find((r) => r.op === 'reserva')?.unidades || O.reserva
+  const ops = O.tareas.filter((x) => x.u).map((x) => `${x.corto} ${lista(x.us.map(nom))}: ${nombreTarea(x.t.tarea).toLowerCase()}`)
+  const out = fs.map((f) => ({ ...f }))
+  if (out[2]) out[2] = { ...out[2], nombre: A.tipo === 'ofensiva' ? 'Ataque (tu F3·P3)' : 'Ocupación y organización (tu F3·P3)', tarea: `Cada unidad en SU tarea de la F3·P3, donde la concebiste: ${ops.join('; ')}`, proposito: 'el dispositivo que concibió el oficial' }
+  if (A.tipo !== 'ofensiva' && out[3] && forma === 'movil') out[3] = { ...out[3], tarea: 'Cada operación cumple su tarea de la F3·P3; la reserva, lista en el punto de decisión' }
+  if (A.tipo !== 'ofensiva' && out[4]) out[4] = { ...out[4], tarea: `${res.length ? `La reserva (${lista(res.map(nom))}) contraataca` : 'Contraatacar'} donde haga falta; consolidar y reorganizar` }
+  return out
+}
+// 🪖 La F3·P5 (asignación de comandos) desde la F3·P3: una fila por agrupación con su comandante. Sergio: «solo debería ser
+// escribir un nombre o dejarlo por defecto en comandante». Lo que el oficial ya escribió como comandante se conserva.
+const articulo = (s) => (/^(DIV|BRIG|CIA|AGRUP|FUERZA|SECC|COMPA|UNIDAD|AGR)/i.test(sinTildes(s).trim()) ? 'de la' : 'del')
+export const comandanteDe = (s) => `Comandante ${articulo(s)} ${s}`
+export function filasComandos({ ops = {}, g3 = {}, unidades = [], propia = '' } = {}) {
+  const O = organizacionDeF3P3({ ops, g3, unidades, propia })
+  const antes = Array.isArray(g3?.comandos) ? g3.comandos : []
+  const clave = (s) => norm(String(s || '').replace(/\[[^\]]*verificar\]/gi, '')).replace(/[^a-z0-9]+/g, '')
+  const escrito = (f) => {
+    const c = String(f?.['Comandante designado'] || '').trim()
+    return c && !/verificar\]/i.test(c) && !/^comandante (de la|del) /i.test(c) ? c : ''
+  }
+  const fila = (agr, us, obs = '') => {
+    const nombres = us.map(nom)
+    const ya = antes.find((f) => clave(f?.['Unidades que la componen']) === clave(nombres.join(' + ')))
+    return { 'Agrupación táctica': agr, 'Comandante designado': (ya && escrito(ya)) || comandanteDe(nombres[0] || 'la agrupación'), 'Unidades que la componen': nombres.join(' + '), Observaciones: obs }
+  }
+  const filas = []
+  for (const x of O.tareas) if (x.us.length) filas.push(fila(`${x.corto} — ${nombreTarea(x.t.tarea)} (T${x.n})`, x.us, String(x.t.oi?.texto || '').trim() ? `T: ${String(x.t.oi.texto).trim()}` : ''))
+  if (O.reserva.length) filas.push(fila('RES — Reserva', O.reserva))
+  if (O.sost.length) filas.push(fila('SOST — Sostenimiento', O.sost))
+  if (O.fuegos.length) filas.push(fila('AP. FUEGOS — Apoyo de fuegos', O.fuegos))
+  return filas
+}
+
 // ─── Cada forma: quién hace qué y las cinco fases ───────────────────────────────────────────────────────────
 // Un rol: { unidades, rol, tarea, proposito, fases: [qué hace en cada una de las cinco fases] }.
 function roles(forma, A) {
+  // 12-11-2026: si la F3·P3 del CAP tiene la OD con su unidad, manda la F3·P3 (no el análisis de la Mesa).
+  if (A.org?.od?.u) return rolesDeF3P3(forma, A)
   const av1 = A.avenidas[0] || null
   const av2 = A.avenidas[1] || null
   const avNom = (av) => (av ? av.nombre : 'la avenida principal')
@@ -284,7 +431,9 @@ const QUE = { defensiva: 'Defiende', ofensiva: 'Ataca', retrograda: 'Ejecuta una
 export function armarCAP(n, formaId, A) {
   const F = formaDe(formaId) || FORMAS[A.tipo][0]
   const { R, av, distingue } = roles(F.id, A)
-  const fases = FASES[A.tipo](A, F.id).map((f, i) => ({
+  const deF3P3 = !!A.org?.od?.u
+  const base = deF3P3 ? fasesDeF3P3(FASES[A.tipo](A, F.id), A, F.id, R) : FASES[A.tipo](A, F.id)
+  const fases = base.map((f, i) => ({
     ...f,
     porUnidad: Object.fromEntries(R.flatMap((r) => r.unidades.map((u) => [u.id, { tarea: r.fases[i] || r.tarea, proposito: i === 3 || i === 4 ? r.proposito : '' }]))),
   }))
@@ -301,9 +450,9 @@ export function armarCAP(n, formaId, A) {
     'CÓMO (forma de maniobra)': `${F.larga}. ${como}`,
     'Enunciado completo del curso de acción': `${A.propia} ${QUE[A.tipo].toLowerCase()} ${dondeAO} a partir del ${A.horaD} mediante una ${F.larga.toLowerCase()}: ${R.map((r) => `${lista(r.unidades.map(nom))} (${r.rol.toLowerCase()})`).join(', ')}${A.para ? `, para ${A.para.trim()}` : ''}.`,
     'Razón fundamental (por qué este CAP)': RAZON[F.id](A, av),
-    'Bosquejo: qué muestra el calco': `En la carta se tiene que ver: ${distingue}. Cinco fases 🔵 (${FASES[A.tipo](A, F.id).map((f) => f.nombre).join(' · ')}).`,
+    'Bosquejo: qué muestra el calco': `En la carta se tiene que ver: ${distingue}. Cinco fases 🔵 (${base.map((f) => f.nombre).join(' · ')}).`,
   }
-  return { n, forma: F.id, nomForma: F.larga, nombre, roles: R.map((r) => ({ ...r, unidades: r.unidades.map((u) => ({ id: u.id, nom: nom(u) })) })), fases, campos, distingue }
+  return { n, forma: F.id, nomForma: F.larga, nombre, roles: R.map((r) => ({ ...r, unidades: r.unidades.map((u) => ({ id: u.id, nom: nom(u) })) })), fases, campos, distingue, deF3P3 }
 }
 
 // Los dos CAP para este ejercicio. `formas`: las elegidas (g3._caps.formas); si falta, las de `formasPorDefecto`.
@@ -314,7 +463,20 @@ export function proponer(ctx = {}, formas = {}) {
   const f1 = ok(formas[1]) ? formas[1] : def[0]
   let f2 = ok(formas[2]) ? formas[2] : def[1]
   if (f2 === f1) f2 = FORMAS[A.tipo].find((f) => f.id !== f1).id
-  const caps = [armarCAP(1, f1, A), armarCAP(2, f2, A)]
+  // Cada CAP con SU F3·P3: la del activo está en la hoja; la del guardado, en lo que se guardó con él.
+  const C = capsDe(ctx.g3)
+  const orgDe = (n) => {
+    if (n === C.activo) return A.org
+    const gu = C.guardados[n]
+    if (!gu || gu.v !== 2) return null
+    try {
+      const ts = tareasDelCAP(gu.vista?.ops)
+      return organizacionDeF3P3({ ops: { tareas: ts.length ? ts : tareasDeSusFases(gu.fases) }, g3: { organizacionInicial: gu.organizacionInicial }, unidades: ctx.unidades || [], propia: A.propia })
+    } catch {
+      return null
+    }
+  }
+  const caps = [armarCAP(1, f1, { ...A, org: orgDe(1) }), armarCAP(2, f2, { ...A, org: orgDe(2) })]
   const avisos = []
   if (!A.maniobra.length) avisos.push('No hay fichas propias de maniobra en la carta: la Mesa no puede decir quién hace qué.')
   if (!A.avenidas.length) avisos.push('No hay avenidas de aproximación en el CMOC: el esfuerzo principal no tiene dónde ir.')
@@ -367,8 +529,42 @@ export const HOJAS_CAP_V2 = ['organizacion', 'organizacionInicial', 'comandos', 
 export const CLAVES_G3_CAP = [...HOJAS_POR_CAP, ...HOJAS_CAP_V2]
 // Lo del calco que es de cada CAP (lo que se ve cuando no hay una fase a la vista): las tareas tácticas de la F3·P3, la
 // barrera de obstáculos y las posiciones defensivas. El plan de fuegos y dónde está cada ficha propia, también.
-export const CLAVES_OPS_CAP = ['tareas', 'obstaculos', 'posDef']
+// 12-11-2026: también `tareasOcultas` (las tareas que una fase guarda aparte porque su unidad todavía no llegó). No
+// estaba: al generar el CAP 2 con una fase del CAP 1 a la vista, sus tareas ocultas se quedaron en la carta y el CAP 2
+// «empezó de cero» con las 8 tareas del CAP 1 (Sergio: «aparecen las tareas tácticas que había hecho en el CAP 1»).
+export const CLAVES_OPS_CAP = ['tareas', 'obstaculos', 'posDef', 'tareasOcultas']
 const conAlgo = (v) => v != null && Object.keys(v).length > 0
+// Las tareas de la carta de un CAP, TODAS a la vista (las que una fase guardaba aparte también), sin repetir y sin las de
+// una sola fase (las de la IA): así se guardan con el CAP y así vuelven.
+export function tareasDelCAP(ops = {}) {
+  const vistas = new Set()
+  const out = []
+  for (const t of [...(ops?.tareas || []), ...(ops?.tareasOcultas || [])]) {
+    if (!t || deFase(t)) continue
+    const k = claveTarea(t)
+    if (vistas.has(k)) continue
+    vistas.add(k)
+    out.push(t)
+  }
+  return out
+}
+// ¿El CAP activo tiene tareas del OTRO CAP? Las que se le pasaron al generarlo «desde cero» (antes del 12-11-2026: las
+// tareas ocultas de una fase del CAP 1 quedaron en la carta del CAP 2). → { n, otro, tareas, ids } o null. Una vez que el
+// oficial decide (sacarlas o dejarlas) no se pregunta más (`_caps.fugaRevisada[n]`).
+export function fugaDelCAP(g3 = {}, ops = {}) {
+  const C = capsDe(g3)
+  const n = C.activo
+  const otro = n === 1 ? 2 : 1
+  const gu = C.guardados[otro]
+  if (!gu || gu.v !== 2 || !g3?._caps?.nuevos?.[n] || g3?._caps?.fugaRevisada?.[n]) return null
+  const delOtro = new Set([...tareasDelCAP(gu.vista?.ops), ...tareasDeSusFases(gu.fases)].map((t) => t?.oi?.id).filter(Boolean))
+  if (!delOtro.size) return null
+  const tareas = tareasDelCAP(ops).filter((t) => t?.oi?.id && delOtro.has(t.oi.id))
+  return tareas.length ? { n, otro, tareas, ids: new Set(tareas.map((t) => t.oi.id)) } : null
+}
+// Las tareas que un CAP guardado tiene en sus fases (la FASE III primero): para devolvérselas a su carta si se guardó
+// sin ellas (antes del 12-11-2026 se guardaba sólo lo que se veía en la fase que estaba a la vista).
+const tareasDeSusFases = (fases = []) => tareasDelCAP({ tareas: [2, 0, 1, 3, 4, 5, 6, 7].flatMap((i) => [...(fases?.[i]?.ops?.tareas || []), ...(fases?.[i]?.ops?.tareasOcultas || [])]) })
 export function cambiarCAP({ fasesCOA = {}, g3 = {} } = {}, n, { vista = null } = {}) {
   const C = capsDe(g3)
   if (n !== 1 && n !== 2) return { fasesCOA, g3, cambio: false }
@@ -387,7 +583,14 @@ export function cambiarCAP({ fasesCOA = {}, g3 = {} } = {}, n, { vista = null } 
   const guardados = { ...C.guardados, [C.activo]: guardar }
   delete guardados[n]
   g._caps = { ...(g3._caps || {}), activo: n, formas: C.formas, guardados }
-  return { fasesCOA: { ...fasesCOA, propio: Array.isArray(traer.fases) ? traer.fases : [] }, g3: g, cambio: true, vista: traer.vista || null }
+  // La carta del CAP que vuelve: si se guardó sin tareas (con una fase a la vista, antes del 12-11-2026), sus tareas
+  // salen de sus fases.
+  let vistaN = traer.vista || null
+  if (vistaN && !tareasDelCAP(vistaN.ops).length) {
+    const ts = tareasDeSusFases(traer.fases)
+    if (ts.length) vistaN = { ...vistaN, ops: { ...(vistaN.ops || {}), tareas: ts, tareasOcultas: [] } }
+  }
+  return { fasesCOA: { ...fasesCOA, propio: Array.isArray(traer.fases) ? traer.fases : [] }, g3: g, cambio: true, vista: vistaN }
 }
 
 // ─── 🔵 El recorrido de cada CAP (11-11-2026) ────────────────────────────────────────────────────────────────
@@ -436,6 +639,9 @@ export function vistaDe(M = {}) {
   const ops = M.ops || {}
   const v = { ops: {}, plan: M.plan ?? null, pos: {} }
   for (const k of CLAVES_OPS_CAP) v.ops[k] = Array.isArray(ops[k]) ? ops[k] : []
+  // Las tareas del CAP, todas (también las que la fase a la vista guardaba aparte).
+  v.ops.tareas = tareasDelCAP(ops)
+  v.ops.tareasOcultas = []
   for (const u of M.unidades || []) {
     if (!u || u.id == null || u.deFaseEnemiga != null || u.bando === 'enemigo' || u.bando === 'enemigas' || (u.tipo || 'unidad') !== 'unidad') continue
     if (Number.isFinite(+u.lng) && Number.isFinite(+u.lat)) v.pos[u.id] = { lng: +u.lng, lat: +u.lat }
@@ -444,7 +650,8 @@ export function vistaDe(M = {}) {
 }
 function ponerVista(M, v) {
   if (!v) return
-  M.setOps?.((o) => ({ ...(o || {}), ...(v.ops || {}) }))
+  // (las tareas ocultas del CAP que se va no pasan al que vuelve, aunque éste se haya guardado sin esa clave)
+  M.setOps?.((o) => ({ ...(o || {}), tareasOcultas: [], ...(v.ops || {}) }))
   M.setPlan?.(v.plan ?? null)
   const pos = v.pos || {}
   if (Object.keys(pos).length) M.setUnidades?.((us) => (us || []).map((u) => (u && pos[u.id] ? { ...u, ...pos[u.id] } : u)))
@@ -586,6 +793,9 @@ export function accion(que, d = {}, M = {}) {
         M.activarFase?.('propio', d.idx)
         return true
       }
+      // (12-11-2026: tocar una fase del OTRO CAP cambiaba de CAP sin avisar: «le di click a algo y pareció el CAP 1 en mi
+      // CAP 2». Ahora se pregunta.)
+      if (!d.sinPreguntar && !confirmarDe(M)(`Esa fase es del CAP ${d.n}, y vos estás trabajando el CAP ${C.activo}.\n\nPara mostrarla, la Mesa PASA al CAP ${d.n} (el CAP ${C.activo} queda guardado tal cual y vuelve con su botón).\n\n¿Pasar al CAP ${d.n}?`)) return false
       if (!accion('cambiar', { n: d.n, formas: d.formas }, M)) return false
       const tocar = () => M.activarFase?.('propio', d.idx)
       if (typeof setTimeout === 'function') setTimeout(tocar, 120)
@@ -639,6 +849,41 @@ export function accion(que, d = {}, M = {}) {
       M.aviso?.(`➕ CAP ${n}: empieza de nuevo. Paso 1: F3·P3 Formación inicial de las fuerzas. La carta quedó sin tareas, sin barrera y sin fuegos; las fichas quedan donde están: ubicalas para este CAP. El CAP ${C.activo} quedó guardado tal cual (con su carta).`)
       return true
     }
+    // 🧹 Las tareas del otro CAP que se le pasaron a éste (fugaDelCAP): sacarlas (de la carta y de sus fases; el otro CAP
+    // las conserva) o dejarlas como de este CAP. Sacarlas también vacía el cuadro de la F3·P3 de este CAP: empieza de cero.
+    if (que === 'limpiarFuga' || que === 'dejarFuga') {
+      const C = capsDe(M.g3)
+      const F = fugaDelCAP(M.g3, M.ops)
+      let g = conCaps(M.g3 || {}, { fugaRevisada: { ...(M.g3?._caps?.fugaRevisada || {}), [C.activo]: Date.now() } })
+      if (que === 'limpiarFuga' && F) {
+        const fuera = (ts) => (ts || []).filter((t) => !(t?.oi?.id && F.ids.has(t.oi.id)))
+        const sinFuga = (o) => ({ ...(o || {}), tareas: fuera(o?.tareas), tareasOcultas: fuera(o?.tareasOcultas) })
+        M.setFases?.((fc) => {
+          const f0 = M.flush ? M.flush(fc) : fc
+          return { ...f0, propio: (f0?.propio || []).map((f) => (f ? { ...f, ops: sinFuga(f.ops) } : f)) }
+        })
+        if (M.activa) M.setActiva?.(null)
+        M.setOps?.((o) => sinFuga(o))
+        g = { ...g }
+        delete g.organizacion
+        const fl = g.organizacionInicial
+        if (fl && typeof fl === 'object') g.organizacionInicial = { ...fl, reserva: { ...(fl.reserva || {}), piezas: [], agId: null }, sost: { piezas: [] }, fuegos: { piezas: [] } }
+      }
+      M.setG3?.(g)
+      M.aviso?.(que === 'limpiarFuga' && F ? `🧹 Se sacaron del CAP ${C.activo} las ${F.tareas.length} tareas que eran del CAP ${F.otro} (el CAP ${F.otro} las conserva). El CAP ${C.activo} empieza de cero en la F3·P3: poné SUS tareas tácticas.` : `✓ Las tareas quedan en el CAP ${C.activo} como suyas.`)
+      return true
+    }
+    // 🪖 La F3·P5 con una fila por agrupación de la F3·P3 (filasComandos): sólo falta el nombre de cada comandante.
+    if (que === 'comandos') {
+      const filas = Array.isArray(d.filas) ? d.filas : []
+      if (!filas.length) {
+        M.aviso?.('🪖 Primero la F3·P3: cada tarea con su OD / OC y su unidad (y al final la reserva, el SOST y el apoyo de fuegos).')
+        return false
+      }
+      M.setG3?.({ ...(M.g3 || {}), comandos: filas })
+      M.aviso?.(`🪖 F3·P5: ${filas.length} agrupación(es) de tu F3·P3, cada una con «Comandante de…». Escribí el nombre del comandante donde quieras (o dejalo así).`)
+      return true
+    }
     // 🔥 El plan de fuegos del CAP, armado con la artillería (d.armar(plan) → { plan, msg } lo arma fuegos-cap.mjs).
     if (que === 'fuegosCAP') {
       const res = d.armar?.(M.plan ?? null) || null
@@ -665,8 +910,11 @@ export function accion(que, d = {}, M = {}) {
         const g = conFormas(M.g3, d.formas)
         if (g !== M.g3) M.setG3?.(g)
       }
-      mostrarFase0(fases, M, d.ver)
-      M.aviso?.(`🎬 ${fases.length} fases 🔵 del CAP ${d.cap.n}: TODAS las fichas propias se mueven: FASE I juntas con el CE, FASE II a los trabajos del plan de barreras de su sector, FASE III en su puesto, cada tarea táctica con su unidad, y después según el CAP. El itinerario de cada unidad queda marcado con flechas. Tocá FASE I… V para verlas y corregí las fichas a mano.`)
+      // Con la F3·P3 del oficial, se muestra primero la FASE III: la suya.
+      mostrarFase0(fases, M, d.ver ?? (d.cap?.deF3P3 ? 2 : 0))
+      M.aviso?.(d.cap?.deF3P3
+        ? `🎬 ${fases.length} fases 🔵 del CAP ${d.cap.n}. La FASE III es TU F3·P3: cada unidad en su tarea, con su OD / OC, como la concebiste (a la vista). La Mesa calculó las demás alrededor: FASE I juntas con el CE, FASE II el desplazamiento (a los trabajos de barreras), FASE IV y V lo que sigue (la reserva contraataca). Tocá FASE I… V para verlas y corregí a mano lo que quieras.`
+        : `🎬 ${fases.length} fases 🔵 del CAP ${d.cap.n}: TODAS las fichas propias se mueven: FASE I juntas con el CE, FASE II a los trabajos del plan de barreras de su sector, FASE III en su puesto, cada tarea táctica con su unidad, y después según el CAP. El itinerario de cada unidad queda marcado con flechas. Tocá FASE I… V para verlas y corregí las fichas a mano.`)
       return true
     }
     if (que === 'texto') {

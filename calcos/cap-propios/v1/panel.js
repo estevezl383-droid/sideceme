@@ -3,6 +3,9 @@
 // JavaScript sin compilar: React llega por configurarCAP() (lo llama el compilado antes del primer render).
 import { proponer, capsDe, fasesPorCAP, llevarAHoja, FORMAS, armarCAP } from './proponer.mjs?v=ruta20261111'
 import { pedido, HOJAS_POR_CAP, pasosCAP, existeCAP, cerradoCAP } from './proponer.mjs?v=ruta20261111'
+// Lo nuevo del 12-11-2026 (fugaDelCAP, filasComandos) por el espacio de nombres: si el navegador todavía tiene el
+// proponer.mjs de antes (misma dirección), falta la función y nada más —una importación con nombre rompería todo—.
+import * as PP from './proponer.mjs?v=ruta20261111'
 import { planFuegosCAP } from './fuegos-cap.mjs?v=ruta20261111'
 // Con versión: lo nuevo (la lectura tolerante del JSON, las posiciones por fase, las tareas con su unidad) tiene que
 // llegar aunque el navegador tenga guardados los archivos de antes.
@@ -135,6 +138,8 @@ function puedeIr(g3, n) {
 
 // Los CAP cuyas fases están todas iguales y el oficial dijo que NO las armemos al tocar una (no se pregunta otra vez).
 const noArmar = new Set()
+// Los CAP cuya F3·P5 ya se armó sola en esta visita (12-11-2026).
+const autoP5 = new Set()
 
 // props: { hoja, valor, ctx: { unidades, ops, cmoc, ordenSup, unidad, fasesCOA, g3 }, onAccion(que, datos), onLlevar(valor),
 //          onExpediente() → { md } }
@@ -392,6 +397,46 @@ export function rutaCAP(r = {}) {
       if (acc('nuevo', { n: otro, formas }) !== false) r.abrir?.('organizacion')
     }
 
+    // 🧹 12-11-2026: las tareas del otro CAP que se le pasaron a éste al generarlo (proponer.fugaDelCAP).
+    let F = null
+    try {
+      F = PP.fugaDelCAP ? PP.fugaDelCAP(g3, ctx.ops || {}) : null
+    } catch {}
+    const opCorta = (op) => String(op || '').toUpperCase().replace(/^OC(\d)/, 'OC $1')
+    const sacarFuga = () => {
+      if (typeof window !== 'undefined' && !window.confirm(`🧹 Sacar del CAP ${n} las ${F.tareas.length} tareas del CAP ${F.otro}\n\nLa carta del CAP ${n} queda sin esas tareas (también en sus fases) y su F3·P3 vuelve a empezar (el cuadro y quién es reserva). Las hojas F3·P4, F3·P5 y F3·P6 quedan como están.\n\nEl CAP ${F.otro} no se toca: las conserva.\n\n¿Seguimos?`)) return
+      if (acc('limpiarFuga') !== false) r.abrir?.('organizacion')
+    }
+    const avisoFuga = F && h('div', { style: { ...E.aviso, display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12.5 }, 'data-ruta-fuga': '1' },
+      h('b', null, `⚠️ El CAP ${n} tiene ${F.tareas.length} tarea(s) táctica(s) que son del CAP ${F.otro}: se le pasaron al generarlo (un error de la Mesa, ya corregido).`),
+      h('span', null, `Son: ${F.tareas.map((t) => `${PP.nombreTarea ? PP.nombreTarea(t.tarea) : t.tarea}${t.oi?.operacion ? ` (${opCorta(t.oi.operacion)})` : ''}`).join(', ')}. Si el CAP ${n} empieza de cero, sacalas y poné SUS tareas en la F3·P3; el CAP ${F.otro} las conserva.`),
+      h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        h('button', { style: { ...ER.fin, fontSize: 12.5 }, 'data-fuga-sacar': '1', onClick: sacarFuga }, `🧹 Sacarlas del CAP ${n} (empezar de cero)`),
+        h('button', { style: { ...ER.btn, fontWeight: 400 }, 'data-fuga-dejar': '1', onClick: () => acc('dejarFuga') }, `Son del CAP ${n}: dejarlas`)))
+
+    // 🪖 La F3·P5 con una fila por agrupación de la F3·P3 (Sergio: «solo debería ser escribir un nombre o dejarlo por
+    // defecto en comandante»). Si la hoja está vacía, se arma sola al abrirla.
+    const filasP5 = () => {
+      try {
+        return PP.filasComandos ? PP.filasComandos({ ops: ctx.ops || {}, g3, unidades: ctx.unidades || [], propia: ctx.ordenSup?.unidad || ctx.ordenSup?.unidadPropia || ctx.unidad || '' }) : []
+      } catch {
+        return []
+      }
+    }
+    const conFilas = Array.isArray(g3.comandos) && g3.comandos.some((f) => f && Object.values(f).some((v) => String(v ?? '').trim()))
+    const armarP5 = (preguntar = true) => {
+      const filas = filasP5()
+      if (filas.length && preguntar && conFilas && typeof window !== 'undefined' && !window.confirm(`🪖 Armar la F3·P5 con tu F3·P3\n\nReemplaza las ${g3.comandos.length} fila(s) que tiene ahora por ${filas.length}: una por agrupación de tu F3·P3 (OD, OC, RES, SOST, AP. FUEGOS), cada una con «Comandante de…». Los nombres que escribiste a mano como comandante se conservan.\n\n¿Seguimos?`)) return
+      acc('comandos', { filas })
+    }
+    if (r.hoja === 'comandos' && !cerrado && !conFilas && !autoP5.has(n) && filasP5().length) {
+      autoP5.add(n)
+      setTimeout(() => armarP5(false), 0)
+    }
+    const cajaP5 = r.hoja === 'comandos' && h('div', { style: { ...E.ok, display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12.5 }, 'data-ruta-p5': '1' },
+      h('span', null, '🪖 La F3·P5 sale de TU F3·P3: una fila por agrupación (OD, OC, RES, SOST, AP. FUEGOS) con «Comandante de…». Sólo escribí el nombre del comandante, o dejalo así. No hace falta la IA.'),
+      h('button', { style: { ...ER.btn, alignSelf: 'flex-start' }, 'data-ruta-p5-armar': '1', onClick: () => armarP5(true) }, '🪖 Armar la F3·P5 con mi F3·P3'))
+
     const botonCap = (k) => {
       const on = k === n
       const ex = on || existeCAP(g3, k)
@@ -416,11 +461,14 @@ export function rutaCAP(r = {}) {
           pasos.map((p, i) => h('button', { key: p.id, 'aria-label': `Paso ${i + 1} del CAP ${n}: ${p.nom}`, style: ER.chip(p.hecho, p.hoja && p.hoja === r.hoja), title: p.nom, onClick: () => tocar(p) }, `${p.hecho ? '✓ ' : ''}${p.num}`)),
           !cerrado && h('button', { style: { ...ER.chip(false, false), borderColor: VERDE }, 'data-ruta-terminar': '1', onClick: terminar }, `✓ Terminar el CAP ${n}`),
           cerrado && !existeOtro && h('button', { style: { ...ER.chip(false, false), borderColor: VERDE }, 'data-ruta-nuevo': '1', onClick: nuevo }, `➕ Generar el CAP ${otro}`)),
-        sig && sig.hoja !== r.hoja && !cerrado && h('div', { style: ER.det }, `Siguiente: ${sig.num} ${sig.nom}${sig.detalle ? ` (${sig.detalle})` : ''}.`))
+        sig && sig.hoja !== r.hoja && !cerrado && h('div', { style: ER.det }, `Siguiente: ${sig.num} ${sig.nom}${sig.detalle ? ` (${sig.detalle})` : ''}.`),
+        avisoFuga,
+        cajaP5)
     }
 
     return h('div', { style: ER.raiz, 'data-ruta': 'completa' },
       h('div', { style: ER.tit }, '🔵 Los cursos de acción propios, UNO POR VEZ'),
+      avisoFuga,
       h('div', { style: ER.sub }, `Cada CAP sigue los mismos pasos: F3·P3 → F3·P6, su plan de fuegos (lo dispara la artillería), su barrera de obstáculos y sus fases. Terminás el CAP 1 y recién ahí se genera el CAP 2 desde el principio. (La F3·P1 Potencia relativa de combate es una sola para los dos.)`),
       h('div', { style: ER.caps }, [1, 2].map(botonCap)),
       h('div', { style: { ...ER.tit, fontSize: 12.5, marginTop: 2 } }, `CAP ${n}${cap ? ` · ${cap.nomForma}` : ''} — ${hechos} de ${pasos.length} pasos`),

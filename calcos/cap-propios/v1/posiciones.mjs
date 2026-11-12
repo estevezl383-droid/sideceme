@@ -179,9 +179,21 @@ export function posicionesCAP(cap, { unidades = [], ops = {}, marcas = [], A = n
   const lugar = {}
   const sec = [...R.secundarios]
   const atras = () => (R.lpr ? medio(sobreLPR(R, avPpal, 0) || R.pc, R.pc, 0.6) : null)
+  // 12-11-2026 (Sergio: «mi FASE III es la que yo armé… no me la debería haber movido»): con la F3·P3 del oficial
+  // (roles `deF3P3` de proponer.mjs) la unidad con tarea va a SU tarea —si ya está a menos de CERCA km, queda donde él
+  // la puso—, sin importar la forma de maniobra; la reserva, el SOST y el apoyo de fuegos, donde los dejó (o detrás de
+  // la OD si siguen junto al CE).
+  const odId = roles.find((r) => r.deF3P3 && r.op === 'od')?.ids?.[0]
+  const odLugar = () => (odId != null ? lugar[odId] || null : null)
   for (const u of lista) {
     const r = rolDe.get(u.id)
     const rol = ROL(u.id)
+    if (r?.deF3P3 && r.t && G.valido(r.t.centro)) {
+      const c = [+r.t.centro[0], +r.t.centro[1]]
+      const p = puesto[u.id]
+      lugar[u.id] = p && G.km(p, c) <= CERCA ? p : juntoA(r.t, R.enemigo)
+      continue
+    }
     if (!segunForma(rol) && desplegada(puesto[u.id])) {
       lugar[u.id] = puesto[u.id]
       continue
@@ -196,9 +208,10 @@ export function posicionesCAP(cap, { unidades = [], ops = {}, marcas = [], A = n
     } else if (/RESERVA/.test(rol)) p = marcaDe([R.reserva].filter(Boolean), u)?.centro || R.reserva?.centro || atras()
     else if (/RETARDO|COBERTURA/.test(rol)) p = sobreLDE(R, avPpal) || (R.lpr && R.enemigo ? G.desplazar(sobreLPR(R, avPpal, 0), 8, G.rumbo(sobreLPR(R, avPpal, 0), R.enemigo)) : null)
     else if (/APOYO DE FUEGOS/.test(rol)) {
-      const ppal = R.principal?.centro || sobreLPR(R, avPpal)
+      const ppal = (r.deF3P3 && odLugar()) || R.principal?.centro || sobreLPR(R, avPpal)
       p = ppal ? medio(ppal, R.pc, 0.35) : null
-    } else if (/INGENIEROS/.test(rol)) p = G.centroide(obras) || sobreLPR(R, avPpal, 1)
+    } else if (/SOSTENIMIENTO/.test(rol)) p = R.pc ? medio(R.pc, odLugar() || R.pc, 0.25) : null
+    else if (/INGENIEROS/.test(rol)) p = G.centroide(obras) || sobreLPR(R, avPpal, 1)
     else p = sobreLPR(R, avDeRol(r) || avPpal) // ofensiva / retrógrada: sobre su línea
     lugar[u.id] = p || puesto[u.id]
   }
@@ -215,7 +228,7 @@ export function posicionesCAP(cap, { unidades = [], ops = {}, marcas = [], A = n
   // puesto que la LÍM. entre sectores no separa del trabajo). La reserva, la masa y el apoyo no hacen obras.
   const hacen = lista.filter((u) => {
     const rol = ROL(u.id)
-    return rol && !/RESERVA|MASA|APOYO DE FUEGOS|INGENIEROS/.test(rol) && lugar[u.id]
+    return rol && !/RESERVA|MASA|APOYO DE FUEGOS|INGENIEROS|SOSTENIMIENTO/.test(rol) && lugar[u.id]
   })
   const obrasDe = new Map()
   for (const o of obras) {
@@ -226,6 +239,26 @@ export function posicionesCAP(cap, { unidades = [], ops = {}, marcas = [], A = n
 
   const ppalLPR = sobreLPR(R, avPpal, 0)
   const forma = cap?.forma
+  // Con la F3·P3 del oficial, las fases IV y V salen de SU FASE III: en la defensa cada operación sigue en su tarea y la
+  // reserva contraataca en la última hacia la OD (o por el EJE CA); en el ataque, las operaciones avanzan en profundidad
+  // (desde el PC hacia su tarea) y la reserva sigue a la OD.
+  const ofensiva = A?.tipo === 'ofensiva'
+  const avance = (id, km) => (lugar[id] && R.pc && G.km(R.pc, lugar[id]) > 0.1 ? G.desplazar(lugar[id], km, G.rumbo(R.pc, lugar[id])) : lugar[id])
+  const faseF3P3 = (i, id) => {
+    const r = rolDe.get(id)
+    const L = lugar[id]
+    if (i === FASE_ORG || !L) return L
+    const tarde = i >= nF - 1
+    if (r?.t) return ofensiva ? avance(id, tarde ? 7 : 4) : L
+    if (/RESERVA/.test(ROL(id))) {
+      const od = odId != null ? (ofensiva ? avance(odId, tarde ? 7 : 4) : lugar[odId]) : null
+      if (ofensiva) return od ? medio(L, od, tarde ? 0.8 : 0.6) : L
+      if (!tarde) return L
+      const meta = (R.ejeCA ? R.ejeCA[R.ejeCA.length - 1] : null) || od
+      return meta ? medio(L, meta, 0.85) : L
+    }
+    return L
+  }
   const fases = []
   for (let i = 0; i < nF; i++) {
     const f = {}
@@ -236,6 +269,7 @@ export function posicionesCAP(cap, { unidades = [], ops = {}, marcas = [], A = n
       if (i === 0) p = f1[id]
       else if (i === 1) p = obrasDe.has(id) ? G.centroide(obrasDe.get(id)) : medio(f1[id], lugar[id])
       else if (!rolDe.get(id)) p = lugar[id]
+      else if (rolDe.get(id)?.deF3P3) p = faseF3P3(i, id)
       else if (forma === 'movil') {
         if (/RETARDO/.test(rol)) p = i === 2 ? lugar[id] : i === 3 ? sobreLPR(R, avPpal, 5) || lugar[id] : (lugar[id] && ppalLPR ? medio(lugar[id], ppalLPR, 0.55) : lugar[id])
         else if (/MASA/.test(rol) && i === 4) p = lugar[id] && R.lde ? medio(sobreLDE(R, avPpal) || lugar[id], ppalLPR || lugar[id], 0.55) : (R.ejeCA ? R.ejeCA[R.ejeCA.length - 1] : ppalLPR || lugar[id])
