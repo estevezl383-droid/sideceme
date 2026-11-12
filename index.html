@@ -52503,17 +52503,10 @@ async function rechazarSolicitud(solId){
   }catch(e){alert('Error: '+(e.message||e));}
 }
 
-// ── MODIFICAR SANCIÓN (aprobar para modificación) ───────────────────────────
+// ── MODIFICAR Y APROBAR EN UNA SOLA OPERACIÓN ─────────────────────────────
 async function modificarSolicitud(solId){
   if(activeRole!=='disciplina'&&activeRole!=='comandante'&&activeRole!=='estudios'&&!esCT()){alert('Sin permiso.');return;}
-  const razon=prompt('APROBAR PARA MODIFICACIÓN.\n\nIndicá qué debe corregirse (el Jefe de Disciplina aplicará el cambio con la herramienta de edición):');
-  if(razon===null)return;
-  if(!razon||razon.trim().length<5){alert('Indicá la modificación requerida (mínimo 5 caracteres).');return;}
-  try{
-    await _solOps('resolver',{id:solId, decision:'modificar', razon:razon.trim()});
-    alert('✅ Aprobada para modificación. El Jefe de Disciplina aplicará la corrección.');
-    goAnulaciones();
-  }catch(e){alert('Error: '+(e.message||e));}
+  return abrirModificacionSolicitud(solId);
 }
 
 // ── RETOMAR (el Jefe de Disciplina reencauza una solicitud elevada) ──────────
@@ -70040,6 +70033,7 @@ window.eemEscritoAbrir=grupo=>{document.getElementById('eem-escrito-modal')?.rem
 <script src="assets/horario-documento.js?v=2.9.425"></script>
 <script src="assets/horario-consolidado.js?v=2.9.438"></script>
 <script src="assets/horario-publicado.js?v=2.9.428"></script>
+<script src="assets/solicitudes-modificacion.js?v=1"></script>
 <script src="soporte.js?v=29"></script>
 <script src="postulantes/integracion.js?v=2"></script>
 <script src="evaluaciones/config.js?v=20261022"></script>
