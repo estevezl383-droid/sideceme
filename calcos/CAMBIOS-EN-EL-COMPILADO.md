@@ -5,6 +5,24 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-11-11 (2) — 🟥 Brigada Motorizada y División Motorizada en el Manual Rojo (`index-motorizadas-20261111.js`)
+
+Parte de `index-ruta-cap-20261111.js` + `pruebas/reemplazos-2026-11-11-motorizadas.js` (7 reemplazos;
+`construir-motorizadas.js`, reversible byte por byte). Sergio: «tengo puras brigadas acorazadas; elaborame las
+plantillas doctrinales para brigadas motorizadas». Ver `rojo-motorizado/README.md`.
+
+- Import de `rojo-motorizado/v1/motorizadas.mjs?v=20261111-mot` (antes del de `pedido/v1/fiabilidad.mjs`).
+- Antes de `const E7=Object.keys(DM)` (NIVELES_CON_ORBAT): `Object.assign(cD,…)` (UNIDADES_ROJO) y
+  `Object.assign(DM,…)` (ORBAT_POR_NIVEL) con `brigada_mot` y `division_mot`.
+- `X7=Object.assign(x2,NIVELES_MOT)` (NIVELES de esquemasRojo) e `IIe` (las filas del selector de la hoja P.D.)
+  pasa por `listaConMotorizadas`: Brigada Motorizada después de Brigada, División Motorizada después de División.
+- `AIe` (los apoyos que se dibujan): `org.tipoFuerza==="motorizada"` → `apoyosMot`.
+- Hoja P.D.: con `ve.armada` el resumen lleva ✎ (no 📄) y el aviso «la app la ARMA» reemplaza a «🟥 … la
+  organización REAL del Apéndice 1»; al pasar al Manual de Fuerzas Contrarias, `brigada_mot`/`division_mot` → División.
+- **Si se recompila desde el fuente**: en `manualRojo.js` / `esquemasRojo.js` / `PanelPICB.jsx`, sumar lo de
+  `motorizadas.mjs` a `UNIDADES_ROJO`, `ORBAT_POR_NIVEL`, `NIVELES`, `NIVELES_ROJO_LISTA` y `apoyos()`, y los dos
+  cambios de la hoja P.D.
+
 ## 2026-11-11 — 🔵 Los CAP uno por vez: F3·P3 → F3·P6, fuegos con la artillería, barrera y fases (`index-ruta-cap-20261111.js`)
 
 Parte de `index-cae-organigrama-20261110.js` + `pruebas/reemplazos-2026-11-11-ruta-cap.js` (9 reemplazos;
