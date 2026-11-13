@@ -1,3 +1,4 @@
+// En la función desplegada (v12) este import apunta al mismo archivo por su dirección pública, fijada al commit 6784b0d.
 import { construirPaquete } from '../../../calcos/areas-operaciones/compartir-modelo.mjs'
 
 // Acciones nuevas, aisladas del guardado, espejo y calificación existentes.
@@ -6,11 +7,19 @@ import { construirPaquete } from '../../../calcos/areas-operaciones/compartir-mo
 // Mesa (`foto`: ops, fichas y los documentos de la OGO consolidada), sin esperar al autoguardado.
 // El paquete se arma igual (construirPaquete: lista permitida, sólo las áreas elegidas y lo de adentro).
 const CURSANTE_ACTIVO = 'activo.is.null,activo.eq.true'
+// El ejercicio COMPLETO (payload_fijo || payload), sólo cuando hace falta armar el paquete.
+async function contenidoDe(sb, id) {
+  const { data, error } = await sb.from('calcos_completo').select('payload').eq('id', id).maybeSingle()
+  if (error) throw error
+  return (data && data.payload) || {}
+}
 export async function compartir(body, ses, deps) {
   if (!['areas_destinos', 'areas_enviar', 'areas_recibidos', 'ejercicio_enviar'].includes(body.accion)) return null
   const { sb, esDocente, puedeTocar, ventanaAbierta, ok, err } = deps
   try {
-    const { data: fuente, error: ef } = await sb.from('calcos').select('*').eq('id', body.calco_id).maybeSingle()
+    // 13-11-2026: sólo los datos del trabajo. Antes se leía el ejercicio ENTERO (3 a 6 MB) en cada
+    // pedido, también para «areas_recibidos», que cada Mesa de alumno consulta sin usar el contenido.
+    const { data: fuente, error: ef } = await sb.from('calcos').select('id,grupo_id,ejercicio_id,creado_por,nombre').eq('id', body.calco_id).maybeSingle()
     if (ef) throw ef
     if (!fuente) return err('Abra y guarde primero el ejercicio.', 404)
     const veto = await puedeTocar(ses, fuente, fuente.ejercicio_id)
@@ -100,7 +109,7 @@ export async function compartir(body, ses, deps) {
     // ejercicio_enviar: lo que el profesor tiene en su Mesa ahora (su propio ejercicio: `fuente` es suyo)
     const foto = body.accion === 'ejercicio_enviar' && body.foto && typeof body.foto === 'object' ? body.foto : null
     // resultados (16-10-2026): los calcos del terreno, ya cortados por el lazo de la tijera en el navegador.
-    const base = foto ? { ops: foto.ops || {}, unidades: Array.isArray(foto.unidades) ? foto.unidades : [], documentos: Array.isArray(foto.documentos) ? foto.documentos : [], cmoc: foto.cmoc && typeof foto.cmoc === 'object' ? foto.cmoc : null, resultados: foto.resultados && typeof foto.resultados === 'object' && !Array.isArray(foto.resultados) ? foto.resultados : null } : fuente.payload
+    const base = foto ? { ops: foto.ops || {}, unidades: Array.isArray(foto.unidades) ? foto.unidades : [], documentos: Array.isArray(foto.documentos) ? foto.documentos : [], cmoc: foto.cmoc && typeof foto.cmoc === 'object' ? foto.cmoc : null, resultados: foto.resultados && typeof foto.resultados === 'object' && !Array.isArray(foto.resultados) ? foto.resultados : null } : await contenidoDe(sb, fuente.id)
     const paquete = construirPaquete({ ...base, nombre: fuente.nombre }, body.areas, body.opciones)
     if (paquete.areas.length !== new Set(body.areas).size) return err('Hay áreas que no pertenecen al ejercicio guardado.')
     const { data, error } = await sb.from('calco_compartidos').insert({

@@ -71,7 +71,15 @@ const DOCENTES_QUE_VEN_TODO = ["ciencia_tecnologia", "comandante", "jefe_estudio
 // Cada cuanto se deja una instantanea en el historial. El autoguardado
 // del Generador corre cada 2,5 s: sin este espaciado, 22 grupos dejarian
 // cientos de miles de filas por dia.
-const MINUTOS_ENTRE_VERSIONES = 10;
+// 13-11-2026: el ejercicio COMPLETO se lee de la vista (payload_fijo || payload). Los calcos del
+// terreno y los documentos pueden estar en `payload_fijo` para que cada guardado no los reescriba.
+// OJO: leer `calcos.payload` directo puede dar el ejercicio SIN esas dos claves.
+const LEER = "calcos_completo";
+
+const MINUTOS_ENTRE_VERSIONES = 15;
+// 13-11-2026: de cada trabajo de GRUPO se conservan las ultimas automaticas (las de entrega y
+// las manuales, todas). Con 225 alumnos y una copia entera cada 10 min el disco se llenaba.
+const VERSIONES_AUTO_POR_GRUPO = 3;
 
 // La clave de una capa del espejo: su nombre en minusculas, sin acentos.
 // Es lo que va en el enlace de Google Earth, asi que NO depende del orden:
@@ -135,16 +143,22 @@ async function miGrupo(cursanteId: string, ejercicioId?: string) {
 // `mi_calco` toma el mas reciente. Con el indice unico viejo esto no
 // hacia falta; ahora si: sin `order`, cual volvia era imprevisible.
 // ------------------------------------------------------------
-async function calcosPersonales(creadoPor: string) {
-  const { data } = await sb.from("calcos").select("*")
-    .eq("creado_por", creadoPor).is("grupo_id", null).is("ejercicio_id", null)
-    .order("actualizado_en", { ascending: false }).limit(200);
+// 13-11-2026 - LA LISTA, SIN EL CONTENIDO. Antes se traian los ejercicios ENTEROS del docente
+// (52 = 42 MB) cada vez que se listaba, se abria la Mesa o se creaba uno: la funcion se quedaba
+// sin memoria (error 546) y la Mesa decia "este servidor guarda un solo trabajo".
+async function listaPersonales(creadoPor: string) {
+  const { data, error } = await sb.rpc("calcos_lista_personal", { p_creado_por: creadoPor });
+  if (error) throw new Error(error.message);
   return data || [];
 }
 
 async function calcoPersonal(ses: Sesion) {
-  const ya = await calcosPersonales(ses.id);
-  if (ya.length) return { calco: ya[0], nuevo: false, error: null as string | null };
+  const { data: ya, error: e0 } = await sb.from(LEER).select("*")
+    .eq("creado_por", ses.id).is("grupo_id", null).is("ejercicio_id", null)
+    .order("actualizado_en", { ascending: false }).limit(1);
+  // Si la lectura falla NO se crea uno nuevo en blanco (antes un corte dejaba un "Planeamiento" vacio).
+  if (e0) return { calco: null, nuevo: false, error: e0.message };
+  if (ya && ya.length) return { calco: ya[0], nuevo: false, error: null as string | null };
 
   const { data: nuevo, error } = await sb.from("calcos").insert({
     ejercicio_id: null, grupo_id: null, creado_por: ses.id,
@@ -171,21 +185,14 @@ async function ventanaAbierta(ejercicioId: string | null): Promise<string | null
   return null;
 }
 
-// Deja una instantanea solo si paso el tiempo minimo, o si es entrega.
-async function quizasVersionar(calcoId: string, payload: unknown, quien: string, motivo: string) {
-  if (motivo === "auto") {
-    const { data } = await sb.from("calco_versiones")
-      .select("creado_en").eq("calco_id", calcoId)
-      .order("creado_en", { ascending: false }).limit(1);
-    if (data && data.length) {
-      const min = (Date.now() - new Date(data[0].creado_en).getTime()) / 60000;
-      if (min < MINUTOS_ENTRE_VERSIONES) return;
-    }
-  }
-  const texto = JSON.stringify(payload ?? {});
-  await sb.from("calco_versiones").insert({
-    calco_id: calcoId, payload, bytes: texto.length, guardado_por: quien, motivo,
+// Deja una instantanea solo si paso el tiempo minimo, o si es entrega. La copia se hace DENTRO
+// de la base (calco_versionar): la funcion ya no vuelve a mandar el contenido entero.
+async function versionar(calcoId: string, quien: string, motivo: string) {
+  const { error } = await sb.rpc("calco_versionar", {
+    p_calco_id: calcoId, p_por: quien, p_motivo: motivo,
+    p_min_minutos: MINUTOS_ENTRE_VERSIONES, p_conservar: VERSIONES_AUTO_POR_GRUPO,
   });
+  if (error) console.error("calco_versionar:", error.message);
 }
 
 // Este usuario puede tocar este trabajo? El docente, los suyos personales y
@@ -230,7 +237,7 @@ Deno.serve(async (req: Request) => {
     const g = await miGrupo(ses.id, body.ejercicio_id);
     if (!g) return err("No estas asignado a ningun Estado Mayor en un ejercicio activo.", 403);
 
-    const { data: ya } = await sb.from("calcos").select("*")
+    const { data: ya } = await sb.from(LEER).select("*")
       .eq("ejercicio_id", g.ejercicio_id).eq("grupo_id", g.grupo_id).limit(1);
     if (ya && ya.length) return ok({ calco: ya[0], grupo: g });
 
@@ -253,27 +260,27 @@ Deno.serve(async (req: Request) => {
     }
 
     if (accion === "mis_calcos") {
-      const filas = await calcosPersonales(ses.id);
-      return ok({
-        calcos: filas.map((c: any) => ({
-          id: c.id, nombre: c.nombre, pais: c.pais, estado: c.estado,
-          creado_en: c.creado_en, actualizado_en: c.actualizado_en,
-          bytes: JSON.stringify(c.payload ?? {}).length,
-        })),
-      });
+      // `bytes` lo calcula la base (exacto en los chicos, estimado en los grandes).
+      let filas: any[];
+      try { filas = await listaPersonales(ses.id); } catch (e) { return err((e as Error).message, 500); }
+      return ok({ calcos: filas });
     }
 
     if (accion === "crear_mio") {
       const nombre = String(body.nombre || "").trim();
       if (!nombre) return err("Ponele un nombre al ejercicio");
-      const ya = await calcosPersonales(ses.id);
+      let ya: any[];
+      try { ya = await listaPersonales(ses.id); } catch (e) { return err((e as Error).message, 500); }
       if (ya.some((c: any) => (c.nombre || "").toLowerCase() === nombre.toLowerCase()))
         return err("Ya tenes un ejercicio con ese nombre.");
       // `desde_id` duplica: es el "Guardar como" de toda la vida.
       let payload: unknown = {};
       let pais = body.pais || null;
       if (body.desde_id) {
-        const base = ya.find((c: any) => c.id === body.desde_id);
+        if (!ya.some((c: any) => c.id === body.desde_id))
+          return err("El ejercicio que queres duplicar no es tuyo o no existe.", 403);
+        const { data: bs } = await sb.from(LEER).select("payload, pais").eq("id", body.desde_id).limit(1);
+        const base = bs && bs[0];
         if (!base) return err("El ejercicio que queres duplicar no es tuyo o no existe.", 403);
         payload = base.payload ?? {};
         pais = pais || base.pais;
@@ -288,7 +295,9 @@ Deno.serve(async (req: Request) => {
 
     // De aca para abajo, todas necesitan un id y que sea SUYO.
     if (!body.calco_id) return err("Falta calco_id");
-    const { data: filas } = await sb.from("calcos").select("*").eq("id", body.calco_id).limit(1);
+    const { data: filas } = await sb.from(LEER)
+      .select(accion === "abrir_mio" ? "*" : "id, grupo_id, ejercicio_id, creado_por, nombre")
+      .eq("id", body.calco_id).limit(1);
     if (!filas || !filas.length) return err("El ejercicio no existe", 404);
     const calco = filas[0];
     if (calco.grupo_id || calco.ejercicio_id)
@@ -318,8 +327,18 @@ Deno.serve(async (req: Request) => {
 
   if (accion === "guardar" || accion === "entregar") {
     const esEntrega = accion === "entregar";
+    // 13-11-2026 - GUARDAR SOLO LO QUE CAMBIO. La Mesa manda `delta` (las claves del ejercicio
+    // que cambiaron desde la revision `base_rev`) en vez del ejercicio entero (3 a 6 MB cada vez).
+    // Con `delta`, `calco_id` viene adentro y el de afuera en null: una funcion vieja contesta
+    // "no existe" en vez de guardar un ejercicio vacio.
+    const delta = !esEntrega && body.delta && typeof body.delta === "object" ? body.delta : null;
+    const calcoId = delta ? delta.calco_id : body.calco_id;
+    if (!calcoId) return err("Falta calco_id");
 
-    const { data: filas } = await sb.from("calcos").select("*").eq("id", body.calco_id).limit(1);
+    // Solo lo necesario para decidir: el contenido anterior ya no se lee.
+    const { data: filas } = await sb.from("calcos")
+      .select("id, grupo_id, creado_por, ejercicio_id, estado, pais, nombre, entregado_en")
+      .eq("id", calcoId).limit(1);
     if (!filas || !filas.length) return err("El trabajo no existe", 404);
     const calco = filas[0];
 
@@ -331,20 +350,44 @@ Deno.serve(async (req: Request) => {
     if (calco.estado === "calificado")
       return err("El trabajo ya fue calificado y no admite cambios.", 403);
 
+    if (delta) {
+      const cambios = delta.cambios && typeof delta.cambios === "object" && !Array.isArray(delta.cambios)
+        ? delta.cambios : {};
+      const quitar = Array.isArray(delta.quitar) ? delta.quitar.map((k: unknown) => String(k)) : [];
+      const baseRev = Number(delta.base_rev);
+      if (!Number.isFinite(baseRev)) return err("Falta la revision de base");
+      const { data: r, error } = await sb.rpc("calco_guardar_delta", {
+        p_calco_id: calco.id, p_base_rev: baseRev, p_cambios: cambios, p_quitar: quitar,
+        p_nombre: body.nombre || null, p_pais: body.pais || null, p_por: ses.nombre,
+      });
+      if (error) return err(error.message, 500);
+      if (!r || r.conflicto || typeof r.rev !== "number") {
+        // Otro guardado paso en el medio (otra pestana, otro integrante): la Mesa manda todo.
+        return new Response(JSON.stringify({
+          ok: false, conflicto: true, rev: r?.rev ?? null,
+          error: "El trabajo cambio en el servidor: se manda entero.",
+        }), { status: 409, headers: corsHeaders });
+      }
+      await versionar(calco.id, ses.nombre, body.motivo || "auto");
+      return ok({ entregado: false, rev: r.rev, delta: true });
+    }
+
     const payload = body.payload ?? {};
-    const { error } = await sb.from("calcos").update({
+    // Entero: todo va a `payload` y la parte fija queda vacia (el completo es fijo || payload).
+    const { data: hecho, error } = await sb.from("calcos").update({
       payload,
+      payload_fijo: null,
       pais: body.pais || calco.pais,
       nombre: body.nombre || calco.nombre,
       estado: esEntrega ? "entregado" : calco.estado,
       entregado_en: esEntrega ? new Date().toISOString() : calco.entregado_en,
       actualizado_en: new Date().toISOString(),
       actualizado_por: ses.nombre,
-    }).eq("id", calco.id);
+    }).eq("id", calco.id).select("rev");
     if (error) return err(error.message, 500);
 
-    await quizasVersionar(calco.id, payload, ses.nombre, esEntrega ? "entrega" : (body.motivo || "auto"));
-    return ok({ entregado: esEntrega });
+    await versionar(calco.id, ses.nombre, esEntrega ? "entrega" : (body.motivo || "auto"));
+    return ok({ entregado: esEntrega, rev: hecho?.[0]?.rev ?? null });
   }
 
   // ---- Enlace del espejo en vivo de Google Earth ----
@@ -459,7 +502,7 @@ Deno.serve(async (req: Request) => {
   }
 
   if (accion === "abrir") {
-    const { data, error } = await sb.from("calcos").select("*").eq("id", body.calco_id).limit(1);
+    const { data, error } = await sb.from(LEER).select("*").eq("id", body.calco_id).limit(1);
     if (error) return err(error.message, 500);
     if (!data || !data.length) return err("El trabajo no existe", 404);
     return ok({ calco: data[0] });
