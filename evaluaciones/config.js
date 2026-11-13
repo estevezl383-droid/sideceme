@@ -120,7 +120,8 @@ window.eemAdaptarActa=function(doc,a){
   const th=tabla.querySelectorAll('thead th');
   // Proyectos usa la misma mesa 2+15+10+10; cambia el rótulo del ítem 2.
   const proyectos=/proyectos/i.test(items[1]?.descripcion||'');
-  const rotulos=etiquetas.map((e,i)=>i===1&&proyectos?['CONOCIMIENTO Y SUSTENTO','Elaboración de proyectos']:e);
+  const financiera=/administración financiera/i.test(items[1]?.descripcion||'');
+  const rotulos=etiquetas.map((e,i)=>i===1&&financiera?['CONOCIMIENTO Y SUSTENTO','Normativa de administración financiera']:i===1&&proyectos?['CONOCIMIENTO Y SUSTENTO','Elaboración de proyectos']:e);
   items.forEach((item,i)=>{
    const h=th[i+1];if(!h)return;
    h.title=item.descripcion||nombres[i];
@@ -281,4 +282,29 @@ window.eemAdaptarActa=function(doc,a){
  else iniciar();
 })();
 
+/* Acceso a la mesa con la identidad y asignaciones vigentes del docente. */
+(function accesoTribunalFinanciera(){
+ const carpeta='b32dc4c7-0489-43f1-8525-68ec3d3122d8';
+ function pintarAcceso(){
+  const host=document.getElementById('eem-panel-cont');
+  if(!host||typeof EEM==='undefined'||EEM.carpetaId!==carpeta)return;
+  const tabs=host.querySelector('.eem-tabs');
+  if(tabs&&!document.getElementById('ec-ver-tribunal')){
+   const b=document.createElement('button');b.id='ec-ver-tribunal';b.className='eem-tab';
+   b.textContent='Ver vista del tribunal · 37 puntos';
+   b.onclick=()=>window.trbGrupos(carpeta,'ADMINISTRACIÓN FINANCIERA DE LAS PEQUEÑAS UNIDADES');
+   tabs.appendChild(b);
+  }
+  if(!EEM.panel?.banda_activa){
+   const aviso=[...host.querySelectorAll('.eem-chip.bad')].find(e=>e.textContent.includes('La banda de notas todavía no está activa'));
+   if(aviso){aviso.className='eem-chip ok';aviso.textContent='Escrito /63 · Suma directa de criterios · Sin reescalado. Tribunal /37.';}
+  }
+ }
+ function iniciar(){const host=document.getElementById('eem-panel-cont');if(!host)return;
+  new MutationObserver(pintarAcceso).observe(host,{childList:true,subtree:true});pintarAcceso();
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciar,{once:true});else iniciar();
 })();
+
+})();
+
