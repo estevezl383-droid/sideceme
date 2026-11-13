@@ -302,6 +302,14 @@ window.eemAdaptarActa=function(doc,a){
  }
  function iniciar(){const host=document.getElementById('eem-panel-cont');if(!host)return;
   new MutationObserver(pintarAcceso).observe(host,{childList:true,subtree:true});pintarAcceso();
+  // La rúbrica suma puntos; el rótulo anterior no describe un promedio.
+  const rotulos=()=>{
+   if(typeof EEM==='undefined'||EEM.carpetaId!==carpeta)return;
+   document.querySelectorAll('.eem-rubrica-hoja th').forEach(el=>{
+    if(el.textContent.trim()==='PROMEDIO PARCIAL')el.textContent='SUBTOTAL';
+   });
+  };
+  new MutationObserver(rotulos).observe(document.body,{childList:true,subtree:true});rotulos();
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciar,{once:true});else iniciar();
 })();
