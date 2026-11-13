@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.483</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.484</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -49792,8 +49792,15 @@ const WG_MON_CAM={
   g3:  { nom:'VISTA G-3',        quien:'G-3',        pitch:62, giro:0,   tope:13.2, acerca:0.2, calcos:['ae','clave','minado','obstaculo','restringido','severo','via'] },
   g4:  { nom:'VISTA G-4',        quien:'G-4',        pitch:56, giro:-65, tope:13.2, acerca:0.2, calcos:['eje_log','via','poblado'] },
   g2:  { nom:'VISTA DRON',       quien:'G-2',        pitch:66, giro:0,   tope:12.0, acerca:0,   calcos:[] },
+  // v2.9.484 — Sergio: «ya no quiero la vista de dron, quiero en su lugar la vista de la
+  // carta para que el comandante pueda apreciar mejor la situación». La CARTA es el 2D
+  // del juego con sus calcos (CMOC, caminos, ríos, elevaciones), con la lente del
+  // Comandante: abarca todo lo propio y lo que se sabe del enemigo. No sigue a ningún
+  // oficial: se encuadra sola y se reencuadra cuando el dispositivo cambia de verdad.
+  // La vista del dron queda definida (sirve `?mon=azul-g2`), sólo sale de las cuatro.
+  carta:{ nom:'VISTA CARTA',     quien:'Comandante', rol:'cmte', d2:true, tope:13.5, calcos:null },
 };
-const WG_MON_ORDEN=['cmte','g3','g4','g2'];
+const WG_MON_ORDEN=['cmte','g3','g4','carta'];
 const WG_MON_ANCHO=1440;     // lo que «mide» cada puesto antes de achicarlo al recuadro
 const WG_MON_VIVO_MS=12000;  // sin noticias del oficial en este lapso, cámara automática
 const WG_MON_LECTURAS={ estado:1, pulso:1, historial:1, replay:1 };
@@ -49907,15 +49914,17 @@ function _wgPantallasMensaje(ev){
   el.className='pc-est'+(d.error?' mal':(d.vivo?' vivo':''));
   el.querySelector('span').textContent = d.error ? d.error
     : (d.vivo ? 'EN VIVO · '+(d.quien||C.quien)
-      : 'SIN '+C.quien.toUpperCase()+' · '+(d.p==='g2' ? (d.vuela?'DRON EN VUELO':'DRON EN TIERRA') : 'AUTOMÁTICA'));
+      : (C.d2 ? 'CARTA · SITUACIÓN GENERAL'
+        : 'SIN '+C.quien.toUpperCase()+' · '+(d.p==='g2' ? (d.vuela?'DRON EN VUELO':'DRON EN TIERRA') : 'AUTOMÁTICA')));
   if(d.sub){ const s=document.getElementById('pc-sub'); if(s) s.textContent=d.sub; }
 }
 // ------------------------------------------------------------
 // CADA RECUADRO: el puesto, en modo mirar
 // ------------------------------------------------------------
 function _wgMonEntrar(pid, lado, puesto){
-  WG.mon={ lado, puesto }; WG.vistaArb=lado; WG.rol=puesto;
-  WG._inv={ partida:pid, bando:lado, clave:'', rol:puesto };
+  const rol=WG_MON_CAM[puesto].rol||puesto;   // v2.9.484: la carta mira con la lente del Comandante
+  WG.mon={ lado, puesto }; WG.vistaArb=lado; WG.rol=rol;
+  WG._inv={ partida:pid, bando:lado, clave:'', rol };
   // Un cartel del navegador congelaría el recuadro hasta que alguien lo cierre.
   window.alert=(t)=>{ const m=String(t||'').split('\n')[0];
     _wgMonAvisar({ error:/sesi[oó]n|enlace/i.test(m) ? 'Sin sesión de árbitro: abrí esta ventana desde su consola' : m.slice(0,70) }); };
@@ -49950,6 +49959,7 @@ function _wgMonAvisar(extra){
 async function _wgMonArrancar(){
   if(!WG.mon || !WG.estado) return;
   WG.cine=false; WG.camara=0; WG.seguir=false;
+  if(WG_MON_CAM[WG.mon.puesto].d2){ await _wgMonArrancarCarta(); return; }
   await wgVista3D();
   for(let i=0;i<160 && !(WG.map3d && WG.map3d.getSource('wg-terr'));i++) await new Promise(r=>setTimeout(r,250));
   const on=new Set(WG_MON_CAM[WG.mon.puesto].calcos);
@@ -49962,6 +49972,38 @@ async function _wgMonArrancar(){
   _wgMonEncuadrar(true);
   clearInterval(WG._monT); WG._monT=setInterval(_wgMonLazo,1000);
   _wgMonLazo();
+}
+// v2.9.484 — LA CARTA: se queda en el 2D, con todos los calcos de la carta encendidos
+// (como la ve el árbitro), y el lazo de cada segundo sólo la reencuadra.
+async function _wgMonArrancarCarta(){
+  if(_wgEn3D()) wgCerrar3D();
+  const C=WG_MON_CAM[WG.mon.puesto];
+  WG.calcos={}; for(const c of WG_CALCOS) WG.calcos[c.id]=C.calcos ? C.calcos.includes(c.id) : true;
+  WG.capaTerrenoFirma=null; _wgRenderTerreno();
+  _wgMonElegir(null);
+  for(let i=0;i<40 && !(WG.map && WG.map.getSize().x>50);i++) await new Promise(r=>setTimeout(r,250));
+  _wgMonEncuadrar(true);
+  clearInterval(WG._monT); WG._monT=setInterval(_wgMonLazo,1000);
+  _wgMonLazo();
+}
+function _wgMonCarta(primera){
+  const map=WG.map; if(!map || !WG.estado) return;
+  const pts=((WG.estado.unidades)||[]).filter(u=>u.estado!=='fuera_combate' && Number.isFinite(u.lng) && Number.isFinite(u.lat))
+    .map(u=>[u.lng,u.lat]);
+  for(const it of _wgInstalaciones()){ const c=(it.geojson||{}).coordinates;
+    if(Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1])) pts.push([c[0],c[1]]); }
+  const caja=_wgCaja(pts, pts.length>1?0.02:0.06); if(!caja) return;
+  const ant=WG._monCaja, tam=Math.max(caja[1][0]-caja[0][0], caja[1][1]-caja[0][1]);
+  if(!primera && ant && Math.max(Math.abs(caja[0][0]-ant[0][0]), Math.abs(caja[0][1]-ant[0][1]),
+    Math.abs(caja[1][0]-ant[1][0]), Math.abs(caja[1][1]-ant[1][1])) < Math.max(0.02,tam*0.12)) return;
+  const cont=map.getContainer();
+  if(cont && cont.clientWidth>50 && cont.clientHeight>50) map.invalidateSize();
+  const t=map.getSize(); if(!t || t.x<50 || t.y<50) return;   // sin lienzo medido, zoom 0: mejor no tocar
+  WG._monCaja=caja;
+  // Lo que tapa la consola de abajo no cuenta como carta.
+  const hud=document.getElementById('wg-hud'), abajo=(hud?hud.offsetHeight:0)+40;
+  try{ map.fitBounds([[caja[0][1],caja[0][0]],[caja[1][1],caja[1][0]]],
+    { paddingTopLeft:[60,70], paddingBottomRight:[60,abajo], maxZoom:WG_MON_CAM[WG.mon.puesto].tope, animate:!primera }); }catch(_e){}
 }
 function _wgMonCanal(){
   if(typeof sb==='undefined' || !sb || typeof sb.channel!=='function') return;
@@ -50018,6 +50060,7 @@ function _wgMonPanoramica(on){
 }
 // Cada toma mira distinto: el G-3 de frente al enemigo, el G-4 desde el flanco.
 function _wgMonEncuadrar(primera){
+  if(WG.mon && WG_MON_CAM[WG.mon.puesto].d2){ _wgMonCarta(primera); return; }
   const map=WG.map3d; if(!map || !_wgEn3D() || !WG.mon) return;
   const C=WG_MON_CAM[WG.mon.puesto], pts=_wgMonPuntos();
   const caja=_wgCaja(pts, pts.length>1?0.02:0.06); if(!caja) return;
@@ -50053,7 +50096,7 @@ function _wgMonLazo(){
   }
   WG._monVivo=vivo;
   // «Te están mirando»: recién con este aviso el oficial empieza a mandar su cámara.
-  if(WG._canal && WG._canalOk && ahora-(WG._monAviso||0)>15000){
+  if(WG._canal && WG._canalOk && !WG_MON_CAM[WG.mon.puesto].d2 && ahora-(WG._monAviso||0)>15000){
     WG._monAviso=ahora;
     try{ WG._canal.send({ type:'broadcast', event:'mon', payload:{ b:WG.mon.lado, r:WG.mon.puesto } }); }catch(_e){}
   }
