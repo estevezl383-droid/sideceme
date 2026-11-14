@@ -38610,7 +38610,10 @@ function _wgHumoTirotear(ahora){
         if(ahora<v.proximosTiros[lado]) continue;
         const quien=lado?v.b:v.a, blanco=lado?v.a:v.b;
         const vivos=1-_wgBatallaBajas(c,quien,lado)*Math.max(0,Math.min(1,(k-.18)/.6));
-        const fuerza=Math.max(.12,fs[lado].n/Math.max(fs[0].n,fs[1].n));
+        const ratio=Math.max(.05,Math.min(20,Number(c.ratio)||1));
+        const poderRelativo=lado===0?ratio:1;
+        const fuerza=Math.max(.12,Math.min(1,Math.sqrt(
+          (fs[lado].n/Math.max(fs[0].n,fs[1].n))*(poderRelativo/Math.max(ratio,1)))));
         // Aun en inferioridad hay respuesta; la intensidad disminuye con las bajas.
         const intervalo=700+1400*(1-fuerza)+900*(1-vivos);
         v.proximosTiros[lado]=ahora+intervalo+Math.random()*300;
@@ -38635,18 +38638,15 @@ function _wgHumoTirotear(ahora){
 }
 // Formaciones pequeñas: representación visual del encuentro, sin modificar el motor.
 function _wgBatallaFormacion(a,b,c){
-  const poder=u=>Math.max(0,Number(u.poder_actual)||0);
-  const pa=poder(a), pb=poder(b);
-  // La relación del encuentro incluye las fuerzas participantes; es preferible
-  // a comparar únicamente las dos fichas principales que aparecen en el parte.
-  const r=Number.isFinite(Number(c.ratio)) && Number(c.ratio)>0 ? Number(c.ratio) : pa>0 && pb>0 ? pa/pb : 1;
-  const pesos=[r,1], mayor=Math.max(...pesos);
-  return pesos.map((p,i)=>{
-    const u=i?b:a, cuerpo=String(u.escalon||'').toLowerCase()==='cuerpo';
-    const n=Math.max(cuerpo?3:1,Math.round(96*(p/mayor)));
-    // Un cuerpo se representa siempre con sus tres divisiones. La central es
-    // mecanizada; en los demás escalones los bloques sólo ordenan los símbolos.
-    const cantidad=cuerpo?3:Math.ceil(n/12), mecanizada=/blind|mec|oruga/.test(String(u.arma)+' '+String(u.medio));
+  // Figuras representativas de magnitud, no efectivos exactos ni poder de fuego.
+  // La relación de combate ya pondera medios y terreno: no equivale a personal.
+  const magnitud={seccion:4,compania:8,batallon:16,regimiento:24,brigada:36,division:72,cuerpo:144,ejercito:192};
+  return [a,b].map(u=>{
+    const escalon=String(u.escalon||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    const cuerpo=escalon==='cuerpo', n=magnitud[escalon]||24;
+    // El cuerpo conserva tres divisiones visibles; la central es mecanizada.
+    const cantidad=cuerpo?3:Math.min(8,Math.ceil(n/12));
+    const mecanizada=/blind|mec|oruga/.test(String(u.arma)+' '+String(u.medio));
     const base=Math.floor(n/cantidad), resto=n%cantidad;
     const divisiones=Array.from({length:cantidad},(_,d)=>({
       n:base+(d<resto?1:0), mecanizada:cuerpo?d===1:mecanizada
