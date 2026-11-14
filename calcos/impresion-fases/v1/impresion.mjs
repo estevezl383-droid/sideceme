@@ -17,6 +17,7 @@
 //
 // 🌎 14-11-2026 b · FASES ROJO del Teatro: con los CAE por fases del PICB del Teatro (picb-teatro/v1, paso 4) el diálogo
 // suma «🌎 FASES ROJO · CAE-1 / CAE-2»: una hoja por fase, sólo con las fichas rojas de ESA fase (SIDPicbTeatro.verFase).
+// 🔵 14-11-2026 c · con el paso 5 del Teatro, también «FASES AZUL» (el CAP) y «ENFRENTAMIENTO» (rojo y azul de la misma fase).
 import { capsDe } from '../../cap-propios/v1/proponer.mjs'
 
 const ctx = {}
@@ -31,7 +32,7 @@ export const CAPAS = [
   { id: 'fuegos', nom: 'CAP · plan de fuegos', claves: ['planFuegos'], bando: 'propio', fase: true, def: true },
   { id: 'barreras', nom: 'CAP · plan de barreras y posiciones defensivas', claves: ['planBarreras', 'posDef'], bando: 'propio', fase: true, def: true },
   { id: 'cae', nom: 'CAE · fichas y despliegue enemigo de la fase', claves: ['cae', 'unidadesRojo'], bando: 'enemigo', fase: true, def: true },
-  { id: 'teatro', nom: '🌎 PICB del Teatro · fichas rojas de la fase, DEOP, A.I.N. y calcos del panel', claves: [], bando: 'teatro', fase: true, def: true, teatro: true },
+  { id: 'teatro', nom: '🌎 PICB del Teatro · fichas de la fase (rojas, azules o las dos), DEOP, A.I.N. y calcos del panel', claves: [], bando: 'teatro', fase: true, def: true, teatro: true },
   { id: 'plantilla', nom: 'Plantilla doctrinal / situacional, objetivos, maniobra y A.I.N. (G-2)', claves: ['plantilla', 'objetivos', 'maniobra', 'ains'], fase: false, def: true },
   { id: 'cmoc', nom: 'CMOC · terreno juzgado', claves: CMOC, fase: false, def: false },
   { id: 'g4', nom: 'G-4 · logística', claves: G4, fase: false, def: false },
@@ -184,7 +185,7 @@ function foto(map, { conCarta }, teatro = false) {
       const img = document.createElement('img')
       img.src = c.toDataURL('image/png')
       img.className = c.className
-      img.style.cssText = c.style.cssText
+      img.style.cssText = 'position:absolute;left:0;top:0;' + c.style.cssText   // como «.leaflet-pane > canvas»: si un panel tiene varios lienzos, no se apilan fuera de la hoja
       img.style.width = img.style.width || `${c.clientWidth || c.width}px`
       img.style.height = img.style.height || `${c.clientHeight || c.height}px`
       destino.replaceWith(img)
@@ -265,6 +266,17 @@ export function cursosTeatro(T = typeof window !== 'undefined' ? window.SIDPicbT
       return { bando: 'teatro', cae: k, idx, corto, titulo: `${cid} ${nom} · ${corto}` }
     }) })
   }
+  // 🔵 FASES AZUL (paso 5) y ⚔ ENFRENTAMIENTO (el CAE que enfrenta el CAP, y el CAP): una hoja por fase; sin marcar de entrada.
+  const cap = typeof T.capAzul === 'function' ? T.capAzul() : null
+  if (cap?.fases?.length) {
+    const cid = caes[cap.frente]?.id || 'CAE'
+    for (const [k, nombre, pre] of [['azul', `🌎 FASES AZUL · CAP del Teatro (frente al ${cid})`, 'CAP azul'], ['ambos', `🌎 ENFRENTAMIENTO · ${cid} contra el CAP azul`, `${cid} contra CAP`]]) {
+      lista.push({ id: `teatro-${k}`, nombre, bando: 'teatro', sinMarcar: true, fases: cap.fases.map((f, idx) => {
+        const corto = `${f.id} ${k === 'azul' ? f.nombre : 'rojo y azul'} (${f.ventana})`
+        return { bando: 'teatro', cae: k, idx, corto, titulo: `${pre} · ${corto}` }
+      }) })
+    }
+  }
   return lista
 }
 
@@ -279,7 +291,7 @@ export function abrirImpresion() {
 <small>Cada hoja sale con el mismo encuadre y las mismas cruces de registro: imprimí la carta en papel normal y las capas en papel mantequilla para superponerlas.</small>
 <fieldset><legend>1 · Cursos y fases</legend><div class="cursos">${cursos.map(c => `
   <div class="curso"><b>${esc(c.nombre)}</b>${c.fases.length ? c.fases.map((f, i) => `
-    <label><input type="checkbox" data-curso="${c.id}" data-i="${i}" ${c.otro ? '' : 'checked'}> ${esc(f.corto || f.titulo.replace(/^.*? · Fase/, 'Fase'))}</label>`).join('') : '<small>Sin fases guardadas.</small>'}
+    <label><input type="checkbox" data-curso="${c.id}" data-i="${i}" ${c.otro || c.sinMarcar ? '' : 'checked'}> ${esc(f.corto || f.titulo.replace(/^.*? · Fase/, 'Fase'))}</label>`).join('') : '<small>Sin fases guardadas.</small>'}
     ${c.otro && c.fases.length ? '<small class="aviso">Para imprimirlo la Mesa pasa a este CAP y al final vuelve al que tenías.</small>' : ''}</div>`).join('')}
 </div>${!hayTeatro && window.SIDPicbTeatro?.estado?.()?.nivel?.teatro ? '<small class="aviso">🌎 Para imprimir las FASES ROJO del Teatro: abrí el PICB del Teatro en el paso 4 · CAE, con las DEOP cargadas, y volvé a abrir este diálogo.</small>' : ''}</fieldset>
 <fieldset><legend>2 · Capas</legend>${CAPAS.filter(c => !c.teatro || hayTeatro).map(c => `
