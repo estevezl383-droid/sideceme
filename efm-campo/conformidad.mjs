@@ -10,7 +10,7 @@ export function marcaRegistro(r){
 }
 export const sinCalificar=r=>!!r&&r.prueba!=='barras'&&r.calculo?.estado!=='NO_REALIZO'&&!(typeof r.calculo?.nota==='number'&&Number.isFinite(r.calculo.nota)&&r.calculo.nota>=0&&r.calculo.nota<=100);
 export const estadoRegistro=r=>!r?'sin-registro':sinCalificar(r)?'sin-calificar':r.conformidad?'conforme':'pendiente';
-export const textoEstado=r=>!r?'Sin registro':r.conformidad?'✓ Conformidad del alumno':'● Pendiente de conformidad';
+export const textoEstado=r=>!r?'Sin registro':r.calculo?.conformidad_requerida===false?'Registrado por el evaluador':r.conformidad?(r.conformidad.simulada?'✓ Conformidad simulada por Morales':'✓ Conformidad del alumno'):'● Pendiente de conformidad';
 export function notaConformidad(r){return `<span class="efmc-conformidad ${estadoRegistro(r)}" data-record-status="${esc(r?.id||'')}"><b>${esc(r?.calculo?.nota??(!r?'Sin registro':r.calculo?.estado==='NO_REALIZO'?'No realizó':r.calculo?.cumple===true?'CUMPLE':r.calculo?.cumple===false?'NO CUMPLIÓ':'Pendiente de calificación'))}${r?.calculo?.nota!=null?' / 100':''}</b><small>${textoEstado(r)}</small>${sinCalificar(r)?`<small class="efmc-calculo-motivo">${esc(r.calculo?.motivo||'El evaluador debe revisar el cálculo de esta prueba.')}</small>`:''}</span>`;}
 export function botonConformidad(r,prueba,{soloLectura=false}={}){
  const habilitado=!!r&&!r.conformidad&&!soloLectura,label=estaciones[prueba]||prueba;
@@ -20,3 +20,4 @@ export function botonConformidad(r,prueba,{soloLectura=false}={}){
 export function fichaRegistro(r,{confirmar=false,mostrarBoton=false,soloLectura=false}={}){
  return `<article class="efmc-record ${estadoRegistro(r)}"><h3>${esc(estaciones[r.prueba]||r.prueba)}</h3><p class="efmc-mark">${esc(marcaRegistro(r))}</p>${notaConformidad(r)}<p>Registró: ${esc(r.calculo?.evaluador_nombre||r.evaluador_nombre||'Evaluador')}<br><small>${esc(fechaHora(r.creado_en))}</small></p>${r.conformidad?`<p>Confirmado por el alumno: ${esc(fechaHora(r.conformidad.confirmado_en))}</p>`:''}${mostrarBoton||confirmar?botonConformidad(r,r.prueba,{soloLectura}):''}${r.calculo?.nota==null&&r.calculo?.estado!=='NO_REALIZO'?'<p>La nota está pendiente de calificación. La conformidad reconoce la marca mostrada.</p>':''}</article>`;
 }
+

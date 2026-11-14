@@ -1,3 +1,4 @@
+import {operarAlumnoPost} from './alumno-post.mjs';
 import {POST_CONSULTA,esPost,accesoPost,operarPostulantes} from './postulantes.mjs';
 import {JEFES,ESTACIONES,CONDICIONES,puedeEvaluar,validarPlan,asignaciones,puedeRegistrar} from './organizacion.mjs';
 import {validarNacimiento} from './perfil.mjs';
@@ -29,6 +30,7 @@ Deno.serve(async(req:Request)=>{
  try{
   const b=await req.json();
   if(typeof b.token!=='string'||b.token.length>200)return reply(401,{ok:false,error:'SESIÓN REQUERIDA'});
+  if(esPost(b.ciclo)&&['post_mis_pruebas','post_confirmar'].includes(b.accion)&&!b.simular_postulante)return await operarAlumnoPost({sb,b,reply});
   const {data:s,error:se}=await sb.from('sesiones').select('usuario_id,usuario_ci,usuario_tabla,expira_en,revocado,es_master,soporte_actor_id,soporte_actor_ci').eq('token',b.token).maybeSingle();
   if(se)throw se;
   if(!s||s.revocado!==false||!Number.isFinite(Date.parse(s.expira_en))||Date.parse(s.expira_en)<=Date.now())return reply(401,{ok:false,error:'SESIÓN VENCIDA'});
@@ -62,6 +64,15 @@ Deno.serve(async(req:Request)=>{
   if(s.usuario_tabla!=='profesores')return reply(403,{ok:false,error:'USÁ TU CUENTA PERSONAL'});
   const {data:actor,error:ae}=await sb.from('profesores').select('id,ci,activo,grado,arma,especialidad,nombre_completo,es_suboficial,es_auxiliar,solo_lectura').eq('id',s.usuario_id).eq('ci',s.usuario_ci).single();
   if(ae||actor?.activo!==true||(!puedeEvaluar({...actor,id:s.usuario_id})&&!POST_CONSULTA.includes(s.usuario_id)))return reply(403,{ok:false,error:'CUENTA NO HABILITADA PARA EVALUAR'});
+  if(esPost(b.ciclo)&&b.simular_postulante)return await operarAlumnoPost({sb,b,reply,supervisor:actor});
+  if(esPost(b.ciclo)&&b.simular_actor_id){
+   if(actor.id!=='P030'||!['cargar','sincronizar','registrar','guardar_datos','foto'].includes(b.accion)||!b.organizacion_id)return reply(403,{ok:false,error:'SIMULACIÓN RESERVADA A MORALES EN UNA PRÁCTICA'});
+   const p=await sb.from('post_ef_organizaciones').select('*').eq('id',b.organizacion_id).maybeSingle();
+   if(p.error||!p.data?.habilitado||p.data.modo!=='PILOTO')return reply(403,{ok:false,error:'SOLO SE SIMULAN ORGANIZACIONES DE PRÁCTICA'});
+   const a=await sb.from('profesores').select('id,nombre_completo,grado,activo,es_suboficial,es_auxiliar,solo_lectura').eq('id',b.simular_actor_id).maybeSingle();
+   if(a.error||!puedeEvaluar(a.data)||!asignaciones(p.data,a.data.id).length)return reply(403,{ok:false,error:'EL EVALUADOR NO TIENE DESIGNACIÓN EN ESTA PRÁCTICA'});
+   return await operarPostulantes({sb,b,actor:{...a.data,supervisor_id:'P030'},reply});
+  }
   if(esPost(b.plan?.ciclo)||esPost(b.ciclo))return await operarPostulantes({sb,b,actor,reply});
   if(!puedeEvaluar({...actor,id:s.usuario_id})&&b.accion!=='acceso')return reply(403,{ok:false,error:'CUENTA DE CONSULTA: SELECCIONE POSTULANTES 2027'});
   const jefe=JEFES.includes(s.usuario_id);
@@ -228,3 +239,4 @@ Deno.serve(async(req:Request)=>{
   return reply(400,{ok:false,error:'ACCIÓN NO VÁLIDA'});
  }catch(e){console.error('efm-campo',e?.message);return reply(503,{ok:false,error:'NO SE GUARDÓ. CONSERVÁ LA MARCA Y REINTENTÁ.'});}
 });
+
