@@ -3975,7 +3975,13 @@ function resolverTeatro(estado: any) {
     while (i + 1 < puntos.length && haversineKm(pos(u), puntos[i + 1]) < haversineKm(puntos[i], puntos[i + 1])) i++;
     const contacto0 = enContacto(u, pos(u));
     // Ya en contacto: el atacante no marcha (avanza lo que gane en el combate); el que se repliega sí.
-    if (contacto0 && o.tipo !== "replegar") continue;
+    if (contacto0 && o.tipo !== "replegar") {
+      if (!memT.prog["det" + o.id]) {
+        trazas.push({id:u.id,bando:u.bando,ruta:[pos(u)],km:0,detenida:true,contacto:true,motivo:"en contacto con el enemigo; necesita resolver el combate o replegarse"});
+        memT.prog["det" + o.id]=1;
+      }
+      continue;
+    }
     const medio = u.medio === "oruga" ? "oruga" : u.medio === "pie" ? "pie" : "motor";
     let vel = (TEATRO.marchaKmDia[medio] || 30) * (TEATRO.factorEscalon[u.escalon] ?? 1);
     if (dos(u) <= 0) vel *= 0.3;
@@ -3992,9 +3998,11 @@ function resolverTeatro(estado: any) {
       const q = [p[0] + (destino[0] - p[0]) * t, p[1] + (destino[1] - p[1]) * t];
       let f = 1;
       if (!porRuta) {
-        const s = sueloTeatro(q, terreno);
-        f = s === "severo" ? (medio === "pie" ? 0.15 : 0) : TEATRO.factorSuelo[s];
-        if (f <= 0) { detenida = "terreno severamente restringido: sólo a pie o por una carretera"; break; }
+        const clases = [sueloTeatro(p, terreno), sueloTeatro([(p[0]+q[0])/2,(p[1]+q[1])/2], terreno), sueloTeatro(q, terreno)];
+        const s = clases.includes("severo") ? "severo" : clases.includes("restringido") ? "restringido" : "libre";
+        f = s === "severo" ? (medio === "pie" ? 0.15 : 0)
+          : s === "restringido" ? (medio === "pie" ? TEATRO.factorSuelo.restringido : 0) : TEATRO.factorSuelo[s];
+        if (f <= 0) { detenida = `${NOM_CLASE[s]}: este medio necesita una carretera o un paso habilitado`; break; }
       }
       const costo = paso / f;
       if (costo > presupuesto) {
@@ -4017,7 +4025,11 @@ function resolverTeatro(estado: any) {
       u.lng = Math.round(p[0] * 1e6) / 1e6; u.lat = Math.round(p[1] * 1e6) / 1e6;
       movio.add(u.id);
       if (ruta[ruta.length - 1] !== p) ruta.push(p);
-      trazas.push({ id: u.id, bando: u.bando, ruta, km: Math.round(km * 10) / 10, llego, detenida: !!detenida, contacto: !!contacto });
+    }
+    if (km > 0.01 || ((detenida || contacto) && !memT.prog["det" + o.id])) {
+      trazas.push({ id: u.id, bando: u.bando, ruta, km: Math.round(km * 10) / 10, llego,
+        detenida: !!detenida || !!contacto, contacto: !!contacto,
+        motivo: detenida || (contacto ? "en contacto con el enemigo" : null) });
     }
     if (llego) { fin.add(o.id); ev(`${nombreUnidad(u)} LLEGÓ ${lugar(p) || "a su destino"}.`, p, [u.bando]); }
     else if (detenida && !memT.prog["det" + o.id]) { memT.prog["det" + o.id] = 1; ev(`${nombreUnidad(u)} DETENIDA: ${detenida}.`, p, [u.bando]); }
@@ -4993,7 +5005,7 @@ function resolverTurno(estado: any) {
     const _rt = ralearConTiempos(pts, tt, T ? 16 : 60);   // v2.9.461: cada paso viaja a todas las pantallas
     trazas.push({ id: u.id, bando: u.bando, designacion: u.designacion || null,
       ruta: _rt.ruta, tt: _rt.tt, horas: Math.max(0, tFin - m.inicio), km: Number((r.avanzadoKm || 0).toFixed(2)),
-      llego: !!r.llego, detenida: !!r.detenida, destino: [m.o.destino_lng, m.o.destino_lat],
+      llego: !!r.llego, detenida: !!r.detenida, motivo: r.motivo || null, destino: [m.o.destino_lng, m.o.destino_lat],
       consumidos: r.consumidos || 0, inicio: m.inicio,
       // v2.9.440: la frenó un campo minado — la marcha NO sigue sola el turno que viene.
       minado: !!r.minado,
@@ -6536,7 +6548,7 @@ async function manejar(req: Request): Promise<Response> {
       const r5 = (x: any) => Math.round(Number(x) * 1e5) / 1e5;
       return ok({ tic: n, ticEn: t0, turno: turnoNuevo, hEn, hora: hAhora, horas, velocidad: vel, cierre,
         trazas: (res.trazas || []).map((t: any) => ({ id: t.id, bando: t.bando, ruta: (t.ruta || []).map((p: number[]) => [r5(p[0]), r5(p[1])]),
-          km: t.km, llego: t.llego, detenida: t.detenida, contacto: t.contacto, minado: t.minado, consumidos: t.consumidos, c1: t.c1 })),
+          km: t.km, llego: t.llego, detenida: t.detenida, motivo: t.motivo || null, contacto: t.contacto, minado: t.minado, consumidos: t.consumidos, c1: t.c1 })),
         impactos: res.impactos || [], entregas: res.entregas || [], encuentros: res.combates || [],   // v2.9.479
         tirados: T.tirados, tirosFin: [...T.tirosFin],   // v2.9.463: qué sistema tiró (el gatillo de la pantalla) y qué salió de la cola
         // Lo que cambió de cada ficha.
