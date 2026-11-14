@@ -38476,7 +38476,7 @@ const WG_TRAZA_COL = { azul:'255,214,110', rojo:'255,92,58' };
 function _wgArmasDeCercaCli(u, sinMun){
   try{
     // v2.9.479: en la película de un combate YA resuelto no se mira la munición (el motor ya la gastó).
-    return _wgArmamento(u).filter(a=>a && !a.ingenieria && a.alcance>0 && (!a.indirecto || /^mortero/.test(a.id))
+    return _wgArmamento(u,!!sinMun).filter(a=>a && !a.ingenieria && a.alcance>0 && (sinMun || !a.indirecto || /^mortero/.test(a.id))
       && (sinMun || _wgMunicion(u,a.id)>0));
   }catch(_e){ return []; }
 }
@@ -38491,7 +38491,7 @@ function _wgArmasDeCercaCli(u, sinMun){
 // callando y el destruido revienta y queda humeando. El parte sale en la bitácora en ese mismo paso.
 // Los que quedan fijados, quedan quietos: no se tirotean solos.
 // ============================================================
-const WG_COMBATE_PELI_MS = 6000, WG_COMBATE_ASALTO_MS = 2000;   // 8 s un asalto, 12 s tres
+const WG_COMBATE_PELI_MS = 18000, WG_COMBATE_ASALTO_MS = 11000; // 18, 29 y 40 s en todos los niveles
 function _wgCombatesRegistrar(lista){
   if(!Array.isArray(lista) || !lista.length) return;
   const ahora=performance.now();
@@ -38499,7 +38499,7 @@ function _wgCombatesRegistrar(lista){
   for(const c of lista){
     if(!c || c.a==null || c.b==null) continue;
     const n=Math.max(1,Math.min(3,Number(c.n)||1));
-    WG._combates.set(String(c.a)+'|'+String(c.b), { c, t0:ahora, fin:ahora+(WG.teatro ? 18000+11000*(n-1) : WG_COMBATE_PELI_MS+WG_COMBATE_ASALTO_MS*n) });
+    WG._combates.set(String(c.a)+'|'+String(c.b), { c, t0:ahora, fin:ahora+WG_COMBATE_PELI_MS+WG_COMBATE_ASALTO_MS*(n-1) });
     // Sobre la ficha, lo que pasó (si esta pantalla la tiene).
     try{
       if(c.destruida!=null) _wgBurbuja(c.destruida,'💥 DESTRUIDA',6000);
@@ -38568,7 +38568,8 @@ function _wgHumoContactosCerca(uds){
 function _wgHumoRafaga(quien, blanco, d, t0, sinMun){
   const H=_wgHumo();
   let armas=_wgArmasDeCercaCli(quien, sinMun);
-  if(!armas.length && sinMun) armas=[WG_ARMAS.ametralladora||WG_ARMAS.fusil].filter(Boolean);
+  // Sólo una ficha desconocida usa el símbolo genérico de fuego.
+  if(!armas.length && sinMun && !quien.arma) armas=[WG_ARMAS.ametralladora||WG_ARMAS.fusil].filter(Boolean);
   if(!armas.length) return 0;
   const R=Math.random;
   // Las de alcance: el mortero tira por elevación sólo si el blanco no está encima.
@@ -38595,18 +38596,26 @@ function _wgHumoTirotear(ahora){
   if(!H.pares || !H.pares.size || H.tz.length>90) return;
   for(const v of H.pares.values()){
     if(ahora<v.prox) continue;
-    // v2.9.479 — LA PELÍCULA DE UN COMBATE DECIDIDO: abre el que atacó; el otro contesta si tenía con qué;
-    // el que pierde se va callando y el destruido deja de tirar enseguida.
+    // Película del encuentro: el resultado no silencia anticipadamente al vencido.
+    // Cada bando tiene su cadencia, proporcional a la fuerza y a los supervivientes.
+    // `contesta=false` significa que el defensor no pudo responder (sin munición).
     if(v.v && v.v.c){
       const c=v.v.c, k=Math.max(0,Math.min(1,(performance.now()-v.v.t0)/Math.max(1,v.v.fin-v.v.t0)));
-      v.prox=ahora+900+Math.random()*1500;
-      const pierde=c.destruida!=null ? String(c.destruida) : (c.gana!=null ? (String(c.gana)===String(c.a)?String(c.b):String(c.a)) : null);
-      const calla=(x)=>pierde===String(x.id) && k>(c.destruida!=null?0.3:0.75);
-      let p=v.a, q=v.b;
-      if(calla(p)){ [p,q]=[q,p]; }
-      const n=calla(p) ? 0 : _wgHumoRafaga(p, q, v.d, ahora, true);
-      if((c.contesta!==false) && !calla(q) && Math.random()<.8) _wgHumoRafaga(q, p, v.d, ahora+260+Math.random()*480, true);
-      else if(!n) continue;
+      v.prox=ahora+100;
+      if(k>=.94) continue;
+      const fs=v.formaciones||(v.formaciones=_wgBatallaFormacion(v.a,v.b,c));
+      v.proximosTiros=v.proximosTiros||[ahora,ahora+320];
+      for(let lado=0;lado<2;lado++){
+        if(lado===1 && c.contesta===false) continue;
+        if(ahora<v.proximosTiros[lado]) continue;
+        const quien=lado?v.b:v.a, blanco=lado?v.a:v.b;
+        const vivos=1-_wgBatallaBajas(c,quien,lado)*Math.max(0,Math.min(1,(k-.18)/.6));
+        const fuerza=Math.max(.12,fs[lado].n/Math.max(fs[0].n,fs[1].n));
+        // Aun en inferioridad hay respuesta; la intensidad disminuye con las bajas.
+        const intervalo=700+1400*(1-fuerza)+900*(1-vivos);
+        v.proximosTiros[lado]=ahora+intervalo+Math.random()*300;
+        _wgHumoRafaga(quien,blanco,v.d,ahora,true);
+      }
       continue;
     }
     v.prox=ahora+1700+Math.random()*2800;
@@ -38695,7 +38704,7 @@ function _wgBatallaEfectos(ctx,fs,c,edad,duracion,envolvente){
   }
 }
 function _wgBatallaDibujar(ctx,S,ahora,dpr){
-  if(!WG.teatro || !_wgCorre() || WG.replayando) return;
+  if(!_wgCorre() || WG.replayando) return;
   const pares=_wgHumo().pares;
   ctx.save(); ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.globalCompositeOperation='source-over';
@@ -38757,7 +38766,7 @@ function _wgBatallaDibujar(ctx,S,ahora,dpr){
         }
         ctx.shadowBlur=0;
         const fase=(ahora+indice*137+lado*211)%1100;
-        if(!caido && k>.04 && k<.94 && fase<100 && !(pierde&&k>.75) && (lado===0||c.contesta!==false)){
+        if(!caido && k>.04 && k<.94 && fase<100 && (lado===0||c.contesta!==false)){
           ctx.strokeStyle='#ffe491';ctx.lineWidth=1.5;
           ctx.beginPath();ctx.moveTo(signo*8,0);ctx.lineTo(signo*(18+fase*.2),Math.sin(indice)*3);ctx.stroke();
           ctx.fillStyle='#fff8d4';ctx.beginPath();ctx.arc(signo*9,0,2.5,0,Math.PI*2);ctx.fill();
