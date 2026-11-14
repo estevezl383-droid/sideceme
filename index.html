@@ -35959,9 +35959,9 @@ async function _wgSyncTick(){
       { partida_id:WG.partidaId, clave_acceso:WG.clave }, _wgVueloParaServidor()));
     if(!p.ok){ console.warn('pulso:', p.error); return; }   // silencioso: es un sondeo
     // v2.9.449 — ⏱️ el reloj de todos, y el ⏹️ ALTO llega a todas las pantallas.
-    if(p.reloj!==undefined) WG.relojJuego=p.reloj||null;
+    if(p.reloj!==undefined && (!p.reloj || !p.reloj.continuo || Number(p.reloj.n)>=Number(WG._ticN||0))) WG.relojJuego=p.reloj||null;
     // v2.9.461: si los pasos no están llegando por el canal, se pide el tablero (las fichas se deslizan).
-    if(p.reloj && p.reloj.continuo && Number(p.reloj.n)>(Number(WG._ticN)||0)+2) WG._syncRepasoYa=true;
+    if(p.reloj && p.reloj.continuo && Number(p.reloj.n)>(Number(WG._ticN)||0)) WG._syncRepasoYa=true;
     if(p.estado_partida==='finalizada' && WG.estado && WG.estado.partida && WG.estado.partida.estado!=='finalizada'){ await wgEstado(true); return; }
     if(WG.maqueta) _wgLatido(true);   // v2.9.326: llegó dato, la proyección late
     // v2.9.430: mientras el pulso viajaba pudo llegar el aviso del canal y
@@ -36173,6 +36173,8 @@ async function _wgCartaGuardar(pid, firma, terreno){
 }
 async function wgEstado(silencioso){
   if(!WG.partidaId) return;
+  const pedidoPartida=WG.partidaId;
+  const pedidoEstado=WG._estadoPedido=(WG._estadoPedido||0)+1;
   // v2.9.443: la primera vez en la sesión, la carta guardada en el navegador.
   if(!WG.terreno && WG._cartaProbada!==WG.partidaId){
     WG._cartaProbada=WG.partidaId;
@@ -36188,6 +36190,10 @@ async function wgEstado(silencioso){
     if(silencioso){ console.warn('estado (en vivo):', r.error); return; }
     alert('No se pudo cargar el estado: '+r.error); return;
   }
+  // Una respuesta lenta no puede pisar una partida distinta ni un paso más nuevo.
+  if(WG.partidaId!==pedidoPartida || pedidoEstado!==(WG._estadoPedido||0)) return;
+  if(r.resolviendo){ WG._syncRepasoYa=true; return; }
+  if(r.reloj && r.reloj.continuo && Number(r.reloj.n)<Number(WG._ticN||0)) return;
   // v2.9.443: la carta guardada sólo vale si el servidor confirma que es la misma.
   if(WG._cartaDeCache && !Array.isArray(r.terreno)){
     WG._cartaDeCache=false;
@@ -46695,7 +46701,8 @@ function wgPlayUnidad(uid, ev){
   delete o._plan; o._local=1; delete o.inicio; delete o.sale; delete o.turno;
   if(WG.sinc&&WG.sinc.rel) delete WG.sinc.rel['o'+id];
   _wgActualizarContadorOrdenes(); _wgRender(); if(WG.map3d) _wg3dDatos();
-  _wgAviso(_wgCorre()?`▶ <b>${_rgEsc(u.designacion||'La unidad')}</b> sale.`:`▶ <b>${_rgEsc(u.designacion||'La unidad')}</b> sale cuando corra el tiempo.`, 2200);
+  _wgAviso(_wgCorre()?`▶ <b>${_rgEsc(u.designacion||'La unidad')}</b>: enviando orden…`:`▶ <b>${_rgEsc(u.designacion||'La unidad')}</b> espera: el juego está en pausa.`, 3500);
+  _wgBurbuja(uid,_wgCorre()?'⏳ Enviando orden…':'⏸ No se mueve: juego en pausa',3500);
   if(WG._enviando) return;   // el envío automático la toma en cuanto termine el que está en curso
   WG._enviando=true;
   _wgEnviarOrdenesLote([id],null,true).catch((e)=>console.warn('play:',e)).finally(()=>{ WG._enviando=false; });
@@ -47086,6 +47093,7 @@ async function _wgEnviarOrdenesLote(ids, btn, silencioso){
   const enviadas=[];
   const uno=async(uid)=>{
     const o=WG.ordenes[uid]; if(!o) return;
+    _wgBurbuja(uid,'⏳ Enviando orden…',3500);
     if(WG.teatro){
       try{
         const n=await _wgTeatroOrden(o,uid);
@@ -47100,10 +47108,13 @@ async function _wgEnviarOrdenesLote(ids, btn, silencioso){
     const firma=firmaDe(o);
     const r=await _wgInvoke('enviar_orden',{ partida_id:WG.partidaId, clave_acceso:WG.clave, orden:env });
     // v2.9.351: ya está en el servidor — deja de ser «lo que estoy armando».
-    if(r.ok){ okc++; enviadas.push(env); const ahora=WG.ordenes[uid]; if(ahora && firmaDe(ahora)===firma) delete ahora._local;
+    if(r.ok){ okc++; enviadas.push(env);
+      _wgBurbuja(uid,_wgCorre()?'▶ Orden recibida: iniciando marcha':'⏸ No se mueve: juego en pausa',3500);
+      const ahora=WG.ordenes[uid]; if(ahora && firmaDe(ahora)===firma) delete ahora._local;
       (WG._enviadas||(WG._enviadas={}))[String(uid)]=_wgTurnoActual(); }   // v2.9.455: para poder anularla allá
     else {
       console.warn('orden',uid,r.error); fallos.push(`${uid}: ${r.error||'sin detalle'}`);
+      _wgBurbuja(uid,'🛑 No se mueve: '+_rgEsc(r.error||'orden rechazada'),15000);
       if(!/no respondió|fetch|NetworkError|timeout/i.test(r.error||'')) (WG._autoMal||(WG._autoMal={}))[uid]=JSON.stringify(o);
     }
   };
@@ -48006,7 +48017,10 @@ function _wgHoraJuego(){
   const p=(WG.estado&&WG.estado.partida)||{}, R=WG.relojJuego||{};
   const hDur=Number(p.duracion_turno_horas)||2;
   let h=Math.max(0,(Number(p.turno_actual)||1)-1)*hDur+(Number(R.hEn)||0);
-  if(_wgCorre() && WG._ticVisto) h+=Math.min(12000,Date.now()-WG._ticVisto)/1000*(Number(R.velocidad)||60)/3600;
+  if(_wgCorre()){
+    const transcurrido=Number(R.ticEn)>0 ? _wgAhora()-Number(R.ticEn) : (WG._ticVisto?Date.now()-WG._ticVisto:0);
+    h+=Math.max(0,Math.min(12000,transcurrido))/1000*(Number(R.velocidad)||60)/3600;
+  }
   return h;
 }
 function _wgHoraTxt(h){ const m=Math.max(0,Math.floor((Number(h)||0)*60+1e-6)); return WG.teatro?`D+${Math.floor(m/1440)} ${String(Math.floor(m/60)%24).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`:`H+${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`; }
@@ -48014,10 +48028,20 @@ function _wgHoraTxt(h){ const m=Math.max(0,Math.floor((Number(h)||0)*60+1e-6)); 
 // LA FICHA SIGUE SU RUTA (2D y 3D, la misma cuenta)
 // ------------------------------------------------------------
 function _wgVivoLargo(q){ let km=0; for(let i=1;i<q.length;i++) km+=_wgHav(q[i-1],q[i]); return km; }
-function _wgVivoEncolar(id, pts, fin){
+function _wgVivoEncolar(id, pts, fin, ticEn){
   const k=String(id), u=_wgUnidadPorId(id);
   if(!u || !Array.isArray(pts) || !pts.length) return;
   if(!WG._vivo || typeof WG._vivo!=='object') WG._vivo={};
+  // Una ruta del servidor tiene una época común: no se acumulan películas locales.
+  if(Number.isFinite(Number(ticEn)) && Number(ticEn)>0 && pts.length>1){
+    const q=pts.filter(p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(p[0])&&Number.isFinite(p[1])).map(p=>[p[0],p[1]]);
+    if(q.length<2) return;
+    const largo=_wgVivoLargo(q);
+    WG._vivo[k]={id:k,q,v:largo/(WG_TIC_MS/1000),t0:performance.now(),fin:!!fin,ph:(Number(id)%7)*.9,
+      ticEn:Number(ticEn), largo, recorrido:0};
+    if(!WG._vivoAnda){ WG._vivoAnda=true; WG._vivoUlt=0; _wgCuadro(_wgVivoPaso); }
+    return;
+  }
   let f=WG._vivo[k];
   if(!f) f=WG._vivo[k]={ id:k, q:[[Number(u.lng),Number(u.lat)]], v:0, t0:performance.now(), fin:false, ph:(Number(id)%7)*0.9 };
   for(const p of pts){
@@ -48100,7 +48124,11 @@ function _wgVivoPaso(ahora){
     const f=V[k], u=WG._vivoMapa.get(k);
     if(!u){ delete V[k]; continue; }
     // Arranca pesada, no sale disparada.
-    let d=f.v*Math.min(1,(ahora-f.t0)/650+0.12)*dt;
+    let d;
+    if(f.ticEn){
+      const objetivo=f.largo*Math.max(0,Math.min(1,(_wgAhora()-f.ticEn)/WG_TIC_MS));
+      d=Math.max(0,objetivo-f.recorrido); f.recorrido=Math.max(f.recorrido,objetivo);
+    }else d=f.v*Math.min(1,(ahora-f.t0)/650+0.12)*dt;
     while(d>0 && f.q.length>1){
       const seg=_wgHav(f.q[0],f.q[1]);
       if(seg<=d){ d-=seg; f.q.shift(); continue; }
@@ -48172,10 +48200,13 @@ function _wgVivoFusion(r){
     const srv=[Number(n.lng),Number(n.lat)], ver=[Number(v.lng),Number(v.lat)];
     if(!Number.isFinite(srv[0]) || !Number.isFinite(ver[0])) continue;
     const d=_wgHav(ver,srv), f=(WG._vivo||{})[k];
-    if(d>60){ if(f) delete WG._vivo[k]; continue; }   // otra cosa (la colocó el árbitro): va directo
-    n.lng=ver[0]; n.lat=ver[1];
-    if(f){ if(_wgHav(f.q[f.q.length-1],srv)>0.05) seguir.push([k,srv]); }
-    else if(d>0.02) seguir.push([k,srv]);
+    if(f && _wgHav(f.q[f.q.length-1],srv)<=0.002){
+      n.lng=ver[0]; n.lat=ver[1]; // misma ruta confirmada, se mantiene su época
+    }else if(f || d>0.002){
+      // Sin la traza perdida, usar la posición confirmada. No inventar una recta
+      // por terreno bloqueado ni anexarla a una cola que quedó atrás.
+      if(f) delete WG._vivo[k];
+    }
   }
   WG._vivoFusion=seguir;
 }
@@ -48209,7 +48240,7 @@ function _wgTicLatido(){
     const R=WG.relojJuego||{}, enServidor=Number(R.ticEn) ? Number(R.ticEn)-(_wgAhora()-ahora) : 0;
     const visto=Math.max(WG._ticVisto||0, WG._ticPedido||0, enServidor);
     let espera=_wgTicEspera();
-    if(WG._ticPronto && _wgManejaReloj()) espera=Math.min(espera,2200);   // una orden nueva no espera
+    if(WG._ticPronto) espera=Math.min(espera,2200+(WG._ticAzar||0)%500);   // una orden nueva no espera
     if(ahora-visto<espera) return;
     _wgTicPedir();
   }catch(e){ console.warn('reloj:', e); }
@@ -48239,7 +48270,7 @@ function _wgTicAvisar(r){
   if(!WG._canal || !WG._canalOk) return;
   try{
     let datos=r;
-    try{ if(JSON.stringify(r).length>200000) datos={ tic:r.tic, turno:r.turno, hEn:r.hEn, hora:r.hora, velocidad:r.velocidad, sinDatos:1 }; }catch(_e){}
+    try{ if(JSON.stringify(r).length>200000) datos={ tic:r.tic, turno:r.turno, hEn:r.hEn, hora:r.hora, velocidad:r.velocidad, ticEn:r.ticEn, sinDatos:1 }; }catch(_e){}
     WG._canal.send({ type:'broadcast', event:'tic', payload:datos });
   }catch(_e){}
 }
@@ -48283,7 +48314,7 @@ function _wgTicRecibido(r){
     u.carga=c.carga ? Object.assign({},c.carga,(vieja && !c.carga.ruta && Array.isArray(c.carga.destino))?{ruta:vieja}:{}) : c.carga;
     u.trabajo=c.trabajo; u.suprimida_hasta=c.suprimida_hasta;
     const t=trazas.get(k);
-    if(t && Array.isArray(t.ruta) && t.ruta.length>1 && Number(t.km)>0) _wgVivoEncolar(k, t.ruta, t.llego||t.detenida);
+    if(t && Array.isArray(t.ruta) && t.ruta.length>1 && Number(t.km)>0) _wgVivoEncolar(k, t.ruta, t.llego||t.detenida, r.ticEn);
     else if(_wgHav([u.lng,u.lat],[c.lng,c.lat])>0.01 && !(WG._vivo||{})[k]) _wgVivoEncolar(k,[[c.lng,c.lat]],true);
     // ⛽ del letrero
     try{ const cb=_wgCombustible(u);
@@ -48316,7 +48347,7 @@ function _wgTicRecibido(r){
   for(const t of (r.trazas||[])){
     const u=porId.get(String(t.id));
     if(!u || (lado && u.bando!==lado)) continue;
-    if(t.detenida){ try{ setTimeout(()=>_wgTemblar(t.id),1800); }catch(_e){} _wgBurbuja(t.id, t.contacto?'⚔️ En contacto':'🛑 Frenada: mirá la bitácora', 4500); duro=true; }
+    if(t.detenida || t.contacto){ try{ setTimeout(()=>_wgTemblar(t.id),1800); }catch(_e){} _wgBurbuja(t.id,'🛑 No se mueve: '+_rgEsc(t.motivo||(t.contacto?'en contacto con el enemigo':t.minado?'campo minado':'restricción de marcha; ver bitácora')),15000); duro=true; }
     else if(t.llego) _wgBurbuja(t.id,'✅ Llegó', 3200);
   }
   // La bitácora, sin pedirle nada al servidor.
