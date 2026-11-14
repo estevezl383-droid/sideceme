@@ -36192,7 +36192,7 @@ async function wgEstado(silencioso){
   }
   // Una respuesta lenta no puede pisar una partida distinta ni un paso más nuevo.
   if(WG.partidaId!==pedidoPartida || pedidoEstado!==(WG._estadoPedido||0)) return;
-  if(r.resolviendo){ WG._syncRepasoYa=true; return; }
+  if(r.resolviendo && WG.estado){ WG._syncRepasoYa=true; return; }
   if(r.reloj && r.reloj.continuo && Number(r.reloj.n)<Number(WG._ticN||0)) return;
   // v2.9.443: la carta guardada sólo vale si el servidor confirma que es la misma.
   if(WG._cartaDeCache && !Array.isArray(r.terreno)){
