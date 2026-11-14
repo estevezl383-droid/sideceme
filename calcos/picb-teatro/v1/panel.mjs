@@ -12,10 +12,12 @@
 import * as M from './modelo.mjs'
 import * as A from './analisis.mjs'
 import { armarRed } from './red.mjs'
+import * as D from './doctrina.mjs'
 
 const VERSION_DATOS = '20261109'
+const VERSION_PANEL = '20261114' // 14-11-2026: plantilla doctrinal, CAE por fases, prompt para la IA
 const DATOS = new URL(`./datos/teatro-base.json?v=${VERSION_DATOS}`, import.meta.url).href
-const LECTOR_KMZ = new URL('../../areas-operaciones/abrir-kmz.mjs?v=pasar20261108', import.meta.url).href
+const LECTOR_KMZ = new URL('../../areas-operaciones/abrir-kmz.mjs?v=cae20261114', import.meta.url).href
 const CLAVE = 'picbTeatro'
 const LS = 'sid_picb_teatro_v1'
 
@@ -24,7 +26,8 @@ const S = {
   foto: null, base: null, cargando: null, error: '', red: null,
   areas: [], resumen: null, unidades: { enemigas: [], propias: [] }, g: {},
   ai: null, capas: null, analisis: [], nudos: [], ains: [], prc: [], cae: null, efectos: null,
-  ver: { comunicaciones: true, poblaciones: true, obstaculos: true, efectos: true, enemigo: true, mascara: true },
+  modelo: null, caes: null, vista: null, caeVisto: 'probable',
+  ver: { comunicaciones: true, poblaciones: true, obstaculos: true, efectos: true, enemigo: true, mascara: true, fases: true },
   aviso: '',
 }
 try { Object.assign(S.ver, JSON.parse(localStorage.getItem(LS) || '{}').ver || {}) } catch (e) {}
@@ -107,7 +110,12 @@ function recalcular() {
   S.prc = A.prcPorDeop(S.analisis, S.g.poderes || {})
   S.cae = S.analisis.length ? A.caeOperacionales(S.analisis, S.prc, S.unidades, S.capas, { objetivo: S.g.objetivo || '' }) : null
   S.efectos = A.resumenEfectos(S.capas, S.red, S.ai.anillo)
+  // 14-11-2026: pasos 3 y 4 a fondo (doctrina.mjs). Si algo falla ahí, el resto del panel sigue.
+  const ctxD = { analisis: S.analisis, prc: S.prc, cae: S.cae, unidades: S.unidades, ains: S.ains, nudos: S.nudos, capas: S.capas, teatro, fuera: S.ai?.fuera || [], cruce: cruceDe(), objetivo: S.g.objetivo || '' }
+  try { S.modelo = S.analisis.length ? D.modeloAmenaza(ctxD) : null; S.caes = S.analisis.length ? D.caePorFases(ctxD) : null } catch (e) { console.warn('PICB Teatro · doctrina:', e); S.modelo = null; S.caes = null }
+  S.vista = D.vista(S.modelo, S.caes, S.g.ia?.datos || null)
 }
+const cruceDe = () => (Number(S.g.cruce) >= 0 && S.g.cruce !== '' && S.g.cruce != null ? Number(S.g.cruce) : 5)
 
 // ── seguir al ejercicio (cada 2 s) ──
 function firmaDe(f) {
@@ -181,7 +189,8 @@ function conZoom(g, zMin) { g.__zMin = zMin; g.__quiere = true; return g }
 function firmaDibujo() {
   return JSON.stringify([S.abierto, S.nivel.teatro, !!S.capas, S.paso === 4, S.ver, S.ai?.anillo?.length, S.ai?.anillo?.[0],
     S.analisis.map((a) => [a.n, Math.round(a.kmRuta), a.ritmo, a.puntos.length]), S.ains.length, S.nudos.map((n) => n.nombre),
-    (S.g.teatro?.deop || []).length, (S.g.teatro?.ejes || []).length, S.unidades.enemigas.length, S.unidades.propias.length])
+    (S.g.teatro?.deop || []).length, (S.g.teatro?.ejes || []).length, S.unidades.enemigas.length, S.unidades.propias.length,
+    S.ver.fases, S.caeVisto, S.g.cruce, !!S.g.ia, S.g.ia?.cuando, S.paso])
 }
 let ultimaFirmaDibujo = ''
 function dibujar(forzar = false) {
@@ -336,6 +345,25 @@ function dibujar(forzar = false) {
       mk.__z = [7, 30]; g.addLayer(mk); rotulos.push(mk)
     }
     g.addTo(m)
+  }
+  // 🧭 CAE por fases (paso 4): las fichas del enemigo al fin de cada fase y el recorrido de cada actor
+  if (S.paso === 4 && S.ver.fases && S.vista?.caes) {
+    const c = S.caeVisto === 'peligroso' ? S.vista.caes.peligroso : S.vista.caes.probable
+    if (c && c.fases?.length) {
+      const g = grupo('fases')
+      const porQuien = new Map()
+      for (const f of c.fases) for (const a of f.acciones) {
+        if (!Number.isFinite(a.lng) || !Number.isFinite(a.lat)) continue
+        if (!porQuien.has(a.quien)) porQuien.set(a.quien, { pts: [], papel: a.papel })
+        porQuien.get(a.quien).pts.push([a.lng, a.lat])
+        const clase = a.papel === 'reserva' ? 'reserva' : a.papel === 'apoyo' ? 'apoyo' : a.papel === 'engaño' ? 'engano' : ''
+        const mk = L.marker([a.lat, a.lng], { pane: 'sidptRotulos', interactive: true, bubblingMouseEvents: true, keyboard: false, icon: L.divIcon({ className: '', html: `<div class="sidpt-fch ${clase}">${esc(f.id)} <small>${esc(M.fmtDia(a.dia))}</small> ${esc(a.quien.length > 30 ? a.quien.slice(0, 28) + '…' : a.quien)}</div>`, iconSize: [0, 0] }) })
+        mk.bindTooltip(`<b>${esc(c.id)} · ${esc(f.id)} ${esc(f.nombre)}</b><br>${esc(a.quien)} (${esc(a.papel)}${a.deop ? `, DEOP ${a.deop}` : ''})<br>${esc(a.que)}`, { className: 'sidpt-tt', direction: 'top' })
+        mk.__z = [a.papel === 'reserva' || a.papel === 'esfuerzo principal' ? 5 : 6.5, 30]; g.addLayer(mk); rotulos.push(mk)
+      }
+      for (const [, q] of porQuien) if (q.pts.length >= 2) g.addLayer(L.polyline(ll(q.pts), { renderer: rDeop, color: q.papel === 'reserva' ? '#8e24aa' : q.papel === 'apoyo' ? '#1e88e5' : '#b71c1c', weight: 2.2, dashArray: '4 6', opacity: 0.9, interactive: false }))
+      g.addTo(m)
+    }
   }
   visibilidadPorZoom()
   S.msDibujo = Math.round(performance.now() - t0)
@@ -533,6 +561,7 @@ function paso3() {
   return `
   <div class="sidpt-card"><h3>Modelo del enemigo a nivel operacional</h3>
     <p class="sidpt-guia">${en.length ? `<b>Primer escalón:</b> ${prim.map((u) => `${esc(u.designacion)} (DEOP ${u.deop})`).join(', ') || '—'}${com.length ? `, bajo el mando de ${com.map((u) => esc(u.designacion)).join(' y ')}` : ''}. <b>Reserva:</b> ${res.map((u) => esc(u.designacion)).join(', ') || '—'}. <b>Apoyo:</b> ${apo.map((u) => esc(u.designacion)).join(', ') || '—'}.` : 'No hay GG.UU. enemigas en el ejercicio: cargalas con 📂 Abrir KMZ, con 🧩 Superponer → 📌 Pasar, o con el KMZ del paso 1.'}</p></div>
+  ${cardModelo()}
   <div class="sidpt-card"><h3>GG.UU. enemigas <small>${en.length}</small></h3>
     <table class="sidpt-tabla"><thead><tr><th>Unidad</th><th>Escalón · arma</th><th>Rol</th><th>Poder</th></tr></thead><tbody>${en.map((u) => filaU(u, 'e')).join('')}</tbody></table></div>
   <div class="sidpt-card"><h3>GG.UU. propias <small>${pr.length}</small></h3>
@@ -570,12 +599,77 @@ function paso4() {
       <textarea class="sidpt-txt" data-nota="caePeligroso">${esc(S.g.notas?.caePeligroso || cae.peligroso.texto)}</textarea>
       ${S.g.notas?.caePeligroso ? '<button class="sidpt-ir" data-a="propuesta" data-k="caePeligroso">↺ volver a la propuesta</button>' : ''}</div>` : ''}
     <p class="sidpt-guia" style="margin-top:6px">La máquina propone, el G-2 dispone: corregí el texto; lo tuyo queda guardado con el ejercicio.</p></div>
+  ${cardCaes()}
   <div class="sidpt-card"><h3>Llevarlo</h3><div class="sidpt-fila">
     <button class="sidpt-b ok" data-a="kmzout">⬇ KMZ para Google Earth</button>
     <button class="sidpt-b" data-a="word">📄 Párrafo para la Apreciación (Word)</button>
     <button class="sidpt-b sec" data-a="copiar">📋 Copiar el texto</button></div></div>`
 }
 
+// ── PASO 3: la plantilla doctrinal (modelo de la amenaza) ──
+function cardModelo() {
+  const m = S.vista?.modelo
+  if (!m) return `<div class="sidpt-card"><h3>Plantilla doctrinal · modelo de la amenaza</h3><div class="sidpt-aviso">Para armar el modelo de la amenaza hacen falta las DEOP (📥 KMZ del teatro, paso 1) y las GG.UU. enemigas en el ejercicio.</div></div>`
+  const a = m.art
+  const u = (l) => l.map((z) => esc(z.designacion)).join(', ') || '—'
+  return `<div class="sidpt-card"><h3>Plantilla doctrinal · modelo de la amenaza ${m.fuente === 'IA' ? '<span class="sidpt-fuente">IA, revisado</span>' : ''}</h3>
+    ${a ? `<ul class="sidpt-lista">
+      <li><span class="k">Esfuerzo principal:</span><span>DEOP ${a.ep.n} — ${u(a.ep.enemigas)}</span></li>
+      ${a.es.map((z) => `<li><span class="k">Secundario:</span><span>DEOP ${z.n} — ${u(z.enemigas)}</span></li>`).join('')}
+      ${a.engano ? `<li><span class="k">Engaño / fijación:</span><span>DEOP ${a.engano.n} — ${u(a.engano.enemigas)}</span></li>` : ''}
+      <li><span class="k">Reserva operativa:</span><span>${u(a.reserva)}${a.reserva.length ? ' · sin empleo taxativo: magnitud, ubicación y direcciones probables (RDO Art. 807)' : ' · no identificada: la formará con su segundo escalón'}</span></li>
+      ${a.apoyos.length ? `<li><span class="k">Apoyos:</span><span>${u(a.apoyos)}</span></li>` : ''}
+      ${a.comandos.length ? `<li><span class="k">Mando:</span><span>${u(a.comandos)}</span></li>` : ''}
+      ${a.sinDeop.length ? `<li><span class="k">Sin DEOP:</span><span>${u(a.sinDeop)} — escribí «DEOP n» o «Reserva» en la descripción de la ficha</span></li>` : ''}
+    </ul>` : ''}
+    <p class="sidpt-guia" style="margin-top:6px"><b>Así ataca:</b> ${esc(m.descripcion)}</p>
+    <details class="sidpt-det" style="margin-top:6px" open><summary>Decisiones del Comandante enemigo (${m.decisiones.length})</summary>
+      <table class="sidpt-tabla" style="margin-top:4px"><thead><tr><th>PD</th><th>Decisión</th><th>Ventana</th><th>Dónde se ve</th></tr></thead><tbody>${m.decisiones.map((d) => `<tr><td><b>${esc(d.id)}</b></td><td>${esc(d.decision)}</td><td>${esc(d.ventana)}</td><td>${esc(d.donde)}</td></tr>`).join('')}</tbody></table></details>
+    <details class="sidpt-det" style="margin-top:6px"><summary>Blancos de alto valor (${m.bav.length})</summary><ul class="sidpt-lista" style="margin-top:4px">${m.bav.map((b) => `<li><span class="k">◆</span><span>${esc(b)}</span></li>`).join('')}</ul></details>
+    <details class="sidpt-det" style="margin-top:6px"><summary>Normas de distancia y tiempo a escala teatro (referencia)</summary>
+      <table class="sidpt-tabla" style="margin-top:4px"><tbody>${m.normas.map(([n, v, f]) => `<tr><td>${esc(n)}</td><td><b>${esc(v)}</b><br><span style="color:#8ea3b3">${esc(f)}</span></td></tr>`).join('')}</tbody></table></details>
+    <details class="sidpt-det" style="margin-top:6px"><summary>Cómo articula la maniobra (su doctrina)</summary><ul class="sidpt-lista" style="margin-top:4px">${m.articulacion.map(([n, d]) => `<li><span class="k">▸</span><span><b>${esc(n)}.</b> ${esc(d)}</span></li>`).join('')}</ul></details>
+    <p class="sidpt-guia" style="margin-top:6px">La máquina propone con lo que hay en el ejercicio. En el paso 4 está el prompt para que una IA lo mejore y el lugar para pegar su respuesta.</p></div>`
+}
+// ── PASO 4: los CAE por fases, la matriz, los RPI, los PD propios y la IA ──
+function tablaFases(c) {
+  const fases = c.fasesIA || c.fases || []
+  if (!fases.length) return ''
+  const d = (x) => (x == null || x === '' ? '' : ` <i>(${typeof x === 'number' ? esc(M.fmtDia(x)) : esc(x)})</i>`)
+  return `<table class="sidpt-fases"><thead><tr><th>Fase</th><th>Acciones (unidad: qué — dónde, cuándo)</th></tr></thead><tbody>${fases.map((f) => `<tr><td class="f">${esc(f.id)}<br><small>${esc(f.ventana || '')}</small></td><td>${(f.acciones || []).map((a) => `<div class="ac ${esc(a.papel === 'reserva' ? 'reserva' : a.papel === 'apoyo' ? 'apoyo' : '')}">${a.quien ? `<b>${esc(a.quien)}</b>: ` : ''}${esc(a.que)}${a.lugar ? ` — ${esc(a.lugar)}` : ''}${d(a.dia)}</div>`).join('')}</td></tr>`).join('')}</tbody></table>`
+}
+function cardCae(c, abierto) {
+  if (!c) return ''
+  const r = c.reservaIA || c.reserva
+  return `<details class="sidpt-det ${c.tipo === 'peligroso' ? 'pel' : ''}" ${abierto ? 'open' : ''}><summary><b>${esc(c.id)}</b> · ${c.tipo === 'probable' ? 'más probable' : 'más peligroso'} · DEOP ${c.n}${c.criterio ? ` <small>(${esc(c.criterio)})</small>` : ''}${c.fuente === 'IA' ? '<span class="sidpt-fuente">IA, revisado</span>' : ''}</summary>
+    <p class="sidpt-guia" style="margin:6px 0"><b>Enunciado:</b> ${esc(c.enunciado)}</p>
+    ${tablaFases(c)}
+    ${r ? `<p class="sidpt-guia" style="margin-top:6px"><b>Reserva enemiga:</b> ${esc(r.magnitud || '')}${r.ubicacion ? ` · <b>dónde:</b> ${esc(r.ubicacion)}` : ''}${r.empeno ? ` · <b>empeño:</b> ${esc(r.empeno)}` : ''}${r.direcciones?.length ? `<br><b>Direcciones de empleo:</b> ${r.direcciones.map(esc).join('; ')}` : ''}${r.condicion ? `<br><b>Condición:</b> ${esc(r.condicion)}` : ''}</p>` : ''}
+    ${c.porque?.length ? `<p class="sidpt-guia" style="margin-top:6px"><b>Por qué:</b> ${c.porque.map(esc).join(' ')}</p>` : ''}
+  </details>`
+}
+function cardCaes() {
+  const v = S.vista, cs = v?.caes
+  if (!cs) return ''
+  const ia = S.g.ia
+  return `<div class="sidpt-card"><h3>CAE por fases <small>con el empleo de la reserva</small>${v.fuente === 'IA' ? '<span class="sidpt-fuente">IA, revisado</span>' : ''}</h3>
+    <div class="sidpt-fila" style="margin-bottom:6px;justify-content:space-between"><label style="font-size:12px;color:#aebfcc">Cruce de los pasos el D+<input type="number" min="0" max="30" step="1" data-a="cruce" value="${cruceDe()}" class="sidpt-num-inp" title="Día en que el enemigo cruza los pasos (fin de su fase de superioridad aérea). Los D+n del itinerario se suman a este."></label>
+      <span class="sidpt-radio">En la carta: <label><input type="radio" name="sidpt-caev" data-a="caevisto" value="probable" ${S.caeVisto !== 'peligroso' ? 'checked' : ''}> ${esc(cs.probable?.id || 'CAE-1')}</label><label><input type="radio" name="sidpt-caev" data-a="caevisto" value="peligroso" ${S.caeVisto === 'peligroso' ? 'checked' : ''}> ${esc(cs.peligroso?.id || 'CAE-2')}</label>
+      <label class="sidpt-tog" title="Fichas por fase en la carta"><input type="checkbox" data-a="ver" data-k="fases" ${S.ver.fases ? 'checked' : ''}><span></span></label></span></div>
+    <div style="display:grid;gap:6px">${cardCae(cs.probable, true)}${cardCae(cs.peligroso, false)}</div>
+    <details class="sidpt-det" style="margin-top:6px"><summary>Matriz de eventos (${(cs.matriz || []).length})</summary>
+      <table class="sidpt-tabla" style="margin-top:4px"><thead><tr><th>A.I.N.</th><th>Ventana</th><th>Indicador</th><th>Confirma</th></tr></thead><tbody>${(cs.matriz || []).map((x) => `<tr><td><b>${esc(x.ain)}</b> ${esc(x.lugar)}</td><td>${esc(x.ventana)}</td><td>${esc(x.indicador)}</td><td>${esc(x.confirma)}</td></tr>`).join('')}</tbody></table></details>
+    <details class="sidpt-det" style="margin-top:6px"><summary>RPI propuestos (${(cs.rpi || []).length})</summary><ul class="sidpt-lista" style="margin-top:4px">${(cs.rpi || []).map((r) => `<li><span class="k"><b>${esc(r.id)}</b></span><span>${esc(r.pregunta)} <i>De ser así:</i> ${esc(r.deSerAsi)} <i>Especial atención:</i> ${esc(r.atencion)}</span></li>`).join('')}</ul></details>
+    <details class="sidpt-det" style="margin-top:6px"><summary>Puntos de decisión propios (${(cs.propias || []).length})</summary>
+      <table class="sidpt-tabla" style="margin-top:4px"><thead><tr><th>PD</th><th>Decisión</th><th>A más tardar</th><th>AIN</th><th>AIS</th></tr></thead><tbody>${(cs.propias || []).map((d) => `<tr><td><b>${esc(d.id)}</b></td><td>${esc(d.decision)}</td><td>${esc(d.aMasTardar)}</td><td>${esc(d.ain)}</td><td>${esc(d.ais)}</td></tr>`).join('')}</tbody></table></details>
+    <div class="sidpt-ia" style="margin-top:8px"><h4>🤖 Con ayuda de la IA (fuera de la app: no gasta plata)</h4>
+      <p class="sidpt-guia">1) Bajá o copiá el prompt: lleva el teatro, las DEOP con sus D+n, las GG.UU., las A.I.N., la doctrina del enemigo y lo que ya propone el motor. 2) Pegalo en la IA que tengas. 3) Pegá acá su respuesta (el JSON) y aplicala: reemplaza la propuesta del motor y queda guardada con el ejercicio.</p>
+      <div class="sidpt-fila"><button class="sidpt-b" data-a="prompt">📝 Bajar el prompt (.md)</button><button class="sidpt-b sec" data-a="copiarprompt">📋 Copiar el prompt</button></div>
+      <textarea class="sidpt-txt" data-a="iatxt" placeholder="Pegá acá la respuesta de la IA (el JSON)…" style="min-height:70px"></textarea>
+      <div class="sidpt-fila"><button class="sidpt-b ok" data-a="aplicaria">✓ Aplicar la respuesta</button>${ia ? `<button class="sidpt-b sec" data-a="quitaria">✕ Quitar lo de la IA (volver al motor)</button><span class="sidpt-guia">Aplicada ${esc(new Date(ia.cuando).toLocaleString('es-BO'))}: ${esc(ia.resumen)}</span>` : ''}</div>
+    </div>
+    <p class="sidpt-guia" style="margin-top:6px">Todo esto va al KMZ (carpetas 10 a 12) y al Word de abajo.</p></div>`
+}
 // ── eventos ──
 function alClic(ev) {
   const b = ev.target.closest('[data-a]')
@@ -593,6 +687,10 @@ function alClic(ev) {
   if (a === 'kmzout') return bajarKmz()
   if (a === 'word') return bajarWord()
   if (a === 'copiar') return copiarTexto()
+  if (a === 'prompt') return bajarPrompt()
+  if (a === 'copiarprompt') return copiarPrompt()
+  if (a === 'aplicaria') return aplicarIA(raiz.querySelector('[data-a="iatxt"]')?.value || '')
+  if (a === 'quitaria') { guardar({ ia: null }); S.aviso = 'Se quitó lo de la IA: vuelve la propuesta del motor.'; recalcular(); pintar(); return dibujar(true) }
 }
 function alCambio(ev) {
   const t = ev.target, a = t.dataset.a
@@ -602,6 +700,8 @@ function alCambio(ev) {
   if (a === 'poder') { const v = Number(t.value); guardar({ poderes: { ...(S.g.poderes || {}), [t.dataset.u]: v > 0 ? v : undefined } }); recalcular(); pintar(); return }
   if (a === 'ritmo') { const v = Number(t.value); guardar({ ritmos: { ...(S.g.ritmos || {}), [t.dataset.n]: v > 0 ? v : undefined } }); recalcular(); pintar(); return dibujar() }
   if (a === 'objetivo') { guardar({ objetivo: t.value }); recalcular(); return pintar() }
+  if (a === 'cruce') { const v = Number(t.value); guardar({ cruce: Number.isFinite(v) && v >= 0 ? v : undefined }); recalcular(); pintar(); return dibujar(true) }
+  if (a === 'caevisto') { S.caeVisto = t.value; return dibujar(true) }
 }
 let tNota = null
 function alEscribir(ev) {
@@ -659,7 +759,7 @@ function descargar(blob, nombre) {
   setTimeout(() => URL.revokeObjectURL(u), 4000)
 }
 async function bajarKmz() {
-  const kml = A.kmlDelTeatro({ ejercicio: S.nombre, anillo: S.ai?.anillo, analisis: S.analisis, teatro: S.g.teatro || {}, ains: S.ains, nudos: S.nudos, unidades: S.unidades, capas: S.capas })
+  const kml = A.kmlDelTeatro({ ejercicio: S.nombre, anillo: S.ai?.anillo, analisis: S.analisis, teatro: S.g.teatro || {}, ains: S.ains, nudos: S.nudos, unidades: S.unidades, capas: S.capas, carpetasExtra: D.kmlCaes(S.vista?.caes), estilosExtra: D.ESTILOS_KML_CAE })
   const Z = window.__SIDECEME_JSZIP || window.JSZip
   if (Z) {
     try { const z = new Z(); z.file('doc.kml', kml); const b = await z.generateAsync({ type: 'blob', compression: 'DEFLATE' }); return descargar(b, nombreArchivo('kmz')) } catch (e) {}
@@ -667,7 +767,23 @@ async function bajarKmz() {
   descargar(new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' }), nombreArchivo('kml'))
 }
 function textoHtml() {
-  return A.textoApreciacion({ ejercicio: S.nombre, resumen: S.resumen, efectos: S.efectos, analisis: S.analisis, nudos: S.nudos, ains: S.ains, prc: S.prc, cae: S.cae, unidades: S.unidades, notas: S.g.notas || {} })
+  return A.textoApreciacion({ ejercicio: S.nombre, resumen: S.resumen, efectos: S.efectos, analisis: S.analisis, nudos: S.nudos, ains: S.ains, prc: S.prc, cae: S.cae, unidades: S.unidades, notas: S.g.notas || {}, extras: D.textoCaes({ modelo: S.vista?.modelo, caes: S.vista?.caes, cruce: cruceDe() }) })
+}
+// ── 🤖 el prompt para la IA y su respuesta ──
+function armarPrompt() {
+  return D.promptIA({ ejercicio: S.nombre, resumen: S.resumen, analisis: S.analisis, prc: S.prc, unidades: S.unidades, ains: S.ains, nudos: S.nudos, modelo: S.modelo, caes: S.caes, cruce: cruceDe(), objetivo: S.g.objetivo || '', notas: S.g.notas || {} })
+}
+function bajarPrompt() { descargar(new Blob([armarPrompt()], { type: 'text/markdown;charset=utf-8' }), nombreArchivo('md').replace('PICB TEATRO', 'PROMPT IA PICB TEATRO')) }
+async function copiarPrompt() {
+  try { await navigator.clipboard.writeText(armarPrompt()); S.aviso = '✓ Prompt copiado: pegalo en la IA y traé su respuesta (el JSON).' } catch (e) { S.aviso = 'No se pudo copiar: usá «📝 Bajar el prompt».' }
+  pintar()
+}
+function aplicarIA(texto) {
+  const r = D.leerRespuestaIA(texto)
+  if (!r.ok) { S.error = 'La respuesta de la IA no sirve: ' + r.error; setTimeout(() => { S.error = ''; pintar() }, 9000); return pintar() }
+  guardar({ ia: { datos: r.datos, resumen: r.resumen, cuando: new Date().toISOString() } })
+  S.aviso = `✓ Respuesta de la IA aplicada (${r.resumen}). Revisala: la máquina propone, el G-2 dispone.`
+  recalcular(); pintar(); dibujar(true)
 }
 function bajarWord() {
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>PICB TEATRO</title>
@@ -689,4 +805,4 @@ function arrancar() {
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar)
 else arrancar()
-window.SIDPicbTeatro = { abrir, cerrar, estado: () => S, version: VERSION_DATOS }
+window.SIDPicbTeatro = { abrir, cerrar, estado: () => S, version: VERSION_DATOS, panel: VERSION_PANEL, vista: () => S.vista, prompt: armarPrompt, cargarArchivos: (fs) => cargarKmz([...fs]), aplicarIA }

@@ -229,7 +229,7 @@ export function resumenEfectos(capas, red, anillo) {
 
 // ── el texto para la Apreciación de Inteligencia ────────────────────────────────────────
 const e = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
-export function textoApreciacion({ ejercicio = '', resumen, efectos, analisis = [], nudos: nds = [], ains = [], prc = [], cae = null, unidades = { enemigas: [], propias: [] }, notas = {} }) {
+export function textoApreciacion({ ejercicio = '', resumen, efectos, analisis = [], nudos: nds = [], ains = [], prc = [], cae = null, unidades = { enemigas: [], propias: [] }, notas = {}, extras = '' }) {
   const L = []
   const p = (t, nivel = 0) => L.push(`<p style="margin:3px 0 3px ${nivel * 24}px">${t}</p>`)
   L.push(`<h3 style="margin:0 0 6px">PICB A NIVEL FF.TT.T.O. — ${e(ejercicio)}</h3>`)
@@ -262,6 +262,7 @@ export function textoApreciacion({ ejercicio = '', resumen, efectos, analisis = 
     p(`<b>CAE más peligroso:</b> ${e(notas.caePeligroso || cae.peligroso.texto)}`, 1)
   }
   if (ains.length) p(`<b>Áreas de Interés Nombradas:</b> ${ains.map((a) => `${a.id} ${e(a.nombre)} (DEOP ${a.deop.join('/')}, entre ${fmtDia(a.net)} y ${fmtDia(a.nlt)})`).join('; ')}.`, 1)
+  if (extras) L.push(extras)
   p('<i style="color:#666">Fuente del terreno: OpenStreetMap, Natural Earth y modelo de elevación AWS, generalizados a escala 1:1.000.000. Poder y ritmos: valores de referencia a validar.</i>')
   return L.join('\n')
 }
@@ -270,7 +271,7 @@ export function textoApreciacion({ ejercicio = '', resumen, efectos, analisis = 
 const x = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])
 const kmlColor = (hex, alfa = 'ff') => { const h = hex.replace('#', ''); return alfa + h.slice(4, 6) + h.slice(2, 4) + h.slice(0, 2) }
 const cs = (c) => c.map((p) => `${redondeo(p[0], 5)},${redondeo(p[1], 5)},0`).join(' ')
-export function kmlDelTeatro({ ejercicio = '', anillo, analisis = [], teatro = {}, ains = [], nudos: nds = [], unidades = { enemigas: [], propias: [] }, capas = null }) {
+export function kmlDelTeatro({ ejercicio = '', anillo, analisis = [], teatro = {}, ains = [], nudos: nds = [], unidades = { enemigas: [], propias: [] }, capas = null, carpetasExtra = [], estilosExtra = [] }) {
   const K = []
   const pm = (nombre, desc, estilo, geom) => K.push(`<Placemark><name>${x(nombre)}</name>${desc ? `<description>${x(desc)}</description>` : ''}<styleUrl>#${estilo}</styleUrl>${geom}</Placemark>`)
   const pt = (p) => `<Point><coordinates>${redondeo(p[0], 5)},${redondeo(p[1], 5)},0</coordinates></Point>`
@@ -329,5 +330,6 @@ export function kmlDelTeatro({ ejercicio = '', anillo, analisis = [], teatro = {
     for (const q of capas.poblaciones || []) if (q[1] <= 3) pm(q[0], RANGO_POBLACION[q[1]], 'pob', pt([q[2], q[3]]))
     K.push('</Folder>')
   }
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>PICB TEATRO — ${x(ejercicio)}</name>${estilos.join('')}${K.join('\n')}</Document></kml>`
+  // 14-11-2026: los CAE por fases y la matriz de eventos (doctrina.mjs) vienen como carpetas aparte.
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>PICB TEATRO — ${x(ejercicio)}</name>${estilos.join('')}${estilosExtra.join('')}${K.join('\n')}${carpetasExtra.length ? '\n' + carpetasExtra.join('\n') : ''}</Document></kml>`
 }

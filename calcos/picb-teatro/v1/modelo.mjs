@@ -186,6 +186,7 @@ function rolDeTexto(t) {
   const s = MAY(t)
   if (/RESERVA/.test(s)) return 'reserva'
   if (/GRANDES UNIDADES SUBORDINADAS/.test(s)) return 'comando'
+  if (/ENGANO|DEMOSTRACI|ATAQUE LIMITADO/.test(s)) return 'engaño' // 14-11-2026: acción de engaño / fijación
   if (/PRIMER ESCALON/.test(s)) return 'primer escalón'
   if (/\bAPOYO\b|AVIACION|BAVE/.test(s)) return 'apoyo'
   if (/SEGUNDO ESCALON/.test(s)) return 'segundo escalón'
