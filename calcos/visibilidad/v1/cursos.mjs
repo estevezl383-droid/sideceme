@@ -1,6 +1,8 @@
 import { capsDe } from '../../cap-propios/v1/proponer.mjs'
 import { BotonOjo, CabeceraGrupo } from './panel.mjs?v=20261028'
 import { unidadesProductos } from './productos-em.mjs?v=20261029-areas-logisticas'
+// 🖨️ Imprimir por fases y capas (14-11-2026): los componentes le pasan sus datos en cada dibujo.
+import { registrar as registrarImpresion, abrirImpresion } from '../../impresion-fases/v1/impresion.mjs?v=20261114'
 
 export function cursosEnemigos(fasesCOA = {}) {
   const cursos = [
@@ -50,6 +52,7 @@ function Fase({ react: R, texto, activa, onClick }) {
 
 export function CursosEnemigos({ react: R, fasesCOA, activa, verCapa, onFase, onVer, onAbrir }) {
   const h = R.createElement
+  registrarImpresion({ onFaseEnemigo: onFase })
   const elegir = (idx, visible) => {
     if (activa?.bando === 'enemigo' && activa.idx === idx) onVer('cae', !visible)
     else onFase('enemigo', idx)
@@ -70,11 +73,13 @@ export function CursosEnemigos({ react: R, fasesCOA, activa, verCapa, onFase, on
           onClick: () => elegir(idx, visible && seleccionada?.idx === idx) })),
         !curso.fases.length && h('small', null, 'Sin fases guardadas.'))
     }),
-    h('button', { type: 'button', style: boton, onClick: onAbrir }, '🎬 Abrir C.A. por fases'))
+    h('button', { type: 'button', style: boton, onClick: onAbrir }, '🎬 Abrir C.A. por fases'),
+    h('button', { type: 'button', style: boton, onClick: abrirImpresion }, '🖨️ Imprimir por fases y capas'))
 }
 
 export function CursosPropios({ react: R, fasesCOA, g3, activa, verCapa, onFase, onVer, onGrupo, onAbrir, planFuegos, ops }) {
   const h = R.createElement, [abierto, setAbierto] = R.useState(false)
+  registrarImpresion({ fasesCOA, g3, activa, verCapa, onFase, onVer, onGrupo, ops, planFuegos })
   const claves = ['cap', 'planFuegos', 'planBarreras']
   const elegir = (curso, idx, visible) => {
     if (curso.activo && activa?.bando === 'propio' && activa.idx === idx) onVer('cap', !visible)
@@ -105,5 +110,6 @@ export function CursosPropios({ react: R, fasesCOA, g3, activa, verCapa, onFase,
       ].map(([id, nombre, cantidad]) => h('div', { key: id, style: { display: 'flex', gap: 5, alignItems: 'center' } },
         h('span', { style: { flex: 1 } }, `${nombre} (${cantidad})`),
         h(BotonOjo, { react: R, nombre, visible: verCapa[id] !== false, onClick: () => onVer(id, verCapa[id] === false) }))),
-      h('button', { type: 'button', style: boton, onClick: onAbrir }, '🎬 Abrir C.A. por fases')))
+      h('button', { type: 'button', style: boton, onClick: onAbrir }, '🎬 Abrir C.A. por fases'),
+      h('button', { type: 'button', style: boton, onClick: abrirImpresion }, '🖨️ Imprimir por fases y capas')))
 }

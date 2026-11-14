@@ -1,4 +1,5 @@
 import { listarAreas } from '../../areas-interes/modelo.mjs?v=20261028-vista'
+import { registrar as registrarImpresion } from '../../impresion-fases/v1/impresion.mjs?v=20261114'
 
 export function establecerGrupo(actual, claves, mostrar) {
   const nuevas = { ...actual }
@@ -44,6 +45,7 @@ export function CabeceraGrupo({ react: R, nombre, abierto, onPlegar, encendidos,
 export function PanelAreas({ react: R, children, aoi, verCapa, onTodas, dibujando }) {
   const h = R.createElement, [abierto, setAbierto] = R.useState(false)
   R.useEffect(() => { if (dibujando) setAbierto(true) }, [dibujando])
+  registrarImpresion({ aoi })
   const areas = listarAreas(aoi)
   const visibles = verCapa.areaInteres === false ? 0 : areas.filter(a => verCapa[`areaInteres:${a.id}`] !== false).length
   return h('section', { className: 'bloque', 'aria-label': 'Áreas de Interés' },
