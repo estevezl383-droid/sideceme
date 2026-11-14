@@ -38499,7 +38499,7 @@ function _wgCombatesRegistrar(lista){
   for(const c of lista){
     if(!c || c.a==null || c.b==null) continue;
     const n=Math.max(1,Math.min(3,Number(c.n)||1));
-    WG._combates.set(String(c.a)+'|'+String(c.b), { c, t0:ahora, fin:ahora+WG_COMBATE_PELI_MS+WG_COMBATE_ASALTO_MS*n });
+    WG._combates.set(String(c.a)+'|'+String(c.b), { c, t0:ahora, fin:ahora+(WG.teatro ? 18000+11000*(n-1) : WG_COMBATE_PELI_MS+WG_COMBATE_ASALTO_MS*n) });
     // Sobre la ficha, lo que pasó (si esta pantalla la tiene).
     try{
       if(c.destruida!=null) _wgBurbuja(c.destruida,'💥 DESTRUIDA',6000);
@@ -38645,6 +38645,55 @@ function _wgBatallaFormacion(a,b,c){
     return {n, cuerpo, divisiones};
   });
 }
+// Bajas figurativas: el parte no contiene un padrón individual. El resultado
+// y la superioridad gobiernan la escena, sin cambiar bajas ni munición del motor.
+function _wgBatallaBajas(c,u,lado){
+  if(String(c.destruida)===String(u.id)) return .9;
+  if(lado===0 && c.contesta===false) return 0;
+  const r=Math.max(.05,Math.min(20,Number(c.ratio)||1));
+  const presion=lado===0?1/(1+r):r/(1+r);
+  if(c.gana!=null) return String(c.gana)===String(u.id) ? .05+.08*presion : .38+.32*presion;
+  return .12+.18*presion;
+}
+// Explosiones repartidas en TODO el frente, también en combate de infantería.
+// Ciclos calculados por tiempo: memoria acotada y el mismo aspecto en 2D y 3D.
+function _wgBatallaEfectos(ctx,fs,c,edad,duracion,envolvente){
+  for(let i=0;i<12;i++){
+    const inicio=700+i*270, ciclo=3400+(i%3)*430;
+    if(edad<inicio) continue;
+    const vuelta=Math.floor((edad-inicio)/ciclo), t=((edad-inicio)%ciclo)/1000;
+    if(t>3.3 || inicio+vuelta*ciclo>duracion-1600) continue;
+    const lado=i%2, signo=lado?-1:1, f=fs[lado];
+    const semilla=(i*47+vuelta*31)%101;
+    const x=signo*(-24-(semilla%5)*12);
+    const ancho=(f.divisiones.length-1)*(f.cuerpo?66:46)+34;
+    const y=((semilla/100)-.5)*ancho;
+    ctx.save(); ctx.translate(x,y);
+    // Cráter y humo persisten después de la llamarada; dejan ver las figuras.
+    ctx.globalAlpha=envolvente*.55*(1-t/3.5);
+    ctx.fillStyle='#201c19';ctx.beginPath();ctx.ellipse(0,3,12,6,0,0,Math.PI*2);ctx.fill();
+    for(let nube=0;nube<3;nube++){
+      const radio=7+t*6+nube*2;
+      ctx.globalAlpha=envolvente*(.38-.08*nube)*(1-t/3.5);
+      ctx.fillStyle=nube===0?'#302e2b':'#716c62';
+      ctx.beginPath();ctx.arc(t*8+nube*5,-t*12-nube*5,radio,0,Math.PI*2);ctx.fill();
+    }
+    if(t<.85){
+      const radio=5+23*Math.sin(Math.min(1,t/.85)*Math.PI);
+      ctx.globalAlpha=envolvente*(1-t/.85);
+      ctx.fillStyle='#f35916';ctx.beginPath();ctx.arc(0,0,radio,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ffbf36';ctx.beginPath();ctx.arc(-2,-2,radio*.65,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff5c4';ctx.beginPath();ctx.arc(-3,-3,radio*.3,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#ffd477';ctx.lineWidth=2;
+      for(let j=0;j<6;j++){
+        const ang=j*Math.PI/3+i, r=radio+15*t;
+        ctx.beginPath();ctx.moveTo(Math.cos(ang)*r,Math.sin(ang)*r);
+        ctx.lineTo(Math.cos(ang)*(r+6),Math.sin(ang)*(r+6));ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+}
 function _wgBatallaDibujar(ctx,S,ahora,dpr){
   if(!WG.teatro || !_wgCorre() || WG.replayando) return;
   const pares=_wgHumo().pares;
@@ -38652,49 +38701,71 @@ function _wgBatallaDibujar(ctx,S,ahora,dpr){
   ctx.globalCompositeOperation='source-over';
   let vistos=0;
   for(const v of pares.values()){
-    if(!v.v || ++vistos>WG_CONTACTO_MAX) break;
-    const c=v.v.c, k=(ahora-v.v.t0)/(v.v.fin-v.v.t0);
+    if(!v.v) continue;
+    if(++vistos>WG_CONTACTO_MAX) break;
+    const c=v.v.c, edad=ahora-v.v.t0, duracion=v.v.fin-v.v.t0, k=edad/duracion;
     if(k<0 || k>=1) continue;
     const A=S.proj(v.a.lng,v.a.lat), B=S.proj(v.b.lng,v.b.lat);
     if(!A || !B || ![...A,...B].every(Number.isFinite)) continue;
     const cx=(A[0]+B[0])/2, cy=(A[1]+B[1])/2;
-    if(cx< -210 || cy< -210 || cx>S.w+210 || cy>S.h+210) continue;
+    if(cx< -300 || cy< -300 || cx>S.w+300 || cy>S.h+300) continue;
     const ang=Math.atan2(B[1]-A[1],B[0]-A[0]);
     const fs=v.formaciones||(v.formaciones=_wgBatallaFormacion(v.a,v.b,c));
-    const despliegue=Math.min(1,k*7), salida=Math.min(1,(1-k)*7);
+    // Sólo 0,4 s de entrada y 1 s de salida: opacidad plena el resto.
+    const envolvente=Math.min(1,edad/400,(duracion-edad)/1000);
     ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
     for(let lado=0;lado<2;lado++){
       const u=lado?v.b:v.a, f=fs[lado], signo=lado?-1:1;
       const pierde=String(c.destruida??(c.gana!=null?(String(c.gana)===String(c.a)?c.b:c.a):''))===String(u.id);
-      const retirada=pierde?Math.max(0,(k-.65)/.35)*22:0;
-      const col=u.bando==='rojo'?'#b86143':'#477b9c';
+      const retirada=pierde&&c.destruida==null?Math.max(0,(k-.72)/.28)*22:0;
+      const col=u.bando==='rojo'?'#ff493b':'#248bff';
+      const bajas=_wgBatallaBajas(c,u,lado);
       let indice=0;
       for(let division=0;division<f.divisiones.length;division++) for(let j=0;j<f.divisiones[division].n;j++,indice++){
         const div=f.divisiones[division], fila=Math.floor(j/4), columna=j%4;
-        const separacion=f.cuerpo?52:38;
-        const x=signo*(-(22+fila*8)*(1.3-.3*despliegue)-retirada);
-        const y=(division-(f.divisiones.length-1)/2)*separacion+(columna-1.5)*7;
-        const paso=Math.sin(ahora/180+indice*1.7)*.65*despliegue;
-        ctx.globalAlpha=despliegue*salida*(pierde&&c.destruida!=null?Math.max(0,1-Math.max(0,k-.35)/.65):.95);
-        ctx.fillStyle='rgba(38,30,20,.12)'; ctx.fillRect(x-7,y+2,11,3);
-        ctx.fillStyle=col; ctx.strokeStyle=col; ctx.lineWidth=1;
-        if(div.mecanizada){
-          ctx.fillRect(x-3+paso,y-2,6,4); ctx.fillRect(x-4+paso,y-3,8,1); ctx.fillRect(x-4+paso,y+2,8,1);
-          ctx.beginPath(); ctx.moveTo(x+paso,y); ctx.lineTo(x+signo*7+paso,y); ctx.stroke();
+        const caido=((indice*37+lado*13)%101)/101 < bajas*Math.max(0,Math.min(1,(k-.18)/.6));
+        const x=signo*(-(27+fila*12)-(caido?0:retirada));
+        const y=(division-(f.divisiones.length-1)/2)*(f.cuerpo?66:46)+(columna-1.5)*10;
+        const paso=caido?0:Math.sin(ahora/180+indice*1.7)*.8;
+        ctx.save();ctx.translate(x+paso,y);ctx.globalAlpha=envolvente;
+        ctx.lineCap='round';ctx.lineJoin='round';
+        ctx.shadowColor='#fff4d6';ctx.shadowBlur=2;
+        if(caido){
+          ctx.rotate(.5+indice%3*.4);
+          ctx.strokeStyle='#171b22';ctx.lineWidth=5;
+          ctx.beginPath();ctx.moveTo(-5,0);ctx.lineTo(4,0);ctx.stroke();
+          ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.stroke();
+          ctx.fillStyle='#f0d4ac';ctx.beginPath();ctx.arc(-6,0,2,0,Math.PI*2);ctx.fill();
+          ctx.strokeStyle='#20232b';ctx.lineWidth=1.8;
+          ctx.beginPath();ctx.moveTo(1,0);ctx.lineTo(5,3);ctx.moveTo(-1,0);ctx.lineTo(0,-3);ctx.stroke();
+          if(div.mecanizada){ctx.fillStyle='#292c30';ctx.fillRect(-5,-3,10,6);ctx.strokeStyle=col;ctx.strokeRect(-5,-3,10,6);}
+        }else if(div.mecanizada){
+          ctx.fillStyle='#18212d';ctx.fillRect(-6,-5,12,10);
+          ctx.fillStyle=col;ctx.fillRect(-5,-3,10,6);
+          ctx.strokeStyle='#eff6ff';ctx.lineWidth=1;ctx.strokeRect(-5,-3,10,6);
+          ctx.strokeStyle='#172334';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(signo*10,0);ctx.stroke();
+          ctx.strokeStyle='#e6efff';ctx.lineWidth=1;ctx.stroke();
         }else{
-          ctx.beginPath();ctx.arc(x+paso,y,1.8,0,Math.PI*2);ctx.fill();
-          ctx.fillRect(x-3+paso,y-1,4,2);
-          ctx.beginPath();ctx.moveTo(x+paso,y);ctx.lineTo(x+signo*5+paso,y);ctx.stroke();
+          ctx.strokeStyle='#15202f';ctx.lineWidth=5;
+          ctx.beginPath();ctx.moveTo(-3,0);ctx.lineTo(2,0);ctx.stroke();
+          ctx.strokeStyle=col;ctx.lineWidth=3;ctx.stroke();
+          ctx.fillStyle=col;ctx.strokeStyle='#fff3d3';ctx.lineWidth=.8;
+          ctx.beginPath();ctx.arc(1,0,2.7,0,Math.PI*2);ctx.fill();ctx.stroke();
+          ctx.strokeStyle='#15202f';ctx.lineWidth=1.7;
+          ctx.beginPath();ctx.moveTo(-3,0);ctx.lineTo(-6,2);ctx.moveTo(-3,0);ctx.lineTo(-6,-2);
+          ctx.moveTo(0,1);ctx.lineTo(signo*8,1);ctx.stroke();
         }
-        // Ráfagas cortas entre elementos; se apagan con el vencido.
-        const fase=(ahora+indice*137+lado*211)%1300;
-        if(k>.15 && k<.82 && fase<85 && !(pierde&&k>.65) && (lado===0||c.contesta!==false)){
-          ctx.strokeStyle='#efd48a';ctx.lineWidth=.8;ctx.globalAlpha*=.7;
-          ctx.beginPath();ctx.moveTo(x+signo*6,y);ctx.lineTo(x+signo*(14+fase*.25),y+Math.sin(indice)*3);ctx.stroke();
-          ctx.fillStyle='#fff0af';ctx.fillRect(x+signo*7,y-1,2,2);
+        ctx.shadowBlur=0;
+        const fase=(ahora+indice*137+lado*211)%1100;
+        if(!caido && k>.04 && k<.94 && fase<100 && !(pierde&&k>.75) && (lado===0||c.contesta!==false)){
+          ctx.strokeStyle='#ffe491';ctx.lineWidth=1.5;
+          ctx.beginPath();ctx.moveTo(signo*8,0);ctx.lineTo(signo*(18+fase*.2),Math.sin(indice)*3);ctx.stroke();
+          ctx.fillStyle='#fff8d4';ctx.beginPath();ctx.arc(signo*9,0,2.5,0,Math.PI*2);ctx.fill();
         }
+        ctx.restore();
       }
     }
+    _wgBatallaEfectos(ctx,fs,c,edad,duracion,envolvente);
     ctx.restore();
   }
   ctx.restore();
