@@ -94,3 +94,39 @@ en AWS (https://github.com/tilezen/joerd/blob/master/docs/attribution.md). Va al
 - No entra a «👁 1·b · Qué se ve en el calco»: tiene sus propios interruptores en el panel.
 - El **Juego de Guerra a escala teatro** (etapa B) lee estos datos después: `resultados.picbTeatro`
   ya viaja en el ejercicio.
+
+## Pasos 3 y 4 a fondo (14-11-2026): plantilla doctrinal, CAE por fases y la IA
+
+Lo pidió Sergio con su Word «PICB del Teatro, Paso 4» de DIAMANTE: «quiero que la aplicación tenga la
+capacidad de generar estos resultados, obviamente con ayuda de la IA y tratando de seguir los pasos del
+PMTD o del PICB». Nuevo módulo `v1/doctrina.mjs` (sin DOM, se prueba en Node) y cambios en `panel.mjs`:
+
+- **Paso 3 · Plantilla doctrinal (modelo de la amenaza).** Con las DEOP y las fichas enemigas arma la
+  articulación (esfuerzo principal, secundarios, engaño/fijación, reserva operativa, apoyos, mando), la
+  descripción en palabras de cómo ataca, los blancos de alto valor, las decisiones del Comandante enemigo
+  (PD-E1…E5 con ventana en D+n y dónde se ven) y las tablas de doctrina (normas de distancia y tiempo a
+  escala teatro; cómo articula la maniobra: RDO-20001 Arts. 622, 751–773, 804–808, 1004–1016; RC-02-107
+  cap. V). El rol de cada ficha sale de su descripción: «Reserva», «Primer escalón», «Engaño /
+  demostración / ataque limitado» (nuevo), «Apoyo», «Grandes Unidades subordinadas» (= mando).
+- **Paso 4 · CAE por fases.** CAE-1 más probable (la DEOP con más poder enemigo; si el G-2 escribió el
+  objetivo, pesa la que pasa por él) y CAE-2 más peligroso (la DEOP que antes llega a una **capital** o al
+  CG propio con las acorazadas concentradas). Cada uno con enunciado, las cuatro fases del Tema Base
+  (D–D+5, D+5–D+10, D+10–D+20, D+20–D+30; la F-III se estira si la DEOP tarda más) con las acciones por
+  Gran Unidad **ubicadas sobre el itinerario** al fin de cada fase, el empleo de la reserva (magnitud,
+  ubicación, direcciones probables, condición, día de empeño = primer objetivo intermedio + 1), por qué, la
+  matriz de eventos (las A.I.N. del panel más la de la reserva, con qué CAE confirma cada una), 5 RPI y 5
+  puntos de decisión propios. Las fichas por fase se dibujan en la carta (interruptor y selector de CAE).
+  «Cruce de los pasos el D+n» (5 por defecto) corre todos los días del itinerario.
+- **La IA, fuera de la app.** «📝 Bajar el prompt (.md)» / «📋 Copiar» arma un prompt con el teatro, las
+  DEOP con D+n, las GG.UU., las A.I.N., la doctrina y lo que ya propone el motor, y pide la respuesta en un
+  JSON fijo. «✓ Aplicar la respuesta» la lee (sola o entre ```json), la valida, la monta sobre la propuesta
+  del motor (queda marcada «IA, revisado») y la guarda en `resultados.picbTeatro.ia`; «✕ Quitar» vuelve al
+  motor. La app no llama a ninguna IA: no gasta plata.
+- **Salidas.** El KMZ suma las carpetas 10 (CAE-1 por fases), 11 (CAE-2) y 12 (matriz); el Word suma la
+  plantilla doctrinal y los CAE por fases después de «IV.- Posibilidades del enemigo».
+- Lector de KMZ (`areas-operaciones/abrir-kmz.mjs`): «Acor.» ya se lee como acorazada (las fichas de
+  DIAMANTE se llaman «1ª Brig. Acor. «Coraceros»»). Los ordinales van sin punto («1ª», no «1.ª»).
+- Pruebas: `node calcos/pruebas/picb-teatro-cae.mjs` (y con `CARPETA_KMZ` apuntando a los KMZ de DIAMANTE
+  de la entrega `ENTREGA_PICB_TEATRO_CAE_2026-11-14/KMZ DIAMANTE`: comprueba la decisión de la clase,
+  probable por la DEOP 2 y peligroso por la DEOP 1 hacia La Paz). Gancho de prueba:
+  `window.SIDPicbTeatro.cargarArchivos([File])`, `.vista()`, `.prompt()`, `.aplicarIA(texto)`.
