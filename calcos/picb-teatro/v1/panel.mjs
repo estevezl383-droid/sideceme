@@ -15,7 +15,7 @@ import { armarRed } from './red.mjs'
 import * as D from './doctrina.mjs'
 
 const VERSION_DATOS = '20261109'
-const VERSION_PANEL = '20261114' // 14-11-2026: plantilla doctrinal, CAE por fases, prompt para la IA
+const VERSION_PANEL = '20261114b' // 14-11-2026 b: verFase, para imprimir las FASES ROJO una hoja por fase · 14-11-2026: plantilla doctrinal, CAE por fases, prompt para la IA
 const DATOS = new URL(`./datos/teatro-base.json?v=${VERSION_DATOS}`, import.meta.url).href
 const LECTOR_KMZ = new URL('../../areas-operaciones/abrir-kmz.mjs?v=cae20261114', import.meta.url).href
 const CLAVE = 'picbTeatro'
@@ -26,7 +26,7 @@ const S = {
   foto: null, base: null, cargando: null, error: '', red: null,
   areas: [], resumen: null, unidades: { enemigas: [], propias: [] }, g: {},
   ai: null, capas: null, analisis: [], nudos: [], ains: [], prc: [], cae: null, efectos: null,
-  modelo: null, caes: null, vista: null, caeVisto: 'probable',
+  modelo: null, caes: null, vista: null, caeVisto: 'probable', faseVista: null,
   ver: { comunicaciones: true, poblaciones: true, obstaculos: true, efectos: true, enemigo: true, mascara: true, fases: true },
   aviso: '',
 }
@@ -190,7 +190,7 @@ function firmaDibujo() {
   return JSON.stringify([S.abierto, S.nivel.teatro, !!S.capas, S.paso === 4, S.ver, S.ai?.anillo?.length, S.ai?.anillo?.[0],
     S.analisis.map((a) => [a.n, Math.round(a.kmRuta), a.ritmo, a.puntos.length]), S.ains.length, S.nudos.map((n) => n.nombre),
     (S.g.teatro?.deop || []).length, (S.g.teatro?.ejes || []).length, S.unidades.enemigas.length, S.unidades.propias.length,
-    S.ver.fases, S.caeVisto, S.g.cruce, !!S.g.ia, S.g.ia?.cuando, S.paso])
+    S.ver.fases, S.caeVisto, S.faseVista, S.g.cruce, !!S.g.ia, S.g.ia?.cuando, S.paso])
 }
 let ultimaFirmaDibujo = ''
 function dibujar(forzar = false) {
@@ -201,7 +201,7 @@ function dibujar(forzar = false) {
   if (!forzar && fd === ultimaFirmaDibujo && Object.keys(capas).length) return
   ultimaFirmaDibujo = fd
   quitarCapas()
-  if (!S.abierto || !S.nivel.teatro || !S.capas) return
+  if ((!S.abierto && S.faseVista === null) || !S.nivel.teatro || !S.capas) return   // 🖨️ con faseVista dibuja aunque el panel esté cerrado
   const L = window.L, C = S.capas
   const lienzo = (pane) => L.canvas({ pane, padding: 0.4 })
   const rFondo = lienzo('sidptFondo'), rMasc = lienzo('sidptMascara'), rRed = lienzo('sidptRed'), rDeop = lienzo('sidptDeop')
@@ -346,20 +346,24 @@ function dibujar(forzar = false) {
     }
     g.addTo(m)
   }
-  // 🧭 CAE por fases (paso 4): las fichas del enemigo al fin de cada fase y el recorrido de cada actor
-  if (S.paso === 4 && S.ver.fases && S.vista?.caes) {
+  // 🧭 CAE por fases (paso 4): las fichas del enemigo al fin de cada fase y el recorrido de cada actor.
+  // 🖨️ Con S.faseVista (lo pone verFase, para «Imprimir por fases y capas»): sólo las fichas de ESA fase, visibles a
+  // cualquier zoom, y el recorrido de cada actor hasta ella; se dibuja aunque el panel esté en otro paso.
+  const fv = Number.isInteger(S.faseVista) ? S.faseVista : null
+  if ((S.paso === 4 || fv !== null) && (S.ver.fases || fv !== null) && S.vista?.caes) {
     const c = S.caeVisto === 'peligroso' ? S.vista.caes.peligroso : S.vista.caes.probable
     if (c && c.fases?.length) {
       const g = grupo('fases')
       const porQuien = new Map()
-      for (const f of c.fases) for (const a of f.acciones) {
+      for (const [i, f] of c.fases.entries()) if (fv === null || i <= fv) for (const a of f.acciones) {
         if (!Number.isFinite(a.lng) || !Number.isFinite(a.lat)) continue
         if (!porQuien.has(a.quien)) porQuien.set(a.quien, { pts: [], papel: a.papel })
         porQuien.get(a.quien).pts.push([a.lng, a.lat])
+        if (fv !== null && i !== fv) continue
         const clase = a.papel === 'reserva' ? 'reserva' : a.papel === 'apoyo' ? 'apoyo' : a.papel === 'engaño' ? 'engano' : ''
         const mk = L.marker([a.lat, a.lng], { pane: 'sidptRotulos', interactive: true, bubblingMouseEvents: true, keyboard: false, icon: L.divIcon({ className: '', html: `<div class="sidpt-fch ${clase}">${esc(f.id)} <small>${esc(M.fmtDia(a.dia))}</small> ${esc(a.quien.length > 30 ? a.quien.slice(0, 28) + '…' : a.quien)}</div>`, iconSize: [0, 0] }) })
         mk.bindTooltip(`<b>${esc(c.id)} · ${esc(f.id)} ${esc(f.nombre)}</b><br>${esc(a.quien)} (${esc(a.papel)}${a.deop ? `, DEOP ${a.deop}` : ''})<br>${esc(a.que)}`, { className: 'sidpt-tt', direction: 'top' })
-        mk.__z = [a.papel === 'reserva' || a.papel === 'esfuerzo principal' ? 5 : 6.5, 30]; g.addLayer(mk); rotulos.push(mk)
+        mk.__z = fv !== null ? [0, 30] : [a.papel === 'reserva' || a.papel === 'esfuerzo principal' ? 5 : 6.5, 30]; g.addLayer(mk); rotulos.push(mk)
       }
       for (const [, q] of porQuien) if (q.pts.length >= 2) g.addLayer(L.polyline(ll(q.pts), { renderer: rDeop, color: q.papel === 'reserva' ? '#8e24aa' : q.papel === 'apoyo' ? '#1e88e5' : '#b71c1c', weight: 2.2, dashArray: '4 6', opacity: 0.9, interactive: false }))
       g.addTo(m)
@@ -797,6 +801,24 @@ async function copiarTexto() {
   pintar()
 }
 
+// 🖨️ «Imprimir por fases y capas» (impresion-fases/v1): deja en la carta UNA fase de un CAE (las fichas de esa fase y
+// el recorrido hasta ella, aunque el panel esté cerrado o en otro paso). verFase(null) vuelve a como estaba.
+let caeAntesDeImprimir = null
+function verFase(cae, fase) {
+  if (cae == null) {
+    if (caeAntesDeImprimir === null) return true
+    S.caeVisto = caeAntesDeImprimir; caeAntesDeImprimir = null; S.faseVista = null
+    dibujar(true)
+    return true
+  }
+  if (!S.nivel.teatro || !S.capas || !S.vista?.caes) return false
+  if (caeAntesDeImprimir === null) caeAntesDeImprimir = S.caeVisto
+  S.caeVisto = cae === 'peligroso' ? 'peligroso' : 'probable'
+  S.faseVista = Number.isInteger(fase) ? fase : null
+  dibujar(true)
+  return true
+}
+
 // ── arranque ──
 function arrancar() {
   engancharPuente(); engancharPreservar()
@@ -805,4 +827,4 @@ function arrancar() {
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar)
 else arrancar()
-window.SIDPicbTeatro = { abrir, cerrar, estado: () => S, version: VERSION_DATOS, panel: VERSION_PANEL, vista: () => S.vista, prompt: armarPrompt, cargarArchivos: (fs) => cargarKmz([...fs]), aplicarIA }
+window.SIDPicbTeatro = { abrir, cerrar, estado: () => S, version: VERSION_DATOS, panel: VERSION_PANEL, vista: () => S.vista, prompt: armarPrompt, cargarArchivos: (fs) => cargarKmz([...fs]), aplicarIA, verFase }
