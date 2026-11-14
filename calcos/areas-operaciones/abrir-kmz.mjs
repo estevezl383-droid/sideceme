@@ -324,7 +324,7 @@ function armaDe(texto) {
   const t = sinTildes(texto).toUpperCase()
   if (/ANTIAERE|\bAA\b|D\.?A\.?A\b/.test(t)) return 'antiaerea'
   if (/AVIACION|\bBAVE\b|VANT|HELICOP|\bAERE[OA]S?\b/.test(t)) return 'aviacion'
-  if (/ACORAZ|BLIND|TANQUE/.test(t)) return 'blindada'
+  if (/ACORAZ|\bACOR\b|BLIND|TANQUE/.test(t)) return 'blindada' // «Acor.» (14-11-2026)
   if (/CAB(ALLERIA)?\.?\s*MEC/.test(t)) return 'cabmec'
   if (/MECANIZ|\bMEC\b/.test(t)) return 'mecanizada'
   if (/MOTORIZ|\bMOT\b/.test(t)) return 'motorizada'
