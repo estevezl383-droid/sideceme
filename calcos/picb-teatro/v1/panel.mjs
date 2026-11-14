@@ -13,9 +13,10 @@ import * as M from './modelo.mjs'
 import * as A from './analisis.mjs'
 import { armarRed } from './red.mjs'
 import * as D from './doctrina.mjs'
+import * as CA from './cap-azul.mjs'
 
 const VERSION_DATOS = '20261109'
-const VERSION_PANEL = '20261114b' // 14-11-2026 b: verFase, para imprimir las FASES ROJO una hoja por fase · 14-11-2026: plantilla doctrinal, CAE por fases, prompt para la IA
+const VERSION_PANEL = '20261114c' // 14-11-2026 c: paso 5 FASES AZUL (CAP por fases) y ⚔ enfrentamiento para el Juego de Guerra · b: verFase, para imprimir las FASES ROJO una hoja por fase · 14-11-2026: plantilla doctrinal, CAE por fases, prompt para la IA
 const DATOS = new URL(`./datos/teatro-base.json?v=${VERSION_DATOS}`, import.meta.url).href
 const LECTOR_KMZ = new URL('../../areas-operaciones/abrir-kmz.mjs?v=cae20261114', import.meta.url).href
 const CLAVE = 'picbTeatro'
@@ -26,8 +27,8 @@ const S = {
   foto: null, base: null, cargando: null, error: '', red: null,
   areas: [], resumen: null, unidades: { enemigas: [], propias: [] }, g: {},
   ai: null, capas: null, analisis: [], nudos: [], ains: [], prc: [], cae: null, efectos: null,
-  modelo: null, caes: null, vista: null, caeVisto: 'probable', faseVista: null,
-  ver: { comunicaciones: true, poblaciones: true, obstaculos: true, efectos: true, enemigo: true, mascara: true, fases: true },
+  modelo: null, caes: null, vista: null, caeVisto: 'probable', faseVista: null, capAzul: null, capaFase: null,
+  ver: { comunicaciones: true, poblaciones: true, obstaculos: true, efectos: true, enemigo: true, mascara: true, fases: true, azul: true },
   aviso: '',
 }
 try { Object.assign(S.ver, JSON.parse(localStorage.getItem(LS) || '{}').ver || {}) } catch (e) {}
@@ -114,6 +115,8 @@ function recalcular() {
   const ctxD = { analisis: S.analisis, prc: S.prc, cae: S.cae, unidades: S.unidades, ains: S.ains, nudos: S.nudos, capas: S.capas, teatro, fuera: S.ai?.fuera || [], cruce: cruceDe(), objetivo: S.g.objetivo || '' }
   try { S.modelo = S.analisis.length ? D.modeloAmenaza(ctxD) : null; S.caes = S.analisis.length ? D.caePorFases(ctxD) : null } catch (e) { console.warn('PICB Teatro · doctrina:', e); S.modelo = null; S.caes = null }
   S.vista = D.vista(S.modelo, S.caes, S.g.ia?.datos || null)
+  // 14-11-2026 c: FASES AZUL (cap-azul.mjs) frente al CAE elegido, con lo que el G-3 movió o corrigió.
+  try { S.capAzul = S.analisis.length && S.vista?.caes ? CA.capAzul({ analisis: S.analisis, caes: S.vista.caes, unidades: S.unidades, frente: S.g.capAzul?.frente || 'probable', ediciones: S.g.capAzul || {} }) : null } catch (e) { console.warn('PICB Teatro · CAP azul:', e); S.capAzul = null }
 }
 const cruceDe = () => (Number(S.g.cruce) >= 0 && S.g.cruce !== '' && S.g.cruce != null ? Number(S.g.cruce) : 5)
 
@@ -187,10 +190,10 @@ function conZoom(g, zMin) { g.__zMin = zMin; g.__quiere = true; return g }
 
 // Lo que cambia el dibujo (no la posición de cada ficha: esas las dibuja la Mesa).
 function firmaDibujo() {
-  return JSON.stringify([S.abierto, S.nivel.teatro, !!S.capas, S.paso === 4, S.ver, S.ai?.anillo?.length, S.ai?.anillo?.[0],
+  return JSON.stringify([S.abierto, S.nivel.teatro, !!S.capas, S.paso >= 4, S.ver, S.ai?.anillo?.length, S.ai?.anillo?.[0],
     S.analisis.map((a) => [a.n, Math.round(a.kmRuta), a.ritmo, a.puntos.length]), S.ains.length, S.nudos.map((n) => n.nombre),
     (S.g.teatro?.deop || []).length, (S.g.teatro?.ejes || []).length, S.unidades.enemigas.length, S.unidades.propias.length,
-    S.ver.fases, S.caeVisto, S.faseVista, S.g.cruce, !!S.g.ia, S.g.ia?.cuando, S.paso])
+    S.ver.fases, S.caeVisto, S.faseVista, S.capaFase, JSON.stringify(S.g.capAzul || null), S.g.cruce, !!S.g.ia, S.g.ia?.cuando, S.paso])
 }
 let ultimaFirmaDibujo = ''
 function dibujar(forzar = false) {
@@ -201,7 +204,7 @@ function dibujar(forzar = false) {
   if (!forzar && fd === ultimaFirmaDibujo && Object.keys(capas).length) return
   ultimaFirmaDibujo = fd
   quitarCapas()
-  if ((!S.abierto && S.faseVista === null) || !S.nivel.teatro || !S.capas) return   // 🖨️ con faseVista dibuja aunque el panel esté cerrado
+  if ((!S.abierto && S.capaFase === null) || !S.nivel.teatro || !S.capas) return   // 🖨️ imprimiendo (capaFase) dibuja aunque el panel esté cerrado
   const L = window.L, C = S.capas
   const lienzo = (pane) => L.canvas({ pane, padding: 0.4 })
   const rFondo = lienzo('sidptFondo'), rMasc = lienzo('sidptMascara'), rRed = lienzo('sidptRed'), rDeop = lienzo('sidptDeop')
@@ -227,7 +230,7 @@ function dibujar(forzar = false) {
     g.addTo(m)
   }
   // En el paso 4 manda el calco del enemigo: lo demás va de fondo, apagado.
-  const enEnemigo = S.paso === 4 && S.ver.enemigo && S.analisis.length > 0
+  const enEnemigo = (S.paso >= 4 || S.capaFase !== null) && S.ver.enemigo && S.analisis.length > 0   // pasos 4 y 5, y al imprimir
   const marca = (g, p, html, zMin) => { const mk = L.marker([p[1], p[0]], { pane: 'sidptRotulos', interactive: false, keyboard: false, icon: L.divIcon({ className: '', html, iconSize: [0, 0] }) }); mk.__z = [zMin, 30]; g.addLayer(mk); rotulos.push(mk) }
   // ⛰️ grandes obstáculos
   if (S.ver.obstaculos) {
@@ -316,7 +319,7 @@ function dibujar(forzar = false) {
     g.addTo(m)
   }
   // 🔴 calco del enemigo (paso 4): itinerarios sobre la red, D+n, ejes de aproximación y A.I.N.
-  if (S.ver.enemigo && S.paso === 4) {
+  if (S.ver.enemigo && (S.paso >= 4 || S.capaFase !== null)) {
     const g = grupo('enemigo')
     for (const e of (S.g.teatro?.ejes || [])) {
       g.addLayer(L.polyline(ll(e.linea), { renderer: rDeop, color: '#e0443a', weight: 2.6, dashArray: '9 6', opacity: 0.95, interactive: false }))
@@ -346,12 +349,16 @@ function dibujar(forzar = false) {
     }
     g.addTo(m)
   }
-  // 🧭 CAE por fases (paso 4): las fichas del enemigo al fin de cada fase y el recorrido de cada actor.
-  // 🖨️ Con S.faseVista (lo pone verFase, para «Imprimir por fases y capas»): sólo las fichas de ESA fase, visibles a
-  // cualquier zoom, y el recorrido de cada actor hasta ella; se dibuja aunque el panel esté en otro paso.
-  const fv = Number.isInteger(S.faseVista) ? S.faseVista : null
-  if ((S.paso === 4 || fv !== null) && (S.ver.fases || fv !== null) && S.vista?.caes) {
-    const c = S.caeVisto === 'peligroso' ? S.vista.caes.peligroso : S.vista.caes.probable
+  // 🧭 CAE por fases (pasos 4 y 5): las fichas del enemigo al fin de cada fase y el recorrido de cada actor.
+  // 🖨️ S.capaFase lo pone verFase («Imprimir por fases y capas»: 'rojo', 'azul' o 'ambos'). S.faseVista deja UNA fase:
+  // las fichas de esa fase, visibles a cualquier zoom, y el recorrido hasta ella. En el paso 5 el rojo es el CAE que
+  // enfrenta el CAP azul.
+  const imp = S.capaFase !== null
+  const fv = Number.isInteger(S.faseVista) && (imp || S.paso === 5) ? S.faseVista : null
+  const frente = S.capAzul?.frente || 'probable'
+  const cv = imp ? (S.capaFase === 'rojo' ? S.caeVisto : frente) : S.paso === 5 ? frente : S.caeVisto
+  if ((imp ? S.capaFase !== 'azul' : (S.paso === 4 || S.paso === 5) && S.ver.fases) && S.vista?.caes) {
+    const c = cv === 'peligroso' ? S.vista.caes.peligroso : S.vista.caes.probable
     if (c && c.fases?.length) {
       const g = grupo('fases')
       const porQuien = new Map()
@@ -361,13 +368,30 @@ function dibujar(forzar = false) {
         porQuien.get(a.quien).pts.push([a.lng, a.lat])
         if (fv !== null && i !== fv) continue
         const clase = a.papel === 'reserva' ? 'reserva' : a.papel === 'apoyo' ? 'apoyo' : a.papel === 'engaño' ? 'engano' : ''
-        const mk = L.marker([a.lat, a.lng], { pane: 'sidptRotulos', interactive: true, bubblingMouseEvents: true, keyboard: false, icon: L.divIcon({ className: '', html: `<div class="sidpt-fch ${clase}">${esc(f.id)} <small>${esc(M.fmtDia(a.dia))}</small> ${esc(a.quien.length > 30 ? a.quien.slice(0, 28) + '…' : a.quien)}</div>`, iconSize: [0, 0] }) })
+        const mk = L.marker([a.lat, a.lng], { pane: 'sidptRotulos', interactive: true, bubblingMouseEvents: true, keyboard: false, icon: L.divIcon({ className: '', html: `<div class="sidpt-fch ${clase}" style="width:max-content">${esc(f.id)} <small>${esc(M.fmtDia(a.dia))}</small> ${esc(a.quien.length > 30 ? a.quien.slice(0, 28) + '…' : a.quien)}</div>`, iconSize: [0, 0] }) })
         mk.bindTooltip(`<b>${esc(c.id)} · ${esc(f.id)} ${esc(f.nombre)}</b><br>${esc(a.quien)} (${esc(a.papel)}${a.deop ? `, DEOP ${a.deop}` : ''})<br>${esc(a.que)}`, { className: 'sidpt-tt', direction: 'top' })
         mk.__z = fv !== null ? [0, 30] : [a.papel === 'reserva' || a.papel === 'esfuerzo principal' ? 5 : 6.5, 30]; g.addLayer(mk); rotulos.push(mk)
       }
       for (const [, q] of porQuien) if (q.pts.length >= 2) g.addLayer(L.polyline(ll(q.pts), { renderer: rDeop, color: q.papel === 'reserva' ? '#8e24aa' : q.papel === 'apoyo' ? '#1e88e5' : '#b71c1c', weight: 2.2, dashArray: '4 6', opacity: 0.9, interactive: false }))
       g.addTo(m)
     }
+  }
+  // 🔵 FASES AZUL (paso 5 o impresión): las GG.UU. propias al fin de cada fase; se arrastran para corregir el CAP.
+  if ((imp ? S.capaFase !== 'rojo' : S.paso === 5 && S.ver.azul) && S.capAzul?.fases?.length) {
+    const g = grupo('azul')
+    const porQuien = new Map()
+    for (const [i, f] of S.capAzul.fases.entries()) if (fv === null || i <= fv) for (const a of f.acciones) {
+      if (!Number.isFinite(a.lng) || !Number.isFinite(a.lat)) continue
+      if (!porQuien.has(a.quien)) porQuien.set(a.quien, [])
+      porQuien.get(a.quien).push([a.lng, a.lat])
+      if (fv !== null && i !== fv) continue
+      const mk = L.marker([a.lat, a.lng], { pane: 'sidptRotulos', draggable: !imp, interactive: true, bubblingMouseEvents: false, keyboard: false, icon: L.divIcon({ className: '', html: `<div class="sidpt-fch azul" style="width:max-content;background:#0d47a1;border-color:#bbdefb">${esc(f.id)} <small>${esc(M.fmtDia(a.dia))}</small> ${esc(a.quien.length > 30 ? a.quien.slice(0, 28) + '…' : a.quien)}</div>`, iconSize: [0, 0] }) })
+      mk.bindTooltip(`<b>CAP azul · ${esc(f.id)} ${esc(f.nombre)}</b><br>${esc(a.quien)} (${esc(a.papel)}${a.deop ? `, DEOP ${a.deop}` : ''})<br>${esc(a.que)}<br><i>Arrastrala para cambiar su posición en esta fase.</i>`, { className: 'sidpt-tt', direction: 'top' })
+      mk.on('dragend', () => { const p = mk.getLatLng(); moverAzul(f.id, a.designacion, p.lng, p.lat) })
+      mk.__z = fv !== null || imp ? [0, 30] : [5, 30]; g.addLayer(mk); rotulos.push(mk)
+    }
+    for (const [, pts] of porQuien) if (pts.length >= 2) g.addLayer(L.polyline(ll(pts), { renderer: rDeop, color: '#1565c0', weight: 2.4, dashArray: '6 5', opacity: 0.9, interactive: false }))
+    g.addTo(m)
   }
   visibilidadPorZoom()
   S.msDibujo = Math.round(performance.now() - t0)
@@ -477,6 +501,7 @@ const PASOS = [
   [2, 'Efectos', 'Describir los efectos del teatro'],
   [3, 'Amenaza', 'Evaluar la amenaza'],
   [4, 'CAE', 'Cursos de acción del enemigo'],
+  [5, 'Azul', 'FASES AZUL: curso de acción propio por fases y enfrentamiento con el rojo'],
 ]
 function pintar() {
   if (!raiz || !S.abierto) return
@@ -486,8 +511,8 @@ function pintar() {
     <div class="sidpt-hd"><div class="sidpt-tit"><h2>🌎 PICB DEL TEATRO · FF.TT.T.O.</h2><p>${sub}</p></div>
       <button type="button" data-a="min" title="${S.min ? 'Desplegar' : 'Plegar el panel (la carta sigue)'}">${S.min ? '▸' : '▾'}</button>
       <button type="button" data-a="cerrar" title="Cerrar (quita los calcos del teatro de la carta)">✕</button></div>
-    <nav class="sidpt-pasos">${PASOS.map(([n, c, t]) => `<button type="button" data-a="paso" data-n="${n}" class="${S.paso === n ? 'on' : ''}" title="${t}"><b>${n}</b>${c}</button>`).join('')}</nav>
-    <div class="sidpt-bd">${S.error ? `<div class="sidpt-error">${esc(S.error)}</div>` : ''}${!S.base && !S.error ? '<div class="sidpt-aviso">Cargando la carta del teatro (rutas, poblaciones, relieve)…</div>' : ''}${S.aviso ? `<div class="sidpt-aviso">${esc(S.aviso)}</div>` : ''}${[paso1, paso2, paso3, paso4][S.paso - 1]()}</div>
+    <nav class="sidpt-pasos" style="grid-template-columns:repeat(${PASOS.length},1fr)">${PASOS.map(([n, c, t]) => `<button type="button" data-a="paso" data-n="${n}" class="${S.paso === n ? 'on' : ''}" title="${t}"><b>${n}</b>${c}</button>`).join('')}</nav>
+    <div class="sidpt-bd">${S.error ? `<div class="sidpt-error">${esc(S.error)}</div>` : ''}${!S.base && !S.error ? '<div class="sidpt-aviso">Cargando la carta del teatro (rutas, poblaciones, relieve)…</div>' : ''}${S.aviso ? `<div class="sidpt-aviso">${esc(S.aviso)}</div>` : ''}${[paso1, paso2, paso3, paso4, paso5][S.paso - 1]()}</div>
     <div class="sidpt-pie">Terreno: © OpenStreetMap (ODbL) · Natural Earth · Terrain Tiles AWS, generalizado a 1:1.000.000. Poder y ritmos: referencias a validar.</div>`
 }
 
@@ -610,6 +635,42 @@ function paso4() {
     <button class="sidpt-b sec" data-a="copiar">📋 Copiar el texto</button></div></div>`
 }
 
+// ── PASO 5: FASES AZUL (el curso de acción propio por fases) y el enfrentamiento con las FASES ROJO ──
+function paso5() {
+  const cs = S.vista?.caes
+  if (!S.analisis.length || !cs) return `<div class="sidpt-card"><h3>🔵 Fases azules</h3><div class="sidpt-aviso">Primero las FASES ROJO: cargá las DEOP en el <b>paso 1</b> y mirá el CAE por fases en el <b>paso 4</b>.</div></div>`
+  const cap = S.capAzul
+  if (!cap) return `<div class="sidpt-card"><h3>🔵 Fases azules</h3><div class="sidpt-aviso">No encontré GG.UU. propias frente a las DEOP ni de reserva: poné en la Mesa las fichas azules (CE, DIV, reserva) y volvé.</div></div>`
+  const fr = cap.frente, c = cs[fr] || cs.probable
+  const enf = CA.enfrentamientos(c, cap, S.analisis)
+  const fsel = Number.isInteger(S.faseVista) ? S.faseVista : null
+  const corto = (t) => (String(t).length > 34 ? String(t).slice(0, 32) + '…' : String(t))
+  return `
+  <div class="sidpt-capa"><span class="sw" style="background:linear-gradient(90deg,#c62828 0 50%,#0d47a1 50%)"></span><div><b>⚔ Fases ROJO y fases AZUL</b><small>Primero el rojo (paso 4), después el azul: las mismas fases y los mismos días.</small></div>
+    <label class="sidpt-tog" title="Fichas azules en la carta"><input type="checkbox" data-a="ver" data-k="azul" ${S.ver.azul ? 'checked' : ''}><span></span></label></div>
+  <div class="sidpt-card"><h3>🔵 Curso de acción propio por fases <small>frente al ${esc(c?.id || 'CAE')}</small></h3>
+    <div class="sidpt-fila"><span class="sidpt-radio">Enfrenta al: <label><input type="radio" name="sidpt-azf" data-a="azulfrente" value="probable" ${fr !== 'peligroso' ? 'checked' : ''}> ${esc(cs.probable?.id || 'CAE-1')} más probable</label><label><input type="radio" name="sidpt-azf" data-a="azulfrente" value="peligroso" ${fr === 'peligroso' ? 'checked' : ''}> ${esc(cs.peligroso?.id || 'CAE-2')} más peligroso</label></span></div>
+    <div class="sidpt-fila"><span class="sidpt-radio">En la carta: <label><input type="radio" name="sidpt-azv" data-a="azulfase" value="" ${fsel === null ? 'checked' : ''}> todas</label>${cap.fases.map((f, i) => `<label><input type="radio" name="sidpt-azv" data-a="azulfase" value="${i}" ${fsel === i ? 'checked' : ''}> ${esc(f.id)}</label>`).join('')}</span></div>
+    <p class="sidpt-guia" style="margin:6px 0"><b>Concepto:</b> ${esc(cap.enunciado)}</p>
+    <table class="sidpt-fases"><thead><tr><th>Fase</th><th>🔴 Rojo · 🔵 Azul</th></tr></thead><tbody>
+    ${cap.fases.map((f, i) => `<tr><td class="f">${esc(f.id)}<br><small>${esc(f.ventana)}</small></td><td>
+      <div class="ac"><small>🔴 ${esc(c?.fases?.[i]?.nombre || f.nombreRojo || '')}</small></div>
+      ${(c?.fases?.[i]?.acciones || []).map((a) => `<div class="ac" style="color:#ffb4ab"><b>${esc(corto(a.quien || ''))}</b>: ${esc(a.que || '')}</div>`).join('')}
+      <div class="ac" style="margin-top:4px"><small>🔵 ${esc(f.nombre)}</small></div>
+      ${f.acciones.map((a) => `<div class="ac" style="color:#9fd0ff"><b>${esc(a.quien)}</b>${a.movida ? ' <small>(movida)</small>' : ''}<input class="sidpt-inp" data-a="azulque" data-k="${esc(`${f.id}|${a.designacion}`)}" value="${esc(a.que)}" title="Qué hace en esta fase (se guarda solo)"></div>`).join('')}
+    </td></tr>`).join('')}
+    </tbody></table>
+    <p class="sidpt-guia" style="margin-top:6px">Arrastrá las fichas azules en la carta para cambiar dónde va cada GU en cada fase (más cómodo con una sola fase a la vista). Lo tuyo queda guardado con el ejercicio. <button class="sidpt-ir" data-a="azulreset">↺ volver a la propuesta</button></p></div>
+  <div class="sidpt-card"><h3>⚔ Enfrentamientos por fase <small>${enf.filter((x) => x.contacto).length} choques previstos</small></h3>
+    <table class="sidpt-tabla"><thead><tr><th>Fase</th><th>DEOP</th><th>🔴 Rojo</th><th>🔵 Azul</th><th>Dónde</th></tr></thead><tbody>
+    ${enf.map((x) => `<tr><td>${esc(x.fase)}${x.contacto ? ' ⚔' : ''}</td><td>${esc(x.deop)}</td><td>${esc(x.rojo.map(corto).join(', '))}</td><td>${esc(x.azul.join(', '))}</td><td>${esc(x.lugar)} · ${esc(x.km)} km</td></tr>`).join('') || '<tr><td colspan="5">Sin GG.UU. frente a frente.</td></tr>'}
+    </tbody></table></div>
+  <div class="sidpt-card"><h3>Llevarlo al Juego de Guerra</h3><div class="sidpt-fila">
+    <button class="sidpt-b ok" data-a="enfjson">⚔ Descargar enfrentamiento (.json)</button>
+    <button class="sidpt-b" data-a="enfkmz">⬇ KMZ rojo y azul por fases</button></div>
+    <p class="sidpt-guia">El .json lleva cada GU roja y azul con su posición al final de cada fase y quién enfrenta a quién: es lo que va a leer el Juego de Guerra. Las hojas por fase (rojo, azul y enfrentamiento) salen en «🖨️ Imprimir por fases y capas».</p></div>`
+}
+
 // ── PASO 3: la plantilla doctrinal (modelo de la amenaza) ──
 function cardModelo() {
   const m = S.vista?.modelo
@@ -681,13 +742,16 @@ function alClic(ev) {
   const a = b.dataset.a
   if (a === 'cerrar') return cerrar()
   if (a === 'min') { S.min = !S.min; return pintar() }
-  if (a === 'paso') { const antes = S.paso === 4; S.paso = Number(b.dataset.n); pintar(); raiz.querySelector('.sidpt-bd')?.scrollTo(0, 0); if (antes !== (S.paso === 4)) dibujar(); return }
+  if (a === 'paso') { const antes = S.paso; S.paso = Number(b.dataset.n); pintar(); raiz.querySelector('.sidpt-bd')?.scrollTo(0, 0); if (antes !== S.paso && (antes >= 4 || S.paso >= 4)) dibujar(true); return }
   if (a === 'kmz') return input.click()
   if (a === 'borrarkmz') { if (window.confirm('¿Quitar las DEOP, los ejes y los orígenes cargados del KMZ? (Las fichas del ejercicio no se tocan.)')) { guardar({ teatro: { deop: [], ejes: [], origenes: [], areas: [] } }); recalcular(); pintar(); dibujar() } return }
   if (a === 'verai') return encuadrar(S.ai?.anillo)
   if (a === 'area') { const x = S.areas.find((y) => String(y.id) === b.dataset.id); return x && encuadrar(x.anillo) }
   if (a === 'ir') return irA(Number(b.dataset.lng), Number(b.dataset.lat))
   if (a === 'propuesta') { guardar({ notas: { ...(S.g.notas || {}), [b.dataset.k]: '' } }); return pintar() }
+  if (a === 'azulreset') { if (window.confirm('¿Volver a la propuesta de las FASES AZUL? Se pierden las fichas azules movidas y los textos corregidos.')) { guardar({ capAzul: { frente: S.g.capAzul?.frente || 'probable' } }); recalcular(); pintar(); dibujar(true) } return }
+  if (a === 'enfjson') return bajarEnfrentamiento()
+  if (a === 'enfkmz') return bajarKmzEnfrentamiento()
   if (a === 'kmzout') return bajarKmz()
   if (a === 'word') return bajarWord()
   if (a === 'copiar') return copiarTexto()
@@ -705,12 +769,15 @@ function alCambio(ev) {
   if (a === 'ritmo') { const v = Number(t.value); guardar({ ritmos: { ...(S.g.ritmos || {}), [t.dataset.n]: v > 0 ? v : undefined } }); recalcular(); pintar(); return dibujar() }
   if (a === 'objetivo') { guardar({ objetivo: t.value }); recalcular(); return pintar() }
   if (a === 'cruce') { const v = Number(t.value); guardar({ cruce: Number.isFinite(v) && v >= 0 ? v : undefined }); recalcular(); pintar(); return dibujar(true) }
+  if (a === 'azulfrente') { guardar({ capAzul: { ...(S.g.capAzul || {}), frente: t.value } }); recalcular(); pintar(); return dibujar(true) }
+  if (a === 'azulfase') { S.faseVista = t.value === '' ? null : Number(t.value); return dibujar(true) }
   if (a === 'caevisto') { S.caeVisto = t.value; return dibujar(true) }
 }
 let tNota = null
 function alEscribir(ev) {
   const t = ev.target
   if (t.dataset.nota) { clearTimeout(tNota); const k = t.dataset.nota, v = t.value; tNota = setTimeout(() => guardar({ notas: { ...(S.g.notas || {}), [k]: v } }), 400) }
+  if (t.dataset.a === 'azulque') { clearTimeout(tNota); const k = t.dataset.k, v = t.value; tNota = setTimeout(() => { const ca = S.g.capAzul || {}; guardar({ capAzul: { ...ca, textos: { ...(ca.textos || {}), [k]: v } } }); recalcular() }, 400) }
   if (t.dataset.a === 'margen') { const b = t.parentElement.querySelector('b'); if (b) b.textContent = `${t.value} km` }
 }
 
@@ -762,6 +829,32 @@ function descargar(blob, nombre) {
   a.href = u; a.download = nombre; document.body.appendChild(a); a.click(); a.remove()
   setTimeout(() => URL.revokeObjectURL(u), 4000)
 }
+// ── 🔵⚔ FASES AZUL: mover una ficha y el enfrentamiento para el Juego de Guerra ──
+function moverAzul(fid, quien, lng, lat) {
+  const ca = S.g.capAzul || {}
+  guardar({ capAzul: { ...ca, pos: { ...(ca.pos || {}), [`${fid}|${quien}`]: [Math.round(lng * 1e5) / 1e5, Math.round(lat * 1e5) / 1e5] } } })
+  recalcular(); pintar(); dibujar(true)
+}
+function paqueteEnfrentamiento() {
+  if (!S.capAzul || !S.vista?.caes) return null
+  return CA.paquete({ ejercicio: S.nombre, cae: S.vista.caes[S.capAzul.frente] || S.vista.caes.probable, cap: S.capAzul, unidades: S.unidades, analisis: S.analisis })
+}
+const FALTA_ENF = 'Para el enfrentamiento hacen falta las FASES ROJO (paso 4) y las FASES AZUL (paso 5).'
+function bajarEnfrentamiento() {
+  const p = paqueteEnfrentamiento()
+  if (!p) { S.aviso = FALTA_ENF; return pintar() }
+  descargar(new Blob([JSON.stringify(p, null, 2)], { type: 'application/json' }), nombreArchivo('json').replace(/\.json$/, ' - ENFRENTAMIENTO ROJO vs AZUL.json'))
+}
+async function bajarKmzEnfrentamiento() {
+  const p = paqueteEnfrentamiento()
+  if (!p) { S.aviso = FALTA_ENF; return pintar() }
+  const kml = CA.kmlEnfrentamiento(p), base = nombreArchivo('kmz').replace(/\.kmz$/, ' - FASES ROJO y AZUL')
+  const Z = window.__SIDECEME_JSZIP || window.JSZip
+  if (Z) {
+    try { const z = new Z(); z.file('doc.kml', kml); const b = await z.generateAsync({ type: 'blob', compression: 'DEFLATE' }); return descargar(b, base + '.kmz') } catch (e) {}
+  }
+  descargar(new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' }), base + '.kml')
+}
 async function bajarKmz() {
   const kml = A.kmlDelTeatro({ ejercicio: S.nombre, anillo: S.ai?.anillo, analisis: S.analisis, teatro: S.g.teatro || {}, ains: S.ains, nudos: S.nudos, unidades: S.unidades, capas: S.capas, carpetasExtra: D.kmlCaes(S.vista?.caes), estilosExtra: D.ESTILOS_KML_CAE })
   const Z = window.__SIDECEME_JSZIP || window.JSZip
@@ -803,17 +896,20 @@ async function copiarTexto() {
 
 // 🖨️ «Imprimir por fases y capas» (impresion-fases/v1): deja en la carta UNA fase de un CAE (las fichas de esa fase y
 // el recorrido hasta ella, aunque el panel esté cerrado o en otro paso). verFase(null) vuelve a como estaba.
-let caeAntesDeImprimir = null
+// cae: 'probable' | 'peligroso' (FASES ROJO) · 'azul' (FASES AZUL) · 'ambos' (el CAE que enfrenta el CAP, y el CAP).
+let antesDeImprimir = null
 function verFase(cae, fase) {
   if (cae == null) {
-    if (caeAntesDeImprimir === null) return true
-    S.caeVisto = caeAntesDeImprimir; caeAntesDeImprimir = null; S.faseVista = null
+    if (antesDeImprimir === null) return true
+    S.caeVisto = antesDeImprimir.cae; S.faseVista = antesDeImprimir.fase; S.capaFase = null; antesDeImprimir = null
     dibujar(true)
     return true
   }
   if (!S.nivel.teatro || !S.capas || !S.vista?.caes) return false
-  if (caeAntesDeImprimir === null) caeAntesDeImprimir = S.caeVisto
-  S.caeVisto = cae === 'peligroso' ? 'peligroso' : 'probable'
+  if ((cae === 'azul' || cae === 'ambos') && !S.capAzul) return false
+  if (antesDeImprimir === null) antesDeImprimir = { cae: S.caeVisto, fase: S.faseVista }
+  S.capaFase = cae === 'azul' || cae === 'ambos' ? cae : 'rojo'
+  if (S.capaFase === 'rojo') S.caeVisto = cae === 'peligroso' ? 'peligroso' : 'probable'
   S.faseVista = Number.isInteger(fase) ? fase : null
   dibujar(true)
   return true
@@ -827,4 +923,4 @@ function arrancar() {
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar)
 else arrancar()
-window.SIDPicbTeatro = { abrir, cerrar, estado: () => S, version: VERSION_DATOS, panel: VERSION_PANEL, vista: () => S.vista, prompt: armarPrompt, cargarArchivos: (fs) => cargarKmz([...fs]), aplicarIA, verFase }
+window.SIDPicbTeatro = { abrir, cerrar, estado: () => S, version: VERSION_DATOS, panel: VERSION_PANEL, vista: () => S.vista, prompt: armarPrompt, cargarArchivos: (fs) => cargarKmz([...fs]), aplicarIA, verFase, capAzul: () => S.capAzul, enfrentamiento: () => paqueteEnfrentamiento() }
