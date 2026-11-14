@@ -14,6 +14,9 @@
 //
 // Los datos llegan de los componentes del panel (visibilidad/v1/cursos.mjs y panel.mjs), que en cada
 // dibujo llaman a registrar(): no hace falta tocar el compilado.
+//
+// 🌎 14-11-2026 b · FASES ROJO del Teatro: con los CAE por fases del PICB del Teatro (picb-teatro/v1, paso 4) el diálogo
+// suma «🌎 FASES ROJO · CAE-1 / CAE-2»: una hoja por fase, sólo con las fichas rojas de ESA fase (SIDPicbTeatro.verFase).
 import { capsDe } from '../../cap-propios/v1/proponer.mjs'
 
 const ctx = {}
@@ -28,6 +31,7 @@ export const CAPAS = [
   { id: 'fuegos', nom: 'CAP · plan de fuegos', claves: ['planFuegos'], bando: 'propio', fase: true, def: true },
   { id: 'barreras', nom: 'CAP · plan de barreras y posiciones defensivas', claves: ['planBarreras', 'posDef'], bando: 'propio', fase: true, def: true },
   { id: 'cae', nom: 'CAE · fichas y despliegue enemigo de la fase', claves: ['cae', 'unidadesRojo'], bando: 'enemigo', fase: true, def: true },
+  { id: 'teatro', nom: '🌎 PICB del Teatro · fichas rojas de la fase, DEOP, A.I.N. y calcos del panel', claves: [], bando: 'teatro', fase: true, def: true, teatro: true },
   { id: 'plantilla', nom: 'Plantilla doctrinal / situacional, objetivos, maniobra y A.I.N. (G-2)', claves: ['plantilla', 'objetivos', 'maniobra', 'ains'], fase: false, def: true },
   { id: 'cmoc', nom: 'CMOC · terreno juzgado', claves: CMOC, fase: false, def: false },
   { id: 'g4', nom: 'G-4 · logística', claves: G4, fase: false, def: false },
@@ -126,6 +130,7 @@ function restaurarOjos(orig) {
 
 async function irAFase(curso) {
   if (!curso) return true
+  if (curso.bando === 'teatro') { const ok = window.SIDPicbTeatro?.verFase?.(curso.cae, curso.idx); await cuadro(); return !!ok }
   if (curso.bando === 'propio') {
     if (capActivo() === curso.n && ctx.activa?.bando === 'propio' && ctx.activa.idx === curso.idx) return true
     ctx.onFase(curso.n, curso.idx)
@@ -143,8 +148,30 @@ async function abrirG2() {
   if (b && b.getAttribute('aria-expanded') !== 'true') { b.click(); await hasta(() => ctx.onFaseEnemigo, 2000) }
 }
 
+// 🌎 Las capas del PICB del Teatro van en sus propios paneles de Leaflet (sidpt*): salen sólo en las hojas del Teatro
+// y al terminar vuelven como estaban. Con hojas del Teatro el encuadre suma su Área de Interés (el A.O. de la Mesa suele
+// ser un solo subteatro y cortaba medio teatro).
+const panesOrig = new Map()
+function verPanesTeatro(map, ver) {
+  for (const [n, p] of Object.entries(map._panes || {})) {
+    if (!n.startsWith('sidpt')) continue
+    if (!panesOrig.has(p)) panesOrig.set(p, p.style.display)
+    p.style.display = ver === null || ver ? panesOrig.get(p) : 'none'
+  }
+  if (ver === null) panesOrig.clear()
+}
+function limitesTeatro(hojas) {
+  if (!hojas.some(h => h.curso?.bando === 'teatro')) return null
+  const anillo = window.SIDPicbTeatro?.estado?.()?.ai?.anillo
+  return anillo?.length ? limitesEncuadre('ai', { aoi: { coordinates: anillo } }) : null
+}
+function unirLimites(a, b) {
+  if (!a || !b) return a || b
+  return [[Math.min(a[0][0], b[0][0]), Math.min(a[0][1], b[0][1])], [Math.max(a[1][0], b[1][0]), Math.max(a[1][1], b[1][1])]]
+}
+
 // ── Foto de la carta (clon del DOM de Leaflet) ───────────────────────────────────────────────────────
-function foto(map, { conCarta }) {
+function foto(map, { conCarta }, teatro = false) {
   const cont = map.getContainer(), pane = map.getPane('mapPane')
   const clon = pane.cloneNode(true)
   const oc = pane.querySelectorAll('canvas'), cc = clon.querySelectorAll('canvas')
@@ -165,6 +192,8 @@ function foto(map, { conCarta }) {
   })
   if (!conCarta) clon.querySelectorAll('.leaflet-tile-pane, img.leaflet-tile, .leaflet-tile-container').forEach(e => e.remove())
   clon.querySelectorAll('.leaflet-popup-pane > *').forEach(e => e.remove())
+  // 🌎 Hoja de una fase del Teatro: fuera los rótulos D+n de los itinerarios (tapan las fichas de la fase); quedan los de origen «DEOP n · D».
+  if (teatro) clon.querySelectorAll('.sidpt-dn').forEach(e => { if (!/^DEOP/.test(e.querySelector('small')?.textContent || '')) (e.closest('.leaflet-marker-icon') || e).remove() })
   return `<div class="${cont.className}" style="position:relative;width:${cont.clientWidth}px;height:${cont.clientHeight}px;overflow:hidden;background:${conCarta ? '#fff' : 'transparent'}">${clon.outerHTML}</div>`
 }
 
@@ -218,13 +247,31 @@ export function cursosDisponibles() {
   })
   lista.push({ id: 'probable', nombre: 'CAE más probable', bando: 'enemigo', fases: enemigo.probable })
   lista.push({ id: 'peligroso', nombre: 'CAE más peligroso', bando: 'enemigo', fases: enemigo.peligroso })
+  lista.push(...cursosTeatro())
+  return lista
+}
+
+// 🌎 FASES ROJO del Teatro: los CAE por fases del PICB del Teatro (paso 4); sólo las fases con fichas en la carta.
+export function cursosTeatro(T = typeof window !== 'undefined' ? window.SIDPicbTeatro : null) {
+  if (typeof T?.verFase !== 'function') return []
+  const caes = T.vista?.()?.caes || {}
+  const lista = []
+  for (const [k, nom] of [['probable', 'más probable'], ['peligroso', 'más peligroso']]) {
+    const c = caes[k], cid = c?.id || (k === 'peligroso' ? 'CAE-2' : 'CAE-1')
+    const fases = (c?.fases || []).map((f, idx) => ({ f, idx })).filter(({ f }) => (f?.acciones || []).some(a => Number.isFinite(a?.lat) && Number.isFinite(a?.lng)))
+    if (!fases.length) continue
+    lista.push({ id: `teatro-${k}`, nombre: `🌎 FASES ROJO · ${cid} ${nom} (Teatro)`, bando: 'teatro', fases: fases.map(({ f, idx }) => {
+      const corto = `${f.id || `Fase ${idx + 1}`}${f.nombre ? ` ${f.nombre}` : ''}${f.ventana ? ` (${f.ventana})` : ''}`
+      return { bando: 'teatro', cae: k, idx, corto, titulo: `${cid} ${nom} · ${corto}` }
+    }) })
+  }
   return lista
 }
 
 export function abrirImpresion() {
   estilo()
   if (!ctx.onGrupo || !ctx.onFase) { alert('Abrí primero la MESA (la carta con el panel de capas a la izquierda) y volvé a intentar.'); return }
-  const cursos = cursosDisponibles()
+  const cursos = cursosDisponibles(), hayTeatro = cursos.some(c => c.bando === 'teatro')
   const fondo = document.createElement('div'); fondo.className = 'sidif-fondo'
   const caja = document.createElement('div'); caja.className = 'sidif'; caja.setAttribute('role', 'dialog'); caja.setAttribute('aria-label', 'Imprimir por fases y capas')
   caja.innerHTML = `
@@ -232,10 +279,10 @@ export function abrirImpresion() {
 <small>Cada hoja sale con el mismo encuadre y las mismas cruces de registro: imprimí la carta en papel normal y las capas en papel mantequilla para superponerlas.</small>
 <fieldset><legend>1 · Cursos y fases</legend><div class="cursos">${cursos.map(c => `
   <div class="curso"><b>${esc(c.nombre)}</b>${c.fases.length ? c.fases.map((f, i) => `
-    <label><input type="checkbox" data-curso="${c.id}" data-i="${i}" ${c.otro ? '' : 'checked'}> ${esc(f.titulo.replace(/^.*? · Fase/, 'Fase'))}</label>`).join('') : '<small>Sin fases guardadas.</small>'}
+    <label><input type="checkbox" data-curso="${c.id}" data-i="${i}" ${c.otro ? '' : 'checked'}> ${esc(f.corto || f.titulo.replace(/^.*? · Fase/, 'Fase'))}</label>`).join('') : '<small>Sin fases guardadas.</small>'}
     ${c.otro && c.fases.length ? '<small class="aviso">Para imprimirlo la Mesa pasa a este CAP y al final vuelve al que tenías.</small>' : ''}</div>`).join('')}
-</div></fieldset>
-<fieldset><legend>2 · Capas</legend>${CAPAS.map(c => `
+</div>${!hayTeatro && window.SIDPicbTeatro?.estado?.()?.nivel?.teatro ? '<small class="aviso">🌎 Para imprimir las FASES ROJO del Teatro: abrí el PICB del Teatro en el paso 4 · CAE, con las DEOP cargadas, y volvé a abrir este diálogo.</small>' : ''}</fieldset>
+<fieldset><legend>2 · Capas</legend>${CAPAS.filter(c => !c.teatro || hayTeatro).map(c => `
   <label><input type="checkbox" data-capa="${c.id}" ${c.def ? 'checked' : ''}> ${esc(c.nom)}${c.fase ? '' : ' <small>(no cambia con la fase)</small>'}</label>`).join('')}
   <label><input type="checkbox" data-ref checked> Área de Operaciones, Área de Interés y de Influencia en todas las hojas <small>(referencia para superponer)</small></label>
 </fieldset>
@@ -309,7 +356,7 @@ export async function generar(op) {
   let geo = null
   try {
     window.confirm = () => true   // el «¿pasar al CAP n?» ya lo aceptó al elegir ese CAP en el diálogo
-    const lim = op.encuadre === 'vista' ? null : limitesEncuadre(op.encuadre, ctx)
+    const lim = op.encuadre === 'vista' ? null : unirLimites(limitesEncuadre(op.encuadre, ctx), limitesTeatro(hojas))
     const vista = map.getBounds()
     const caja = lim || [[vista.getSouth(), vista.getWest()], [vista.getNorth(), vista.getEast()]]
     const altoGeo = map.latLngToContainerPoint([caja[0][0], caja[0][1]]).y - map.latLngToContainerPoint([caja[1][0], caja[1][1]]).y
@@ -329,11 +376,12 @@ export async function generar(op) {
       t(`Hoja ${i + 1} de ${hojas.length} · ${h.titulo}`)
       if (!(await irAFase(h.curso))) { avisos.push(`No se pudo mostrar «${h.titulo}» (¿ejercicio bloqueado?). Se omitió.`); continue }
       aplicarOjos(h.claves)
+      verPanesTeatro(map, h.capas.includes('teatro'))
       await cuadro(); await esperar(450)
       map.setView(vistaFija.c, vistaFija.z, { animate: false })   // pasar de CAP puede mover la carta
       await tilesListos(map); await cuadro(); await esperar(150)
       geo.escala = geo.escala || escalaDe(map, k)
-      salida.push({ ...h, html: foto(map, op) })
+      salida.push({ ...h, html: foto(map, op, h.curso?.bando === 'teatro') })
     }
   } catch (e) {
     avisos.push('Error al armar las hojas: ' + (e?.message || e))
@@ -344,6 +392,7 @@ export async function generar(op) {
       if (orig.activa) await irAFase(orig.activa.bando === 'propio' ? { bando: 'propio', n: orig.cap, idx: orig.activa.idx } : { bando: 'enemigo', idx: orig.activa.idx })
       restaurarOjos(orig.ver)
     } catch {}
+    try { window.SIDPicbTeatro?.verFase?.(null); verPanesTeatro(map, null) } catch {}
     window.confirm = orig.confirm
     cont.style.cssText = orig.css
     map.options.zoomSnap = orig.snap
@@ -402,6 +451,8 @@ body{font:12px Arial,sans-serif;color:#000}
 .marco{position:relative;overflow:hidden;border:1px solid #000;box-sizing:border-box}
 .esc{position:absolute;left:0;top:0;transform-origin:0 0}
 .esc .leaflet-container{background:transparent!important}
+.hoja .sidpt-fch{font-size:12.5px}
+.hoja .sidpt-fch,.hoja .sidpt-dn,.hoja .sidpt-ainl{width:max-content}
 .reg{position:absolute;left:0;top:0;pointer-events:none;stroke:#000;stroke-width:1.2;fill:none}
 .hoja footer{display:flex;justify-content:space-between;gap:8px;font-size:9px;height:16px;align-items:center;margin-top:3px}
 .barra i{display:inline-block;height:5px;border:1px solid #000;background:repeating-linear-gradient(90deg,#000 0 25%,#fff 25% 50%);vertical-align:middle}
