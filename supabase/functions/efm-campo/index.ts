@@ -31,7 +31,7 @@ Deno.serve(async(req:Request)=>{
  try{
   const b=await req.json();
   if(typeof b.token!=='string'||b.token.length>200)return reply(401,{ok:false,error:'SESIÓN REQUERIDA'});
-  if(esPost(b.ciclo)&&['post_mis_pruebas','post_confirmar'].includes(b.accion)&&!b.simular_postulante)return await operarAlumnoPost({sb,b,reply});
+  if(esPost(b.ciclo)&&['post_mis_pruebas','post_confirmar','post_hoja_pdf'].includes(b.accion)&&!b.simular_postulante)return await operarAlumnoPost({sb,b,reply});
   const {data:s,error:se}=await sb.from('sesiones').select('usuario_id,usuario_ci,usuario_tabla,expira_en,revocado,es_master,soporte_actor_id,soporte_actor_ci').eq('token',b.token).maybeSingle();
   if(se)throw se;
   if(!s||s.revocado!==false||!Number.isFinite(Date.parse(s.expira_en))||Date.parse(s.expira_en)<=Date.now())return reply(401,{ok:false,error:'SESIÓN VENCIDA'});

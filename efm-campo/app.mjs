@@ -1,4 +1,4 @@
-import {abrirVistaPostulante} from './vista-postulante.mjs?v=30';
+import {abrirVistaPostulante} from './vista-postulante.mjs?v=35';
 import {tandasAerobicas} from './tandas.mjs?v=30';
 import {FotosNomina} from '../postulantes/nomina.mjs?v=2';
 import {abrirHistorial} from './historial.mjs?v=29';

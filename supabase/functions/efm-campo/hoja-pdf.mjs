@@ -26,6 +26,7 @@ export async function generarHojaPDF(s,emision,{PDFDocument,StandardFonts,rgb,QR
  cell('OBSERVACIONES: '+(observations||'____________________________________'),485,290,287,35,7);
  cell('SELLO Y FIRMA ENFERMERA (O)\n\n____________________________',20,397,200,67,8);cell('SELLO Y FIRMA MÉDICO S.O.\n\n____________________________',220,397,265,67,8);
  cell('',485,325,287,139);
+ if(emision.sin_verificacion){text('HOJA INDIVIDUAL DE NOTAS',494,337,8,true,260);text(s.estado,494,360,8,false,260,4);text('Emitida: '+horaTexto(emision.emitido_en),494,412,7,false,260);text('Sin validación documental por QR.',494,440,7,false,260);}else{
  text('VERIFICAR AUTENTICIDAD',494,337,8,true,150);
  text('Documento: '+emision.id,494,354,6,false,150,2);
  text('Emitido: '+horaTexto(emision.emitido_en),494,381,6,false,150,2);
@@ -33,9 +34,11 @@ export async function generarHojaPDF(s,emision,{PDFDocument,StandardFonts,rgb,QR
  const qr=QRCode.create(emision.url,{errorCorrectionLevel:'M'}),quiet=4,box=104,module=box/(qr.modules.size+quiet*2),qx=657,qtop=337;
  page.drawRectangle({x:qx,y:612-qtop-box,width:box,height:box,color:rgb(1,1,1)});
  for(let row=0;row<qr.modules.size;row++)for(let col=0;col<qr.modules.size;col++)if(qr.modules.get(row,col))page.drawRectangle({x:qx+(col+quiet)*module,y:612-qtop-(row+quiet+1)*module,width:module+.015,height:module+.015,color:rgb(0,0,0)});
+ }
  const roleNames=s.excelencia?['EVALUADOR NATACIÓN','EVALUADOR FLEXIONES EN BARRA','EVALUADOR ABDOMINALES','EVALUADOR FLEXIONES EN SUELO','EVALUADOR AERÓBICA']:['EVALUADOR TALLA-PESO','EVALUADOR NATACIÓN','EVALUADOR ABDOMINALES','EVALUADOR FLEXIONES','EVALUADOR AERÓBICA'];
  s.rows.forEach((v,i)=>{const px=20+i*150;text('____________________________',px,483,7);text(v.evaluador,px,493,6,false,144,2);text(roleNames[i],px,514,6,true,144,2);});
  text(s.comandante||'Gral. Brig. José Jhonny Pardo Pardo',290,550,9,false,400);text('COMANDANTE DE LA ECEME.',310,566,9,true,400);
  text('SIDECEME | S/R: sin registro. N/R: no realizó o con novedad. Los espacios médicos y de firmas manuscritas no certifican una valoración.',20,586,6,false,752,1);text('1 / 1',745,599,6);
  return new Uint8Array(await pdf.save());
 }
+
