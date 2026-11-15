@@ -3928,6 +3928,8 @@ const LOG_TEATRO: any = {
 };
 const TIPOS_LOG_TEATRO = ["BL", "SB", "SE", "SA", "BR"];
 function esLogT(u: any) { return !!u && u.arma === "logistica" && !!(u.carga && u.carga.teatro && u.carga.teatro.log); }
+// v2.9.487 — una COLUMNA DE TRANSPORTE del teatro (convoy automático: empuje de una SB/SE o retiro de un CE).
+function esColT(u: any) { return !!u && u.arma === "convoy" && !!(u.carga && u.carga.teatro && u.carga.teatro.col); }
 // Lo que acepta la importación en `carga.teatro` (lo demás se descarta).
 function limpiarCargaTeatro(c: any) {
   const t = c && typeof c === "object" ? c.teatro : null;
@@ -3942,6 +3944,19 @@ function limpiarCargaTeatro(c: any) {
     if (l.ferro) log.ferro = true;
     if (Array.isArray(l.apoya)) log.apoya = l.apoya.slice(0, 20).map((x: any) => String(x).slice(0, 120));
     out.log = log;
+  }
+  // v2.9.487: la columna de transporte (empuje: «base» = la instalación que la manda, «para» = la que abastece;
+  // retiro: «base» = la GU dueña). `ruta` = el EPA del plan, por la red vial.
+  const k = t.col;
+  if (k && typeof k === "object" && (k.tipo === "empuje" || k.tipo === "retiro")) {
+    const col: any = { tipo: k.tipo, base: k.base == null ? null : String(k.base).slice(0, 120), para: k.para == null ? null : String(k.para).slice(0, 120), fase: "base", t: 0, km: 0 };
+    for (const [kk, max] of [["cap", 100000], ["vel", 2000]] as any[]) { const v = n(k[kk], max); if (v !== undefined) col[kk] = v; }
+    if (Array.isArray(k.ruta)) {
+      const r = k.ruta.filter((q: any) => Array.isArray(q) && q.length >= 2 && Number.isFinite(Number(q[0])) && Number.isFinite(Number(q[1])))
+        .slice(0, 60).map((q: any) => [Number(q[0]), Number(q[1])]);
+      if (r.length >= 2) col.ruta = r;
+    }
+    out.col = col;
   }
   return Object.keys(out).length ? out : null;
 }
@@ -3963,11 +3978,11 @@ function logisticaTeatro(c: any) {
   const ponL = (u: any, x: any) => ponT(u, { log: { ...lg(u), ...x } });
   const vivas = [...U.values()].filter(viva);
   const inst = vivas.filter(esLogT);
-  const combate = vivas.filter((u: any) => !esLogT(u));
+  const combate = vivas.filter((u: any) => !esLogT(u) && !esColT(u));
   const km = (a: any, b: any) => haversineKm(pos(a), pos(b)) * L.factorCamino;
   const P = memT.log = memT.log || {};
   memT.cortes = memT.cortes || {};
-  const parte = (b: string) => (P[b] = P[b] || { bajas: 0, m: 0, h: 0, d: 0, env: 0, lleg: 0, vuelven: 0, ent: 0 });
+  const parte = (b: string) => (P[b] = P[b] || { bajas: 0, m: 0, h: 0, d: 0, env: 0, lleg: 0, vuelven: 0, ent: 0, viajes: 0, tConv: 0, cDestr: 0 });
   // a) cada instalación: ¿cae, queda amenazada, se desplaza, se instala u opera?
   for (const x of inst) {
     const l = lg(x);
@@ -4002,6 +4017,148 @@ function logisticaTeatro(c: any) {
   const efDe = (u: any) => Number(gt(u).ef) || L.efectivos[u.escalon] || 9000;
   const homDe = (u: any) => { const h = Number(gt(u).hom); return gt(u).hom != null && Number.isFinite(h) ? h : efDe(u); };
   const tDos = (u: any) => (Math.max(1, homDe(u)) * (Number(gt(u).kg) || L.kgDefecto)) / 1000;   // t de un día de abastecimiento
+  // c0) v2.9.487 — 🚚 COLUMNAS DE TRANSPORTE AUTOMÁTICAS (fichas «convoy» con carga.teatro.col).
+  //   · EMPUJE (distribución en la unidad): la columna de la BL, una SB o una SE lleva a UNA instalación; sale sola cuando
+  //     ésta baja del 75 % (o cada 24 h si le falta algo), carga 1 h, va por el EPA, descarga 1 h y vuelve (las 2 h de la DMA);
+  //   · RETIRO (distribución en el punto de abastecimiento): la columna de un CE espera en su área de trenes; cuando el CE
+  //     baja de 3,5 días va vacía a la instalación que lo apoya, carga 1 h, vuelve y descarga 1 h;
+  //   · el enemigo que la alcanza (su frente + 2 km) la DESTRUYE con lo que lleva; se reconstituye en su base a las 48 h.
+  //   Donde hay columna no corre el reparto abstracto de ese tramo (ni el de esa GU): lo que llega, llega en camión.
+  const cols = [...U.values()].filter((u: any) => esColT(u));
+  const kc = (u: any) => gt(u).col || {};
+  const ponC = (u: any, x: any) => ponT(u, { col: { ...kc(u), ...x } });
+  const conEmpuje = new Set<string>(), conRetiro = new Set<string>();
+  for (const c of cols) { const k = kc(c); if (k.tipo === "empuje" && k.para) conEmpuje.add(c.bando + "|" + k.para); if (k.tipo === "retiro" && k.base) conRetiro.add(c.bando + "|" + k.base); }
+  const porNombre = new Map<string, any>();
+  for (const u of U.values()) porNombre.set(u.bando + "|" + String(u.designacion || ""), u);
+  const largoKm = (r: number[][]) => { let a = 0; for (let i = 1; i < r.length; i++) a += haversineKm(r[i - 1], r[i]); return a; };
+  const enLinea = (r: number[][], d: number) => {
+    let a = 0;
+    for (let i = 1; i < r.length; i++) { const t = haversineKm(r[i - 1], r[i]); if (a + t >= d) { const f = t ? (d - a) / t : 0; return [r[i - 1][0] + (r[i][0] - r[i - 1][0]) * f, r[i - 1][1] + (r[i][1] - r[i - 1][1]) * f]; } a += t; }
+    return r[r.length - 1];
+  };
+  // El camino del empuje: el EPA del plan si sus puntas siguen donde están las instalaciones; si no, la recta.
+  const caminoDe = (k: any, a: any, b: any) => {
+    const r = Array.isArray(k.ruta) ? k.ruta : null;
+    if (r && r.length >= 2 && haversineKm(r[0], pos(a)) <= 8 && haversineKm(r[r.length - 1], pos(b)) <= 8) return r;
+    return [pos(a), pos(b)];
+  };
+  const apoyoColumna = (g: any) => {
+    let m: any = null;
+    for (const x of inst) {
+      if (x.bando !== g.bando || !opera(x) || !["SA", "SE", "SB"].includes(lg(x).tipo) || !(Number(lg(x).t) > 1)) continue;
+      const d = km(x, g), pref = lg(x).tipo === "SA" ? ((lg(x).apoya || []).includes(g.designacion) ? 0.75 : 1) : 1.15;
+      if (!m || d * pref < m.p) m = { x, d, p: d * pref };
+    }
+    return m && m.d <= L.dmaGuKm * L.alcanceDma ? m : null;
+  };
+  // El área de trenes del CE: detrás de él, hacia la instalación que lo apoya (a la distancia de su frente, como mucho media).
+  // (la retaguardia es la instalación propia más cercana, tenga o no tenga stock: una SA vacía no corre los trenes al frente)
+  const trenes = (g: any) => {
+    let q: any = null, dq = Infinity;
+    const pref = (x: any) => (lg(x).tipo === "SA" && (lg(x).apoya || []).includes(g.designacion) ? 0.5 : lg(x).tipo === "SA" ? 1 : 1.3);
+    for (const x of inst) { if (x.bando !== g.bando || !viva(x) || lg(x).tipo === "BR") continue; const d = haversineKm(pos(g), pos(x)) * pref(x); if (d < dq) { dq = d; q = pos(x); } }
+    const p = pos(g);
+    if (!q) return [p[0] + 0.03, p[1] - 0.02];
+    const d = haversineKm(p, q), f = d > 1 ? Math.min(0.5, frente(g) / d) : 0;
+    return [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f];
+  };
+  const d1c = (x: number) => Math.round(x * 10) / 10;
+  const aqui = (c: any, p: number[]) => { c.lng = Math.round(p[0] * 1e6) / 1e6; c.lat = Math.round(p[1] * 1e6) / 1e6; };
+  for (const c of cols) {
+    const vel = Number(kc(c).vel) || (kc(c).tipo === "retiro" ? 160 : 240), kmH = vel / 24;
+    if (c.estado === "fuera_combate") {
+      const k = kc(c);
+      if (k.reconst != null && hasta >= Number(k.reconst)) {
+        const b = porNombre.get(c.bando + "|" + k.base);
+        if (b && viva(b)) {
+          const p = k.tipo === "retiro" ? trenes(b) : pos(b);
+          aqui(c, p); c.estado = "activa"; c.poder_actual = Number(c.poder_max) || 3;
+          ponC(c, { fase: "base", t: 0, km: 0, reconst: null, resta: 0 });
+          ev(`🚚 ${nombreUnidad(c)} se RECONSTITUYÓ ${lugar(p)} con camiones de reserva.`, p, [c.bando]);
+        }
+      }
+      continue;
+    }
+    // En su base, la columna está donde está su base (la instalación, o el área de trenes de su CE) antes de mirar el peligro.
+    if ((kc(c).fase || "base") === "base") {
+      const b0 = porNombre.get(c.bando + "|" + kc(c).base);
+      if (b0 && viva(b0)) aqui(c, kc(c).tipo === "retiro" ? trenes(b0) : pos(b0));
+    }
+    let cerca: any = null, dc = Infinity;
+    for (const e of combate) { if (e.bando === c.bando) continue; const d = haversineKm(pos(c), pos(e)); if (d < dc) { dc = d; cerca = e; } }
+    if (cerca && dc <= frente(cerca) + 2) {
+      const perdio = Number(kc(c).t) || 0;
+      c.estado = "fuera_combate"; c.poder_actual = 0;
+      ponC(c, { t: 0, fase: "destruida", reconst: hasta + 48 });
+      ev(`💥 ${nombreUnidad(c)} DESTRUIDA por ${nombreUnidad(cerca)} ${lugar(pos(c))}${perdio >= 1 ? `: se pierden ${R(perdio)} t` : ""}. Se reconstituye en 48 h.`, pos(c), ["azul", "rojo"]);
+      parte(c.bando).cDestr += 1;
+      continue;
+    }
+    let h = horas;
+    for (let guard = 0; h > 1e-6 && guard < 10; guard++) {
+      const k = kc(c), f = k.fase || "base", t = Number(k.t) || 0;
+      if (f === "carga" || f === "descarga") {
+        const r = Number(k.resta) || 0, usa = Math.min(h, r);
+        h -= usa;
+        if (r - usa > 1e-6) { ponC(c, { resta: r - usa }); break; }
+      }
+      if (k.tipo === "empuje") {
+        const S = porDes.get(c.bando + "|" + k.base), C = porDes.get(c.bando + "|" + k.para);
+        if (!S || !viva(S)) break;
+        if (f === "base") {
+          aqui(c, pos(S));
+          if (!C || !viva(C) || !opera(S) || !opera(C) || cortado(S, C)) break;
+          const max = Number(lg(C).max) || 0, tc = Number(lg(C).t) || 0, frac = max > 0 ? tc / max : 1;
+          const cap = Number(k.cap) || 0, falta = Math.max(0, max - tc), desde = hasta - h - (k.ult == null ? -1e9 : Number(k.ult));
+          if (!(frac < 0.75 || (frac < 0.95 && desde >= 24)) || falta < Math.max(1, 0.05 * cap) || !(Number(lg(S).t) > 1)) break;
+          const carga = Math.min(cap, falta, Number(lg(S).t));
+          ponL(S, { t: d1c(Number(lg(S).t) - carga) });
+          ponC(c, { fase: "carga", t: d1c(carga), resta: 1, ult: hasta - h, km: 0 });
+        } else if (f === "carga") ponC(c, { fase: "ida", resta: 0, km: 0 });
+        else if (f === "descarga") {
+          if (C && viva(C)) { ponL(C, { t: d1c((Number(lg(C).t) || 0) + t) }); parte(c.bando).viajes += 1; parte(c.bando).tConv += t; }
+          ponC(c, { fase: "vuelta", t: 0, km: 0, viajes: (Number(k.viajes) || 0) + (C && viva(C) ? 1 : 0), entregado: d1c((Number(k.entregado) || 0) + (C && viva(C) ? t : 0)) });
+        } else if (f === "ida" || f === "vuelta") {
+          if (!C) { ponC(c, { fase: "base", km: 0 }); break; }
+          const r0 = caminoDe(k, S, C), r = f === "ida" ? r0 : [...r0].reverse(), total = largoKm(r), ya = Number(k.km) || 0;
+          const puede = kmH * h, resta = Math.max(0, total - ya);
+          if (puede < resta) { aqui(c, enLinea(r, ya + puede)); ponC(c, { km: d1c(ya + puede) }); h = 0; break; }
+          h -= resta / kmH; aqui(c, r[r.length - 1]);
+          if (f === "ida") ponC(c, C && viva(C) ? { fase: "descarga", resta: 1, km: 0 } : { fase: "vuelta", km: 0 });
+          else { if (t > 0) ponL(S, { t: d1c((Number(lg(S).t) || 0) + t) }); ponC(c, { fase: "base", km: 0, t: 0 }); }
+        } else ponC(c, { fase: "base", km: 0 });
+      } else {
+        const G = porNombre.get(c.bando + "|" + k.base);
+        if (!G || !viva(G)) break;
+        if (f === "base") {
+          aqui(c, trenes(G));
+          if (dos(G) >= 3.5) break;
+          const a = apoyoColumna(G);
+          if (!a) break;
+          ponC(c, { fase: "ida", dest: a.x.designacion, km: 0 });
+        } else if (f === "carga") ponC(c, { fase: "vuelta", resta: 0 });
+        else if (f === "descarga") {
+          ponDos(G, dos(G) + t / tDos(G));
+          parte(c.bando).viajes += 1; parte(c.bando).tConv += t; parte(c.bando).tConvGu = (parte(c.bando).tConvGu || 0) + t;
+          ponC(c, { fase: "base", t: 0, viajes: (Number(k.viajes) || 0) + 1, entregado: d1c((Number(k.entregado) || 0) + t) });
+        } else if (f === "ida" || f === "vuelta") {
+          const X = f === "ida" ? porDes.get(c.bando + "|" + k.dest) : null;
+          if (f === "ida" && (!X || !viva(X))) { ponC(c, { fase: "vuelta" }); continue; }
+          const meta = f === "ida" ? pos(X) : trenes(G), d = haversineKm(pos(c), meta) * L.factorCamino, puede = kmH * h;
+          if (puede < d) { const fr = puede / d, p = pos(c); aqui(c, [p[0] + (meta[0] - p[0]) * fr, p[1] + (meta[1] - p[1]) * fr]); h = 0; break; }
+          h -= d / kmH; aqui(c, meta);
+          if (f === "ida") {
+            // Carga en el punto de abastecimiento lo que le falta al CE (hasta su capacidad) si la instalación opera; si no, vuelve vacía.
+            if (!opera(X)) { ponC(c, { fase: "vuelta" }); continue; }
+            const necesita = Math.max(0, (TEATRO.dosMax - dos(G)) * tDos(G)), carga = Math.min(Number(k.cap) || 0, necesita, Number(lg(X).t) || 0);
+            ponL(X, { t: d1c((Number(lg(X).t) || 0) - carga) });
+            ponC(c, { fase: "carga", t: d1c(carga), resta: 1 });
+          } else ponC(c, t > 0 ? { fase: "descarga", resta: 1 } : { fase: "base" });
+        } else ponC(c, { fase: "base" });
+      }
+    }
+  }
   const pedidos = new Map<any, any[]>();
   const sinApoyo: any[] = [];
   for (const u of combate) {
@@ -4013,6 +4170,7 @@ function logisticaTeatro(c: any) {
       if (!mejor || d * pref < mejor.puntaje) mejor = { x, d, puntaje: d * pref };
     }
     if (!mejor || mejor.d > L.dmaGuKm * L.alcanceDma) { sinApoyo.push(u); continue; }
+    if (conRetiro.has(u.bando + "|" + u.designacion)) continue;   // v2.9.487: la abastece su columna
     const falta = Math.max(0, TEATRO.dosMax - dos(u));
     if (falta < 0.01) continue;
     if (!pedidos.has(mejor.x.id)) pedidos.set(mejor.x.id, []);
@@ -4030,7 +4188,7 @@ function logisticaTeatro(c: any) {
       const e = cortado(s, y), k = String(y.id);
       if (e && !memT.cortes[k]) { memT.cortes[k] = 1; ev(`⛔ EPA CORTADO entre ${nombreUnidad(s)} y ${nombreUnidad(y)}: ${nombreUnidad(e)} sobre el camino ${lugar(pos(e))}.`, pos(e), [s.bando]); }
       if (!e && memT.cortes[k]) { delete memT.cortes[k]; ev(`✅ EPA restablecido entre ${nombreUnidad(s)} y ${nombreUnidad(y)}.`, pos(y), [s.bando]); }
-      if (e || falta < 0.5) continue;
+      if (e || falta < 0.5 || conEmpuje.has(y.bando + "|" + y.designacion)) continue;   // v2.9.487: con columna, va en camión
       lista.push({ u: y, falta, km: km(s, y), ferro: !!lg(y).ferro, gu: false });
     }
     if (!lista.length) continue;
@@ -4133,7 +4291,9 @@ function logisticaTeatro(c: any) {
       const stock = xs.filter((x: any) => lg(x).tipo !== "BR").map((x: any) => `${nombreUnidad(x)} ${R(lg(x).t)} t${est(x)}`);
       const guB = combate.filter((u: any) => u.bando === b && !esPCTeatro(u));
       const secas = guB.filter((u: any) => dos(u) < 1).map(nombreUnidad), lejos = sinApoyo.filter((u: any) => u.bando === b).map(nombreUnidad);
-      ev(`📦 PARTE LOGÍSTICO ${diaTxt} · ${stock.join(" · ") || "sin instalaciones en pie"} · entregado a las GG.UU.: ${R(pp.ent)} t`
+      const enRuta = cols.filter((c: any) => c.bando === b && viva(c) && !["base", undefined].includes(kc(c).fase)).length;
+      ev(`📦 PARTE LOGÍSTICO ${diaTxt} · ${stock.join(" · ") || "sin instalaciones en pie"} · entregado a las GG.UU.: ${R(pp.ent + (pp.tConvGu || 0))} t`
+        + (cols.some((c: any) => c.bando === b) ? ` · 🚚 convoyes: ${R(pp.viajes || 0)} viajes (${R(pp.tConv || 0)} t), ${enRuta} en ruta${pp.cDestr ? `, ${pp.cDestr} destruidos` : ""}` : "")
         + (secas.length ? ` · con menos de 1 día de abastecimiento: ${secas.join(", ")}` : "")
         + (lejos.length ? ` · FUERA DEL ALCANCE de sus instalaciones: ${lejos.join(", ")}` : "") + ".", null, [b]);
       const br = xs.find((x: any) => lg(x).tipo === "BR");
@@ -4200,7 +4360,7 @@ function resolverTeatro(estado: any) {
   }
   const enContacto = (u: any, p: number[]) => {
     for (const e of U.values()) {
-      if (!viva(e) || e.bando === u.bando || esLogT(e)) continue;   // v2.9.486: una instalación no frena ni combate
+      if (!viva(e) || e.bando === u.bando || esLogT(e) || esColT(e)) continue;   // v2.9.486: una instalación no frena ni combate (v2.9.487: ni una columna)
       if (haversineKm(p, pos(e)) <= frente(u) + frente(e)) return e;
     }
     return null;
@@ -4210,7 +4370,7 @@ function resolverTeatro(estado: any) {
   for (const u of U.values()) {
     if (!viva(u)) continue;
     const o = orden.get(u.id);
-    if (!o || !["mover", "atacar", "replegar", "apoyar"].includes(o.tipo)) continue;
+    if (!o || esColT(u) || !["mover", "atacar", "replegar", "apoyar"].includes(o.tipo)) continue;   // v2.9.487: las columnas van solas
     // El camino: la ruta que mandó la pantalla (por las carreteras) o el destino en línea recta.
     let puntos: number[][] = Array.isArray(o.ruta) && o.ruta.length ? o.ruta.map((p: any) => [Number(p[0]), Number(p[1])]) : [];
     if (o.tipo === "atacar" && o.objetivo_id != null) {
@@ -4286,7 +4446,7 @@ function resolverTeatro(estado: any) {
     else if (detenida && !memT.prog["det" + o.id]) { memT.prog["det" + o.id] = 1; ev(`${nombreUnidad(u)} DETENIDA: ${detenida}.`, p, [u.bando]); }
   }
   // ── 2 · CONTACTO: grupos de GG.UU. cuyos frentes se tocan ───────────────────────
-  const vivas = [...U.values()].filter((u: any) => viva(u) && !esLogT(u));   // v2.9.486: las instalaciones no combaten (caen)
+  const vivas = [...U.values()].filter((u: any) => viva(u) && !esLogT(u) && !esColT(u));   // v2.9.486: las instalaciones (y v2.9.487 las columnas) no combaten: caen
   const padre = new Map<any, any>(vivas.map((u: any) => [u.id, u.id]));
   const raiz = (x: any): any => { while (padre.get(x) !== x) { padre.set(x, padre.get(padre.get(x))); x = padre.get(x); } return x; };
   const pares: any[] = [];
@@ -4414,7 +4574,7 @@ function resolverTeatro(estado: any) {
   const conLog = new Set<string>([...U.values()].filter((u: any) => viva(u) && esLogT(u)).map((u: any) => u.bando));
   const dosAntes = new Map<any, number>();
   for (const u of U.values()) {
-    if (!viva(u) || esPCTeatro(u) || esLogT(u)) continue;
+    if (!viva(u) || esPCTeatro(u) || esLogT(u) || esColT(u)) continue;
     const antes = dos(u);
     dosAntes.set(u.id, antes);
     let v = antes - (peleo.has(u.id) ? TEATRO.consumo.combate : movio.has(u.id) ? TEATRO.consumo.marcha : TEATRO.consumo.quieta) * dia;
