@@ -27,7 +27,7 @@ import { distKm, enPoligono, sinTildes, fmtDia, redondeo } from './modelo.mjs'
 import { ruta } from './red.mjs'
 import { puntoEnLinea } from './doctrina.mjs'
 
-export const VERSION = '20261115'
+export const VERSION = '20261115b'   // b: columnas de transporte automáticas (empuje y retiro) para el juego
 const r5 = (x) => (Number.isFinite(x) ? Math.round(x * 1e5) / 1e5 : null)
 const norm = (s) => sinTildes(String(s || '')).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 export const miles = (n) => (Number.isFinite(n) ? Math.round(n).toLocaleString('es-BO') : '—')
@@ -171,7 +171,7 @@ export function planLogistico({ base, red, analisis = [], cap = null, enf = [], 
     const ef = Number(ed.ef?.[a.designacion]) > 0 ? Number(ed.ef[a.designacion]) : EFECTIVOS[esc] || 9000
     const kgAuto = kgHombreDia(u.arma || a.arma, ed.clases || {}).total
     const kg = Number(ed.kg?.[a.designacion]) > 0 ? Number(ed.kg[a.designacion]) : kgAuto
-    gus.set(a.designacion, { designacion: a.designacion, escalon: esc, arma: u.arma || a.arma || 'infanteria', ef, kg, kgAuto })
+    gus.set(a.designacion, { designacion: a.designacion, escalon: esc, arma: u.arma || a.arma || 'infanteria', ef, kg, kgAuto, lng: a.lng, lat: a.lat })
   }
   const efTotal = [...gus.values()].reduce((s, g) => s + g.ef, 0)
   const pasos = analisis.filter((a) => a.puntos?.length).map((a) => [a.puntos[0].lng, a.puntos[0].lat])
@@ -408,7 +408,7 @@ export function planLogistico({ base, red, analisis = [], cap = null, enf = [], 
   }
   if (emergencia) avisos.push(`Reemplazos: en la ${emergencia.fase} se acaba la reserva del BR (${miles(reserva)}). Elevar un PEDIDO DE EMERGENCIA a la ZI hacia el ${fmtDia(emergencia.pedirEn)} por ${miles(emergencia.hombres)} hombres (llegan en ${REEMPLAZOS.emergenciaDias} días).`)
 
-  const plan = { version: VERSION, dmaGu, dmaSec, umbralSE, bl: BL, sb: SB, se: SEs, sa: SAs, br: BR, hosp, instalaciones: I, porId, fases, gus: [...gus.values()], efTotal, kgPromedio: redondeo(kgPromedio, 1),
+  const plan = { version: VERSION, columnas: ed.columnas !== false, dmaGu, dmaSec, umbralSE, bl: BL, sb: SB, se: SEs, sa: SAs, br: BR, hosp, instalaciones: I, porId, fases, gus: [...gus.values()], efTotal, kgPromedio: redondeo(kgPromedio, 1),
     nivelesClase, rojo, avisos: [...new Set(avisos)], ep: cap.ep }
   plan.concepto = concepto(plan, cap)
   return plan
@@ -430,6 +430,7 @@ function concepto(p, cap) {
       ` y ${p.sa.length === 1 ? 'una Sección Avanzada' : `${p.sa.length} Secciones Avanzadas, una por cada CE`}: ${lista(p.sa.map(sa))}.`,
     `Distancia máxima de apoyo: ${p.dmaGu} km entre cada GU y su apoyo y ${p.dmaSec} km entre secciones ((10 h − 2 h) × velocidad ÷ 2). Niveles: ${p.nivelesClase.filter((c) => ['I', 'III', 'V'].includes(c.id)).map((c) => `Cl. ${c.id} ${c.operativo}+${c.seguridad} días`).join(', ')}; consumo de referencia ${p.kgPromedio} kg por hombre y día (${miles(p.efTotal)} hombres).`,
     `Prioridad del apoyo: ${ep ? `${ep}, que enfrenta al esfuerzo principal enemigo (DEOP ${cap.ep})` : 'la GU que enfrente al esfuerzo principal enemigo'}; después, la reserva que contraataca.`,
+    ...(p.columnas ? [`Distribución: la BL, la SB y la SE EMPUJAN a sus instalaciones con columnas de transporte propias (salen solas cuando la instalación baja del 75 %, o cada 24 h si le falta algo, por el EPA); cada CE RETIRA en su Sección Avanzada con su columna logística (cuando baja de 3,5 días de abastecimiento). Una columna alcanzada por el enemigo se pierde con su carga y se reconstituye en 48 h.`] : []),
     `Reemplazos: el ${p.br.nombre} (${p.br.cias} Cías, procesa unos ${miles(p.br.procesa)} hombres por día) junto a la terminal de entrada; reserva inicial ${miles(p.br.reserva)} hombres; nivel de reemplazos a pedir a la ZI cada 30 días: ${miles(p.br.nivelMensual)}. Los heridos que se recuperan en menos de 15 días (nivel de evacuación) vuelven al servicio por el BR. Prioridad de reemplazos: la que fije el G-3.`,
   ]
   const porFase = p.fases.map((f) => {
@@ -447,6 +448,47 @@ function concepto(p, cap) {
 
 // ── al Juego de Guerra: las instalaciones como FICHAS y los datos de cada GU ──
 // Las instalaciones se nombran por su designación: el motor encadena el abastecimiento por el campo «de».
+// Una ruta liviana para el .json (hasta `max` puntos, siempre con sus dos puntas).
+function rutaCorta(coords, max = 40) {
+  if (!Array.isArray(coords) || coords.length < 2) return null
+  const paso = Math.max(1, (coords.length - 1) / (max - 1)), out = []
+  for (let i = 0; i < max && Math.round(i * paso) < coords.length; i++) out.push(coords[Math.round(i * paso)])
+  if (out[out.length - 1] !== coords[coords.length - 1]) out.push(coords[coords.length - 1])
+  return out.map((q) => [r5(q[0]), r5(q[1])])
+}
+// 🚚 v2.9.487 — las COLUMNAS DE TRANSPORTE automáticas del juego: EMPUJE, una por tramo (de quien abastece a la instalación,
+// con la capacidad de transporte de aquélla repartida entre sus tramos, por el EPA), y RETIRO, una por CE (o DIV) con 2,5
+// días de abastecimiento por viaje. El rojo empuja de su base a cada área de apoyo.
+export function columnasDelPlan(plan) {
+  if (!plan?.columnas) return []
+  const f0 = plan.fases[0], des = new Map(plan.instalaciones.map((x) => [x.id, designacion(x)])), out = []
+  const tramos = plan.instalaciones.filter((x) => x.de && x.tipo !== 'BR')
+  // La capacidad de quien abastece se reparte según el TRABAJO de cada tramo en la fase del choque (F-II): lo que pide ×
+  // las vueltas de más si queda más lejos que la DMA (por ferrocarril, la mitad) —el mismo cálculo del uso del transporte—.
+  // Por ferrocarril va un TREN: el doble de carga y 360 km por día.
+  const fRef = plan.fases[Math.min(1, plan.fases.length - 1)]
+  // Nombres cortos en la carta («Col. SB→SA CE-I», «Tren SB→SE Uyuni»); la hoja del G-4 dice el destino completo.
+  const corto = (x) => (x.tipo === 'SA' ? `SA ${x.apoya?.[0] || x.lugar}` : x.tipo === 'SE' ? `SE ${x.lugar}` : x.tipo)
+  const pide = (x) => Math.max(1, fRef.flujo.find((y) => y.id === x.id)?.tDia || 1) * Math.max(1, (x.km || 0) / plan.dmaSec) / (x.ferro ? 2 : 1)
+  for (const x of tramos) {
+    const s = plan.porId.get(x.de), p = f0.pos[s.id] || s
+    const parte = pide(x) / tramos.filter((y) => y.de === s.id).reduce((a, y) => a + pide(y), 0)
+    const cap = Math.max(50, Math.round(s.cap * parte * (x.ferro ? 2 : 1)))
+    out.push({ bando: 'azul', designacion: `${x.ferro ? 'Tren' : 'Col.'} ${corto(s)}→${corto(x)}`, tipo: 'empuje', base: des.get(s.id), para: des.get(x.id),
+      cap, vel: x.ferro ? 360 : 240, ferro: !!x.ferro, lng: r5(p.lng), lat: r5(p.lat), ruta: rutaCorta(x.epa?.coords) })
+  }
+  // La columna del CE arranca en su área de trenes: detrás de él, hacia la instalación que lo apoya (a lo sumo media distancia).
+  const FRENTE = { cuerpo: 22, division: 14, brigada: 8 }
+  for (const g of plan.gus) if (['cuerpo', 'division'].includes(g.escalon) && Number.isFinite(g.lng)) {
+    const ap = f0.gu.find((x) => x.designacion === g.designacion)?.apoyo, q = ap ? f0.pos[ap] || plan.porId.get(ap) : null
+    const d = q ? distKm([g.lng, g.lat], [q.lng, q.lat]) : 0, f = d > 1 ? Math.min(0.5, (FRENTE[g.escalon] || 14) / d) : 0
+    const p = q && f ? [g.lng + (q.lng - g.lng) * f, g.lat + (q.lat - g.lat) * f] : [g.lng + 0.03, g.lat - 0.02]
+    out.push({ bando: 'azul', designacion: `Col. Log. ${g.designacion}`, tipo: 'retiro', base: g.designacion, para: null, cap: Math.round((2.5 * g.ef * g.kg) / 1000), vel: 160, lng: r5(p[0]), lat: r5(p[1]) })
+  }
+  if (plan.rojo) for (const x of plan.rojo.aal) out.push({ bando: 'rojo', designacion: `Col. enem.→${x.id.replace('AAL DEOP', 'AAL')}`, tipo: 'empuje', base: plan.rojo.bl.nombre, para: x.nombre,
+    cap: Math.max(50, Math.round(plan.rojo.bl.cap / plan.rojo.aal.length)), vel: 240, lng: plan.rojo.bl.lng, lat: plan.rojo.bl.lat, ruta: null })
+  return out
+}
 export function paraJuego(plan) {
   if (!plan) return null
   const f0 = plan.fases[0]
@@ -467,6 +509,7 @@ export function paraJuego(plan) {
     comoLeerlo: 'Cada instalación es una ficha: «de» es quién la abastece (por su designación), «t» lo que tiene y «max» su nivel máximo, en toneladas; «cap» las toneladas por día que mueve a la DMA. Cada GU consume por día efectivos × kg ÷ 1000 (más en combate). El Batallón de Reemplazos tiene «hombres» y procesa «procesa» por día.',
     ref: { dmaGuKm: plan.dmaGu, dmaSeccionesKm: plan.dmaSec, factorCamino: 1.3, bajas: BAJAS, reemplazos: REEMPLAZOS, nivelGuDias: NIVEL_DIAS.GU },
     instalaciones: inst,
+    columnas: columnasDelPlan(plan),
     gu: Object.fromEntries(plan.gus.map((g) => [g.designacion, { ef: g.ef, kg: g.kg }])),
     fases: plan.fases.map((f) => ({ id: f.id, de: f.de, a: f.a, pos: Object.fromEntries(Object.entries(f.pos).filter(([, p]) => p.desplaza || p.movida).map(([id, p]) => [des.get(id), [p.lng, p.lat]])) })),
   }

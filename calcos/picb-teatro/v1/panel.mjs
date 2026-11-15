@@ -14,10 +14,10 @@ import * as A from './analisis.mjs'
 import { armarRed } from './red.mjs'
 import * as D from './doctrina.mjs'
 import * as CA from './cap-azul.mjs?v=20261115'
-import * as LG from './logistica.mjs?v=20261115'
+import * as LG from './logistica.mjs?v=20261115b'
 
 const VERSION_DATOS = '20261109'
-const VERSION_PANEL = '20261115b' // 15-11-2026 b: paso 6 LOGÍSTICA Y REEMPLAZOS (logistica.mjs): BL, SB, SE, SA por CE, BR, EPA, DMA, niveles, bajas, al juego y a la impresión. Antes: 15-11-2026: paso 5 con OPCIONES (CE sobre la frontera en sus AO, reservas que contraatacan desde la F-II, GG.UU. que pasan a reserva, arrancar desplegados) · 14-11-2026 c: paso 5 FASES AZUL (CAP por fases) y ⚔ enfrentamiento para el Juego de Guerra · b: verFase, para imprimir las FASES ROJO una hoja por fase · 14-11-2026: plantilla doctrinal, CAE por fases, prompt para la IA
+const VERSION_PANEL = '20261115c' // 15-11-2026 c: columnas de transporte automáticas (empuje y retiro) en el .json del juego. Antes (b): 15-11-2026 b: paso 6 LOGÍSTICA Y REEMPLAZOS (logistica.mjs): BL, SB, SE, SA por CE, BR, EPA, DMA, niveles, bajas, al juego y a la impresión. Antes: 15-11-2026: paso 5 con OPCIONES (CE sobre la frontera en sus AO, reservas que contraatacan desde la F-II, GG.UU. que pasan a reserva, arrancar desplegados) · 14-11-2026 c: paso 5 FASES AZUL (CAP por fases) y ⚔ enfrentamiento para el Juego de Guerra · b: verFase, para imprimir las FASES ROJO una hoja por fase · 14-11-2026: plantilla doctrinal, CAE por fases, prompt para la IA
 const DATOS = new URL(`./datos/teatro-base.json?v=${VERSION_DATOS}`, import.meta.url).href
 const LECTOR_KMZ = new URL('../../areas-operaciones/abrir-kmz.mjs?v=cae20261114', import.meta.url).href
 const CLAVE = 'picbTeatro'
@@ -766,7 +766,8 @@ function paso6() {
   <div class="sidpt-card"><h3>🚚 Organización logística del teatro <small>Zona de Etapas a cargo del CL FF.TT.T.O.</small></h3>
     <div class="sidpt-fila"><span class="sidpt-radio">Base Logística: <select class="sidpt-inp" style="width:auto" data-a="logbl">${[...new Set([p.bl.lugar, ...opc])].map((n) => `<option ${n === p.bl.lugar ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select> <small>${esc(p.bl.fuente)}</small></span></div>
     <div class="sidpt-fila"><span class="sidpt-radio"><label><input type="checkbox" data-a="logse" ${ed.se !== 'no' ? 'checked' : ''}> Sección Especial si una SA queda a más de ${p.umbralSE} km de la SB (TO extenso)</label>
-      <label><input type="checkbox" data-a="logrojo" ${ed.rojo !== false ? 'checked' : ''}> Logística probable del enemigo (blancos; también juega en el Juego de Guerra)</label></span></div>
+      <label><input type="checkbox" data-a="logrojo" ${ed.rojo !== false ? 'checked' : ''}> Logística probable del enemigo (blancos; también juega en el Juego de Guerra)</label>
+      <label title="En el Juego de Guerra: la BL, la SB y la SE mandan solas sus convoyes a cada instalación y cada CE manda su columna a buscar a su SA"><input type="checkbox" data-a="logcol" ${ed.columnas !== false ? 'checked' : ''}> 🚚 Columnas de transporte automáticas en el juego (${LG.columnasDelPlan(p).length || 'ninguna'})</label></span></div>
     <div class="sidpt-fila"><span class="sidpt-radio" title="DMA = (10 h del conductor − 2 h de carga y descarga) × velocidad ÷ 2">DMA: velocidad nocturna ${num('logvel', 'gu', ed.vel?.gu || LG.DMA.velGu, 'min="5" max="60" style="width:52px"')} km/h → <b>${p.dmaGu} km</b> GU ↔ apoyo · entre secciones ${num('logvel', 'secciones', ed.vel?.secciones || LG.DMA.velSecciones, 'min="5" max="60" style="width:52px"')} km/h → <b>${p.dmaSec} km</b></span></div>
     <div class="sidpt-fila"><span class="sidpt-radio">En la carta: ${p.fases.map((f, i) => `<label><input type="radio" name="sidpt-lgv" data-a="logfase" value="${i}" ${(fsel ?? 0) === i ? 'checked' : ''}> ${esc(f.id)}</label>`).join('')}</span></div>
     <table class="sidpt-tabla"><thead><tr><th>Instalación</th><th>Abastecida por</th><th>Camino</th><th title="toneladas por día puestas a la DMA">Transporte t/día</th><th>Nivel</th><th title="uso del transporte en la fase de la carta">${esc(fV.id)}</th></tr></thead><tbody>
@@ -801,6 +802,7 @@ function paso6() {
     <button class="sidpt-b ok" data-a="enfjson">⚔ Descargar enfrentamiento CON logística (.json)</button>
     <button class="sidpt-b" data-a="logkmz">⬇ KMZ del calco logístico</button>
     <button class="sidpt-b sec" data-a="word">📄 Word (con el concepto y las tablas)</button></div>
+    ${p.columnas ? `<p class="sidpt-guia" style="margin:4px 0"><b>🚚 Columnas automáticas:</b> ${esc(LG.columnasDelPlan(p).filter((c) => c.bando === 'azul').map((c) => `${c.designacion} (${LG.miles(c.cap)} t)`).join(' · '))}. Salen solas: el empuje cuando la instalación baja del 75 % (o cada 24 h), el retiro cuando el CE baja de 3,5 días.</p>` : ''}
     <p class="sidpt-guia">En el juego, cada instalación es una FICHA: tiene sus toneladas, mueve su transporte a la DMA, se desplaza con una orden de mover y cae si el enemigo llega a ella. El G-4 la conduce en «📦 LOGÍSTICA» y el G-1 maneja los reemplazos en «👤 PERSONAL». El calco de cada fase sale en «🖨️ Imprimir por fases y capas» → «🌎 APOYO LOGÍSTICO».</p></div>`
 }
 
@@ -915,6 +917,7 @@ function alCambio(ev) {
   if (a === 'logbl') return guardarLog({ bl: t.value })
   if (a === 'logse') return guardarLog({ se: t.checked ? 'auto' : 'no' })
   if (a === 'logrojo') return guardarLog({ rojo: t.checked })
+  if (a === 'logcol') return guardarLog({ columnas: t.checked })
   if (a === 'logvel') return guardarLog({ vel: { ...(ed.vel || {}), [t.dataset.k]: v > 0 ? v : undefined } })
   if (a === 'logcap') return guardarLog({ cap: { ...(ed.cap || {}), [t.dataset.k]: v > 0 ? v : undefined } })
   if (a === 'logef') return guardarLog({ ef: { ...(ed.ef || {}), [t.dataset.k]: v > 0 ? v : undefined } })
