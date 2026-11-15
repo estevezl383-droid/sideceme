@@ -13,10 +13,21 @@
 //   F-III Defensa decisiva y contraataque: se fija al esfuerzo principal y la reserva contraataca en su DEOP.
 //   F-IV  Contraofensiva: restablecer la frontera en los pasos.
 // Mismas fases y mismos días que el CAE: primero las fases ROJO, después las fases AZUL.
+//
+// 15-11-2026 — OPCIONES del G-3 (pedido: «quiero enfrentar como en la imagen 1 [los CE en sus AO, sobre la frontera,
+// cara a cara con el rojo] y con más reservas para que se vean combates»):
+//   despliegue  'frontera' (por defecto): cada CE se adelanta a su AO y defiende sobre la frontera, a KM_FRONTERA del
+//               paso de su DEOP · 'profundidad': la propuesta anterior (primer objetivo intermedio enemigo).
+//   reservas    'temprano' (por defecto): contraatacan ya en la F-II, una sobre cada DEOP más amenazada (empezando por
+//               la del esfuerzo principal enemigo) · 'f3': zona de espera en la F-II y contraataque en la F-III.
+//   enReserva   GG.UU. que el G-3 saca del frente y pasa a reserva (más reservas, más contraataques).
+//   desplegados true (por defecto): en el .json del juego cada GU arranca ya en su posición de la F-I.
 import { puntoEnLinea } from './doctrina.mjs'
 import { fmtDia } from './modelo.mjs'
 
 export const NOMBRES_AZUL = ['Cobertura y ocupación de la defensa', 'Defensa en posición', 'Defensa decisiva y contraataque de la reserva', 'Contraofensiva']
+export const NOMBRES_FRONTERA = ['Cobertura: los CE ocupan sus AO sobre la frontera', 'Defensa adelantada en la frontera', 'Defensa decisiva y contraataque de las reservas', 'Contraofensiva']
+export const KM_FRONTERA = 12
 const RADIO_CONTACTO_KM = 40
 const limpio = (t) => String(t || '').replace(/\s*\((Chile|Bolivia|Per[uú]|Argentina|frontera|origen)\)/gi, '').trim()
 const lista = (l, y = 'y') => { const a = [...new Set(l.filter(Boolean))]; return a.length <= 1 ? a.join('') : `${a.slice(0, -1).join(', ')} ${y} ${a[a.length - 1]}` }
@@ -59,18 +70,27 @@ export function capAzul({ analisis = [], caes = null, unidades = { propias: [] }
   const fr = frente === 'peligroso' ? 'peligroso' : 'probable'
   const cae = caes?.[fr] || caes?.probable
   if (!cae?.fases?.length) return null
-  const frentes = analisis.filter((a) => a.propias?.length && a.coords?.length)
-  const asignadas = new Set(frentes.flatMap((a) => a.propias.map((u) => u.designacion)))
+  const desp = ediciones.despliegue === 'profundidad' ? 'profundidad' : 'frontera'
+  const resModo = ediciones.reservas === 'f3' ? 'f3' : 'temprano'
+  const enRes = new Set(ediciones.enReserva || [])
+  const alFrente = (a) => (a.propias || []).filter((u) => !enRes.has(u.designacion))
+  const frentes = analisis.filter((a) => alFrente(a).length && a.coords?.length)
+  const asignadas = new Set(frentes.flatMap((a) => alFrente(a).map((u) => u.designacion)))
   const reserva = (unidades.propias || []).filter((u) => !asignadas.has(u.designacion) && u.escalon !== 'ejercito' && Number.isFinite(u.lng) && Number.isFinite(u.lat) &&
-    (u.rol === 'reserva' || ['cuerpo', 'division', 'brigada'].includes(u.escalon)))
+    (enRes.has(u.designacion) || u.rol === 'reserva' || ['cuerpo', 'division', 'brigada'].includes(u.escalon)))
+  // Dónde defiende cada CE en su DEOP: sobre la frontera (en su AO) o en profundidad.
+  const linea = (a) => { if (desp !== 'frontera') return posicionDefensiva(a); const km = Math.min(a.kmRuta || 0, KM_FRONTERA); return { km, lugar: lugarEn(a, km) } }
   if (!frentes.length && !reserva.length) return null
   const ep = analisis.find((a) => a.n === cae.n && a.coords?.length) || frentes[0] || null
-  const pdEp = ep ? posicionDefensiva(ep) : null
+  const pdEp = ep ? linea(ep) : null
+  // Las reservas se reparten una por DEOP, de la más amenazada a la menos (primero la del esfuerzo principal enemigo).
+  const amenaza = [...new Set([ep, ...analisis.filter((a) => a.coords?.length && a.enemigas?.length).sort((x, y) => (y.enemigas.length - x.enemigas.length) || (x.n - y.n))])].filter(Boolean)
+  const deopRes = (j) => (amenaza.length ? amenaza[j % amenaza.length] : null)
   const rojoDe = (a) => lista((a.enemigas || []).map((u) => u.designacion)) || 'el enemigo'
   // Cada GU propia va UNA vez por fase (en el Juego de Guerra no puede estar en dos lugares): si enfrenta dos DEOP, se
   // para en la del esfuerzo principal enemigo o en la de más GG.UU. enemigas, y vigila la otra.
   const porUnidad = new Map()
-  for (const a of frentes) for (const u of a.propias) { if (!porUnidad.has(u.designacion)) porUnidad.set(u.designacion, { u, deops: [] }); porUnidad.get(u.designacion).deops.push(a) }
+  for (const a of frentes) for (const u of alFrente(a)) { if (!porUnidad.has(u.designacion)) porUnidad.set(u.designacion, { u, deops: [] }); porUnidad.get(u.designacion).deops.push(a) }
   const peso = (a) => (a === ep ? 1000 : 0) + (a.enemigas?.length || 0) * 10 - a.n * 0.01
   const puestos = [...porUnidad.values()].map(({ u, deops }) => { const a = [...deops].sort((x, y) => peso(y) - peso(x))[0]; return { u, a, otras: deops.filter((x) => x !== a) } })
   for (const p of puestos) { const mismos = puestos.filter((q) => q.a === p.a); p.lado = mismos.indexOf(p) - (mismos.length - 1) / 2 }
@@ -83,29 +103,43 @@ export function capAzul({ analisis = [], caes = null, unidades = { propias: [] }
         dia: i === 3 ? f.de : f.a, lng: r5(m ? m[0] : p.lng), lat: r5(m ? m[1] : p.lat), movida: !!m, editada: !!textos[k] })
     }
     for (const { u, a, otras, lado } of puestos) {
-      const pd = posicionDefensiva(a), paso = limpio(a.puntos?.[0]?.nombre) || 'el paso', rojo = rojoDe(a)
+      const pd = linea(a), paso = limpio(a.puntos?.[0]?.nombre) || 'el paso', rojo = rojoDe(a), p = enRuta(a, pd.km, lado)
       const tambien = otras.length ? `; vigila también la DEOP ${lista(otras.map((x) => String(x.n)))}` : ''
-      if (i === 0) poner(u, a.n, 'cobertura', `cubre ${paso} (seguridad y vigilancia) y ocupa y organiza la posición defensiva en ${pd.lugar}${tambien}`, pd.lugar, enRuta(a, pd.km, lado))
-      else if (i === 1) poner(u, a.n, 'defensa', `defensa en posición en ${pd.lugar}: detener a ${rojo} delante de la posición${tambien}`, pd.lugar, enRuta(a, pd.km, lado))
-      else if (i === 2) poner(u, a.n, 'defensa', a === ep ? `defensa decisiva en ${pd.lugar}: fija al esfuerzo principal enemigo (${rojo}) para el contraataque de la reserva${tambien}` : `mantiene la posición en ${pd.lugar} frente a ${rojo} (economía de fuerzas)${tambien}`, pd.lugar, enRuta(a, pd.km, lado))
+      if (desp === 'frontera') {
+        if (i === 0) poner(u, a.n, 'cobertura', `se adelanta a su área de operaciones y ocupa la defensa adelantada en ${pd.lugar}, sobre la frontera frente a ${paso}${tambien}`, pd.lugar, p)
+        else if (i === 1) poner(u, a.n, 'defensa', `defensa adelantada en ${pd.lugar}: detener a ${rojo} en la frontera${tambien}`, pd.lugar, p)
+        else if (i === 2) poner(u, a.n, 'defensa', a === ep ? `defensa decisiva en ${pd.lugar}: fija al esfuerzo principal enemigo (${rojo}) en la frontera para el contraataque de las reservas${tambien}` : `mantiene la frontera en ${pd.lugar} frente a ${rojo}${tambien}`, pd.lugar, p)
+        else poner(u, a.n, 'contraofensiva', `contraofensiva hasta ${paso}: restablecer la frontera`, paso, enRuta(a, 0, lado))
+      } else if (i === 0) poner(u, a.n, 'cobertura', `cubre ${paso} (seguridad y vigilancia) y ocupa y organiza la posición defensiva en ${pd.lugar}${tambien}`, pd.lugar, p)
+      else if (i === 1) poner(u, a.n, 'defensa', `defensa en posición en ${pd.lugar}: detener a ${rojo} delante de la posición${tambien}`, pd.lugar, p)
+      else if (i === 2) poner(u, a.n, 'defensa', a === ep ? `defensa decisiva en ${pd.lugar}: fija al esfuerzo principal enemigo (${rojo}) para el contraataque de la reserva${tambien}` : `mantiene la posición en ${pd.lugar} frente a ${rojo} (economía de fuerzas)${tambien}`, pd.lugar, p)
       else poner(u, a.n, 'contraofensiva', `contraofensiva hasta ${paso}: restablecer la frontera`, paso, enRuta(a, 10, lado))
     }
+    const enDeop = new Map()
     reserva.forEach((u, j) => {
-      const lado = j - (reserva.length - 1) / 2, zona = u.lugar || 'su zona de reunión'
-      if (!ep || !pdEp) return poner(u, null, 'reserva', `reserva de las FF.TT.T.O. en ${zona}`, u.lugar || '', { lng: u.lng, lat: u.lat })
-      const rojoEp = rojoDe(ep), pasoEp = limpio(ep.puntos?.[0]?.nombre) || 'el paso'
-      if (i === 0) poner(u, null, 'reserva', `reserva de las FF.TT.T.O. en ${zona}: lista para empeñarse sobre la DEOP ${ep.n}, la del esfuerzo principal enemigo`, u.lugar || '', { lng: u.lng + lado * 0.08, lat: u.lat + lado * 0.05 })
-      else if (i === 1) { const km = Math.min(ep.kmRuta, pdEp.km + 40); poner(u, ep.n, 'reserva', `se adelanta a la zona de espera detrás de ${pdEp.lugar} (${lugarEn(ep, km)}); punto de decisión: empeñarla cuando ${rojoEp} llegue a ${pdEp.lugar}`, lugarEn(ep, km), enRuta(ep, km, lado)) }
-      else if (i === 2) { const km = Math.max(5, pdEp.km - 10); poner(u, ep.n, 'contraataque', `CONTRAATAQUE sobre ${rojoEp} delante de ${pdEp.lugar} (DEOP ${ep.n})`, lugarEn(ep, km), enRuta(ep, km, lado)) }
-      else poner(u, ep.n, 'contraofensiva', `explota el contraataque: contraofensiva hasta ${pasoEp}`, pasoEp, enRuta(ep, 15, lado))
+      const a = deopRes(j), zona = u.lugar || 'su zona de reunión'
+      if (!a) return poner(u, null, 'reserva', `reserva de las FF.TT.T.O. en ${zona}`, u.lugar || '', { lng: u.lng, lat: u.lat })
+      const k = enDeop.get(a) || 0; enDeop.set(a, k + 1)
+      const lado = 0.7 + k * 0.6, pdA = linea(a), rojoA = rojoDe(a), pasoA = limpio(a.puntos?.[0]?.nombre) || 'el paso'
+      if (i === 0) poner(u, null, 'reserva', `reserva de las FF.TT.T.O. en ${zona}: lista para empeñarse sobre la DEOP ${a.n}${a === ep ? ', la del esfuerzo principal enemigo' : ''}`, u.lugar || '', { lng: u.lng, lat: u.lat })
+      else if (i === 1 && resModo === 'temprano') { const km = Math.max(3, pdA.km - 6); poner(u, a.n, 'contraataque', `CONTRAATAQUE sobre ${rojoA} (DEOP ${a.n}) apenas ataque a ${pdA.lugar}: no lo deja pasar`, lugarEn(a, km), enRuta(a, km, lado)) }
+      else if (i === 1) { const km = Math.min(a.kmRuta, pdA.km + 40); poner(u, a.n, 'reserva', `se adelanta a la zona de espera detrás de ${pdA.lugar} (${lugarEn(a, km)}); punto de decisión: empeñarla cuando ${rojoA} llegue a ${pdA.lugar}`, lugarEn(a, km), enRuta(a, km, lado)) }
+      else if (i === 2) { const km = Math.max(3, pdA.km - 10); poner(u, a.n, 'contraataque', `CONTRAATAQUE sobre ${rojoA} delante de ${pdA.lugar} (DEOP ${a.n})`, lugarEn(a, km), enRuta(a, km, lado)) }
+      else poner(u, a.n, 'contraofensiva', `explota el contraataque: contraofensiva hasta ${pasoA}`, pasoA, enRuta(a, desp === 'frontera' ? 0 : 15, lado))
     })
-    return { id: f.id, nombre: NOMBRES_AZUL[i] || f.nombre, nombreRojo: f.nombre, de: f.de, a: f.a, ventana: f.ventana || `${dia(f.de)} a ${dia(f.a)}`, acciones: acc }
+    return { id: f.id, nombre: (desp === 'frontera' ? NOMBRES_FRONTERA : NOMBRES_AZUL)[i] || f.nombre, nombreRojo: f.nombre, de: f.de, a: f.a, ventana: f.ventana || `${dia(f.de)} a ${dia(f.a)}`, acciones: acc }
   })
-  const enunciado = `Las FF.TT.T.O. cubren los pasos y defienden en ${lista(puestos.map((p) => posicionDefensiva(p.a).lugar))} con ${lista(puestos.map((p) => p.u.designacion))}` +
+  const varias = reserva.length > 1
+  const enunciado = (desp === 'frontera'
+    ? `Las FF.TT.T.O. se adelantan a sus áreas de operaciones y defienden sobre la frontera en ${lista(puestos.map((p) => linea(p.a).lugar))} con ${lista(puestos.map((p) => p.u.designacion))}`
+    : `Las FF.TT.T.O. cubren los pasos y defienden en ${lista(puestos.map((p) => posicionDefensiva(p.a).lugar))} con ${lista(puestos.map((p) => p.u.designacion))}`) +
     ` frente a las DEOP ${lista(frentes.map((a) => String(a.n)))}` +
-    (reserva.length && ep ? `; mantienen como reserva a ${lista(reserva.map((u) => u.designacion))}, la adelantan detrás de ${pdEp.lugar} y la empeñan en la F-III en un contraataque sobre el esfuerzo principal del ${cae.id} (DEOP ${ep.n})` : '') +
+    (reserva.length && amenaza.length ? `; ${lista(reserva.map((u) => u.designacion))} ${varias ? 'quedan' : 'queda'} en reserva y ` +
+      (resModo === 'temprano' ? `${varias ? 'contraatacan' : 'contraataca'} desde la F-II` : `${varias ? 'se empeñan' : 'se empeña'} en la F-III en un contraataque`) +
+      ` sobre ${varias ? 'las DEOP' : 'la DEOP'} ${lista([...new Set(reserva.map((u, j) => String(deopRes(j).n)))])}` : '') +
     '; en la F-IV pasan a la contraofensiva para restablecer la frontera.'
-  return { id: 'CAP', frente: fr, caeId: cae.id, ep: ep?.n ?? null, enunciado, fases, reserva: reserva.map((u) => u.designacion) }
+  return { id: 'CAP', frente: fr, caeId: cae.id, ep: ep?.n ?? null, enunciado, fases, reserva: reserva.map((u) => u.designacion),
+    despliegue: desp, reservas: resModo, enReserva: [...enRes], desplegados: ediciones.desplegados !== false }
 }
 
 // Quién busca a quién en cada fase, por DEOP: hay choque cuando quedan a menos de 40 km o cuando el objetivo rojo de
@@ -136,17 +170,29 @@ export function enfrentamientos(cae, cap, analisis = []) {
 // El paquete que se descarga para el Juego de Guerra: fases ROJO y AZUL con la posición de cada GU al final de cada fase.
 export function paquete({ ejercicio = '', cae, cap, unidades = { enemigas: [], propias: [] }, analisis = [] } = {}) {
   if (!cae?.fases?.length || !cap?.fases?.length) return null
-  const ficha = (u, bando) => ({ designacion: u.designacion, bando, escalon: u.escalon || null, arma: u.arma || null, poder: u.poder ?? null, rol: u.rol || null, deop: u.deop ?? null, lugar: u.lugar || '', lng: r5(u.lng), lat: r5(u.lat) })
+  // «Arrancar desplegados»: la posición inicial de cada GU es la de su F-I (el juego empieza con los CE ya en sus AO).
+  const ini = new Map()
+  const ficha = (u, bando) => { const p = ini.get(bando + '|' + u.designacion)
+    return { designacion: u.designacion, bando, escalon: u.escalon || null, arma: u.arma || null, poder: u.poder ?? null, rol: u.rol || null, deop: u.deop ?? null,
+      lugar: (p && p.lugar) || u.lugar || '', lng: r5(p ? p.lng : u.lng), lat: r5(p ? p.lat : u.lat) } }
   const rojos = (unidades.enemigas || []).filter((u) => Number.isFinite(u.lng) && Number.isFinite(u.lat))
   const azules = (unidades.propias || []).filter((u) => Number.isFinite(u.lng) && Number.isFinite(u.lat))
   // El CAE junta en un renglón las GG.UU. de una DEOP («1ª Brig. Acor. … y Brig. Mot. 4 …»): una entrada por GU.
   const deQuien = (q) => { const xs = rojos.filter((u) => u.designacion && String(q || '').includes(u.designacion)); return xs.length ? xs.map((u) => u.designacion) : [String(q || '')] }
   const enf = enfrentamientos(cae, cap, analisis)
+  if (cap.desplegados) {
+    for (const x of (cae.fases[0]?.acciones || []).filter((x) => Number.isFinite(x.lng) && Number.isFinite(x.lat))) {
+      const us = deQuien(x.quien)
+      us.forEach((d, j) => { if (!ini.has('rojo|' + d)) ini.set('rojo|' + d, { lng: x.lng + (j - (us.length - 1) / 2) * 0.06, lat: x.lat, lugar: x.lugar }) })
+    }
+    for (const x of cap.fases[0]?.acciones || []) if (Number.isFinite(x.lng) && Number.isFinite(x.lat)) ini.set('azul|' + x.designacion, { lng: x.lng, lat: x.lat, lugar: x.lugar })
+  }
   return {
     formato: 'sideceme/enfrentamiento-teatro', version: 1, ejercicio, generado: new Date().toISOString(), nivel: 'FF.TT.T.O.',
     comoLeerlo: 'Primero las fases ROJO y después las fases AZUL, con los mismos días. En cada fase, «rojo» y «azul» dicen dónde debe estar cada GU al final de la fase (lng, lat; «dia» = D+n) y qué hace. «unidades» trae la posición inicial, escalón, arma y poder de cada GU. «enfrentamientos» dice qué GG.UU. rojas buscan a qué GG.UU. azules en cada DEOP (contacto = choque previsto). El Juego de Guerra pone las GG.UU. en su posición inicial y en cada fase les da como orden la posición de esa fase: donde se encuentran, combaten.',
     rojo: { curso: cae.id, tipo: cae.tipo || null, esfuerzoPrincipalDeop: cae.n ?? null, enunciado: cae.enunciado || '' },
-    azul: { curso: 'CAP del Teatro', frente: cap.caeId, enunciado: cap.enunciado, reserva: cap.reserva },
+    azul: { curso: 'CAP del Teatro', frente: cap.caeId, enunciado: cap.enunciado, reserva: cap.reserva, despliegue: cap.despliegue || 'profundidad', reservas: cap.reservas || 'f3',
+      enReserva: cap.enReserva || [], arranque: cap.desplegados ? 'desplegados: la posición inicial de cada GU es la de su F-I' : 'en sus zonas iniciales' },
     unidades: { rojo: rojos.map((u) => ficha(u, 'rojo')), azul: azules.map((u) => ficha(u, 'azul')) },
     fases: cap.fases.map((fa, i) => {
       const fr = cae.fases[i] || { acciones: [] }

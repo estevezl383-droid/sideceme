@@ -13,10 +13,10 @@ import * as M from './modelo.mjs'
 import * as A from './analisis.mjs'
 import { armarRed } from './red.mjs'
 import * as D from './doctrina.mjs'
-import * as CA from './cap-azul.mjs'
+import * as CA from './cap-azul.mjs?v=20261115'
 
 const VERSION_DATOS = '20261109'
-const VERSION_PANEL = '20261114c' // 14-11-2026 c: paso 5 FASES AZUL (CAP por fases) y ⚔ enfrentamiento para el Juego de Guerra · b: verFase, para imprimir las FASES ROJO una hoja por fase · 14-11-2026: plantilla doctrinal, CAE por fases, prompt para la IA
+const VERSION_PANEL = '20261115' // 15-11-2026: paso 5 con OPCIONES (CE sobre la frontera en sus AO, reservas que contraatacan desde la F-II, GG.UU. que pasan a reserva, arrancar desplegados) · 14-11-2026 c: paso 5 FASES AZUL (CAP por fases) y ⚔ enfrentamiento para el Juego de Guerra · b: verFase, para imprimir las FASES ROJO una hoja por fase · 14-11-2026: plantilla doctrinal, CAE por fases, prompt para la IA
 const DATOS = new URL(`./datos/teatro-base.json?v=${VERSION_DATOS}`, import.meta.url).href
 const LECTOR_KMZ = new URL('../../areas-operaciones/abrir-kmz.mjs?v=cae20261114', import.meta.url).href
 const CLAVE = 'picbTeatro'
@@ -385,7 +385,7 @@ function dibujar(forzar = false) {
       if (!porQuien.has(a.quien)) porQuien.set(a.quien, [])
       porQuien.get(a.quien).push([a.lng, a.lat])
       if (fv !== null && i !== fv) continue
-      const mk = L.marker([a.lat, a.lng], { pane: 'sidptRotulos', draggable: !imp, interactive: true, bubblingMouseEvents: false, keyboard: false, icon: L.divIcon({ className: '', html: `<div class="sidpt-fch azul" style="width:max-content;background:#0d47a1;border-color:#bbdefb">${esc(f.id)} <small>${esc(M.fmtDia(a.dia))}</small> ${esc(a.quien.length > 30 ? a.quien.slice(0, 28) + '…' : a.quien)}</div>`, iconSize: [0, 0] }) })
+      const mk = L.marker([a.lat, a.lng], { pane: 'sidptRotulos', draggable: !imp, interactive: true, bubblingMouseEvents: false, keyboard: false, zIndexOffset: 1000, icon: L.divIcon({ className: '', html: `<div class="sidpt-fch azul" style="width:max-content;background:#0d47a1;border-color:#bbdefb">${esc(f.id)} <small>${esc(M.fmtDia(a.dia))}</small> ${esc(a.quien.length > 30 ? a.quien.slice(0, 28) + '…' : a.quien)}</div>`, iconSize: [0, 0] }) })
       mk.bindTooltip(`<b>CAP azul · ${esc(f.id)} ${esc(f.nombre)}</b><br>${esc(a.quien)} (${esc(a.papel)}${a.deop ? `, DEOP ${a.deop}` : ''})<br>${esc(a.que)}<br><i>Arrastrala para cambiar su posición en esta fase.</i>`, { className: 'sidpt-tt', direction: 'top' })
       mk.on('dragend', () => { const p = mk.getLatLng(); moverAzul(f.id, a.designacion, p.lng, p.lat) })
       mk.__z = fv !== null || imp ? [0, 30] : [5, 30]; g.addLayer(mk); rotulos.push(mk)
@@ -643,6 +643,7 @@ function paso5() {
   if (!cap) return `<div class="sidpt-card"><h3>🔵 Fases azules</h3><div class="sidpt-aviso">No encontré GG.UU. propias frente a las DEOP ni de reserva: poné en la Mesa las fichas azules (CE, DIV, reserva) y volvé.</div></div>`
   const fr = cap.frente, c = cs[fr] || cs.probable
   const enf = CA.enfrentamientos(c, cap, S.analisis)
+  const candidatas = (S.unidades.propias || []).filter((u) => u.designacion && u.escalon !== 'ejercito' && Number.isFinite(u.lng) && Number.isFinite(u.lat) && ['cuerpo', 'division', 'brigada'].includes(u.escalon))
   const fsel = Number.isInteger(S.faseVista) ? S.faseVista : null
   const corto = (t) => (String(t).length > 34 ? String(t).slice(0, 32) + '…' : String(t))
   return `
@@ -650,6 +651,10 @@ function paso5() {
     <label class="sidpt-tog" title="Fichas azules en la carta"><input type="checkbox" data-a="ver" data-k="azul" ${S.ver.azul ? 'checked' : ''}><span></span></label></div>
   <div class="sidpt-card"><h3>🔵 Curso de acción propio por fases <small>frente al ${esc(c?.id || 'CAE')}</small></h3>
     <div class="sidpt-fila"><span class="sidpt-radio">Enfrenta al: <label><input type="radio" name="sidpt-azf" data-a="azulfrente" value="probable" ${fr !== 'peligroso' ? 'checked' : ''}> ${esc(cs.probable?.id || 'CAE-1')} más probable</label><label><input type="radio" name="sidpt-azf" data-a="azulfrente" value="peligroso" ${fr === 'peligroso' ? 'checked' : ''}> ${esc(cs.peligroso?.id || 'CAE-2')} más peligroso</label></span></div>
+    <div class="sidpt-fila"><span class="sidpt-radio">Los CE defienden: <label><input type="radio" name="sidpt-azd" data-a="azuldesp" value="frontera" ${cap.despliegue !== 'profundidad' ? 'checked' : ''}> en sus AO, sobre la frontera (cara a cara)</label><label><input type="radio" name="sidpt-azd" data-a="azuldesp" value="profundidad" ${cap.despliegue === 'profundidad' ? 'checked' : ''}> en profundidad</label></span></div>
+    <div class="sidpt-fila"><span class="sidpt-radio">Las reservas: <label><input type="radio" name="sidpt-azr" data-a="azulres" value="temprano" ${cap.reservas !== 'f3' ? 'checked' : ''}> contraatacan desde la F-II (más combates)</label><label><input type="radio" name="sidpt-azr" data-a="azulres" value="f3" ${cap.reservas === 'f3' ? 'checked' : ''}> contraatacan en la F-III</label></span></div>
+    <div class="sidpt-fila"><span class="sidpt-radio" title="Marcá qué GG.UU. salen del frente y pasan a reserva: cada reserva contraataca sobre otra DEOP, de la más amenazada a la menos">En reserva: ${candidatas.map((u) => { const auto = cap.reserva.includes(u.designacion) && !(cap.enReserva || []).includes(u.designacion); return `<label${auto ? ' title="No enfrenta ninguna DEOP: ya es reserva"' : ''}><input type="checkbox" data-a="azulenres" value="${esc(u.designacion)}" ${cap.reserva.includes(u.designacion) ? 'checked' : ''} ${auto ? 'disabled' : ''}> ${esc(u.designacion)}</label>` }).join('')}</span></div>
+    <div class="sidpt-fila"><label class="sidpt-radio"><input type="checkbox" data-a="azuldesplegados" ${cap.desplegados ? 'checked' : ''}> El Juego de Guerra arranca con todas las GG.UU. ya desplegadas (en su posición de la F-I)</label></div>
     <div class="sidpt-fila"><span class="sidpt-radio">En la carta: <label><input type="radio" name="sidpt-azv" data-a="azulfase" value="" ${fsel === null ? 'checked' : ''}> todas</label>${cap.fases.map((f, i) => `<label><input type="radio" name="sidpt-azv" data-a="azulfase" value="${i}" ${fsel === i ? 'checked' : ''}> ${esc(f.id)}</label>`).join('')}</span></div>
     <p class="sidpt-guia" style="margin:6px 0"><b>Concepto:</b> ${esc(cap.enunciado)}</p>
     <table class="sidpt-fases"><thead><tr><th>Fase</th><th>🔴 Rojo · 🔵 Azul</th></tr></thead><tbody>
@@ -749,7 +754,7 @@ function alClic(ev) {
   if (a === 'area') { const x = S.areas.find((y) => String(y.id) === b.dataset.id); return x && encuadrar(x.anillo) }
   if (a === 'ir') return irA(Number(b.dataset.lng), Number(b.dataset.lat))
   if (a === 'propuesta') { guardar({ notas: { ...(S.g.notas || {}), [b.dataset.k]: '' } }); return pintar() }
-  if (a === 'azulreset') { if (window.confirm('¿Volver a la propuesta de las FASES AZUL? Se pierden las fichas azules movidas y los textos corregidos.')) { guardar({ capAzul: { frente: S.g.capAzul?.frente || 'probable' } }); recalcular(); pintar(); dibujar(true) } return }
+  if (a === 'azulreset') { if (window.confirm('¿Volver a la propuesta de las FASES AZUL? Se pierden las fichas azules movidas y los textos corregidos.')) { guardar({ capAzul: { frente: S.g.capAzul?.frente || 'probable', despliegue: S.g.capAzul?.despliegue, reservas: S.g.capAzul?.reservas, enReserva: S.g.capAzul?.enReserva, desplegados: S.g.capAzul?.desplegados } }); recalcular(); pintar(); dibujar(true) } return }
   if (a === 'enfjson') return bajarEnfrentamiento()
   if (a === 'enfkmz') return bajarKmzEnfrentamiento()
   if (a === 'kmzout') return bajarKmz()
@@ -770,6 +775,9 @@ function alCambio(ev) {
   if (a === 'objetivo') { guardar({ objetivo: t.value }); recalcular(); return pintar() }
   if (a === 'cruce') { const v = Number(t.value); guardar({ cruce: Number.isFinite(v) && v >= 0 ? v : undefined }); recalcular(); pintar(); return dibujar(true) }
   if (a === 'azulfrente') { guardar({ capAzul: { ...(S.g.capAzul || {}), frente: t.value } }); recalcular(); pintar(); return dibujar(true) }
+  if (a === 'azuldesp' || a === 'azulres') { guardar({ capAzul: { ...(S.g.capAzul || {}), [a === 'azuldesp' ? 'despliegue' : 'reservas']: t.value } }); recalcular(); pintar(); return dibujar(true) }
+  if (a === 'azuldesplegados') { guardar({ capAzul: { ...(S.g.capAzul || {}), desplegados: t.checked } }); recalcular(); return pintar() }
+  if (a === 'azulenres') { const ca = S.g.capAzul || {}, l = new Set(ca.enReserva || []); if (t.checked) l.add(t.value); else l.delete(t.value); guardar({ capAzul: { ...ca, enReserva: [...l] } }); recalcular(); pintar(); return dibujar(true) }
   if (a === 'azulfase') { S.faseVista = t.value === '' ? null : Number(t.value); return dibujar(true) }
   if (a === 'caevisto') { S.caeVisto = t.value; return dibujar(true) }
 }
