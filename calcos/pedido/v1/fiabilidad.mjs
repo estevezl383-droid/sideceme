@@ -8,7 +8,29 @@ export function conLimite(tarea, { ms = 30000, mensaje = 'La preparación tardó
   })
 }
 
-export async function leerJSON(url, opciones = {}, { ms = 20000, fetcher = globalThis.fetch } = {}) {
+// ============================================================
+// 2026-11-15 — EL RECORTE DE CAPAS ESPERA SU TURNO (clase entera a la vez).
+// Cuando toda la clase aprieta «Generar calcos» en el mismo minuto, el servidor
+// (`calcos-datos` v5) atiende de a CINCO y a los demás los hace esperar hasta 90 s;
+// además la respuesta pesa de 0,2 a 10 MB según la zona. Con el límite general de
+// 20 s, del sexto alumno en adelante la Mesa cortaba el pedido y mostraba «no
+// respondieron a tiempo», mientras el servidor seguía trabajando para nadie. Eso
+// es lo que se vio en clase: «sólo funcionó para 5 u 8».
+// Acá el recorte tiene su propio límite (5 min en total) y, si el servidor contesta
+// «ocupado» (503, codigo:'ocupado'), se vuelve a pedir solo hasta 3 veces, con una
+// pausa que lleva azar para que los que esperan no golpeen todos juntos.
+// Los demás pedidos (censo, archivos) siguen con sus 20 s de siempre.
+// ============================================================
+export const RECORTE_LIMITE_MS = 300000
+export const RECORTE_REINTENTOS = 3
+export const RECORTE_PAUSA_MS = [8000, 15000]
+export function esRecorte(url, opciones) {
+  try { return String(url).includes('/calcos-datos') && String(opciones?.body || '').includes('"recortar"') } catch { return false }
+}
+
+export async function leerJSON(url, opciones = {}, { ms, fetcher = globalThis.fetch, pausa = (t) => new Promise((r) => setTimeout(r, t)) } = {}) {
+  const recorte = esRecorte(url, opciones)
+  if (ms == null) ms = recorte ? RECORTE_LIMITE_MS : 20000
   const controlador = new AbortController()
   const externo = opciones.signal
   const abortar = () => controlador.abort()
@@ -16,11 +38,18 @@ export async function leerJSON(url, opciones = {}, { ms = 20000, fetcher = globa
   else externo?.addEventListener('abort', abortar, { once: true })
   try {
     return await conLimite(async () => {
-      const r = await fetcher(url, { ...opciones, signal: controlador.signal })
-      let j
-      try { j = await r.json() } catch { throw new Error(`El servidor respondió con datos no válidos (${r.status}).`) }
-      if (!r.ok) throw new Error(j?.error || `No se pudieron cargar los datos (${r.status}).`)
-      return j
+      for (let intento = 0; ; intento++) {
+        const r = await fetcher(url, { ...opciones, signal: controlador.signal })
+        let j
+        try { j = await r.json() } catch { throw new Error(`El servidor respondió con datos no válidos (${r.status}).`) }
+        if (r.ok) return j
+        const ocupado = recorte && r.status === 503 && j?.codigo === 'ocupado'
+        if (ocupado && intento < RECORTE_REINTENTOS && !controlador.signal.aborted) {
+          await pausa(RECORTE_PAUSA_MS[0] + Math.random() * (RECORTE_PAUSA_MS[1] - RECORTE_PAUSA_MS[0]))
+          continue
+        }
+        throw new Error(j?.error || `No se pudieron cargar los datos (${r.status}).`)
+      }
     }, { ms, mensaje: 'Los datos del terreno no respondieron a tiempo. Comprueba tu conexión y vuelve a intentarlo.' })
   } finally {
     controlador.abort()
