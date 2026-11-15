@@ -3898,6 +3898,256 @@ function horaTeatro(h: number) {
   return `D${d ? "+" + d : ""} ${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
+// ============================================================
+// v2.9.486 — 🚚 LOGÍSTICA Y REEMPLAZOS A ESCALA TEATRO (15-11-2026).
+// Sergio: «habilitá lo que es logística… a nivel FF.TT.T.O.… base logística, sección base, sección especial… para
+// que en la ficha hagamos jugar… la logística y los reemplazos también». El PICB del Teatro (paso 6) baja con el
+// enfrentamiento las instalaciones como FICHAS (arma «logistica», carga.teatro.log): Base Logística (BL), Sección
+// Base (SB), Sección Especial (SE), una Sección Avanzada (SA) por CE y el Batallón de Reemplazos (BR); y de cada GU
+// sus efectivos y su consumo (carga.teatro.ef, kg). Si un bando tiene instalaciones:
+//   · el abastecimiento corre BL → SB → (SE) → SA → GU; cada instalación tiene sus toneladas y su transporte (t/día
+//     puestas a la DMA: más lejos, más vueltas; por ferrocarril rinde el doble); la BL la repone la Zona del Interior;
+//   · cada GU se reabastece de la instalación más cercana (SA; si no, SE o SB) hasta 2 DMA; en contacto, la mitad;
+//   · una instalación se DESPLAZA con una orden de mover (mientras marcha y 12 h después no distribuye), queda
+//     AMENAZADA con un enemigo a 30 km (ni recibe ni distribuye), su EPA se CORTA si el enemigo está a 30 km del
+//     camino, y CAE si el enemigo llega a ella;
+//   · `apoyar` sobre una GU = PRIORIDAD (de abastecimiento; en el BR, de reemplazos); en el BR, `apoyar` con misión
+//     «emergencia» = PEDIDO DE EMERGENCIA a la Zona del Interior (llega a los 3 días);
+//   · el poder perdido son BAJAS (efectivos × pérdida): 20 % muertos, 65 % heridos (el 40 % vuelve a los 10 días por
+//     el BR), 15 % desaparecidos; el BR manda reemplazos por camino (300 km/día) y la GU los integra al llegar (en
+//     contacto, un tercio por día); el personal devuelve hasta el 80 % del poder perdido (el resto es material);
+//   · al cerrar el día, PARTE LOGÍSTICO y PARTE DE PERSONAL a cada bando.
+// Un bando sin instalaciones sigue como antes (se reabastece cerca de su PC). Cifras de referencia del juego.
+// ============================================================
+const LOG_TEATRO: any = {
+  dmaGuKm: 80, dmaSecKm: 120, factorCamino: 1.3, alcanceDma: 2,
+  amenazaKm: 30, capturaKm: 4, instalarH: 12, enContactoRinde: 0.5,
+  efectivos: { batallon: 800, regimiento: 1200, brigada: 3500, division: 9000, cuerpo: 20000, ejercito: 1500 }, kgDefecto: 20,
+  bajas: { muertos: 0.2, heridos: 0.65, desaparecidos: 0.15, recuperables: 0.4, diasRecuperacion: 10 },
+  integraContactoDia: 0.33, reempKmDia: 300, personalDelPoder: 0.8, emergenciaDias: 3, emergenciaHombres: 800,
+};
+const TIPOS_LOG_TEATRO = ["BL", "SB", "SE", "SA", "BR"];
+function esLogT(u: any) { return !!u && u.arma === "logistica" && !!(u.carga && u.carga.teatro && u.carga.teatro.log); }
+// Lo que acepta la importación en `carga.teatro` (lo demás se descarta).
+function limpiarCargaTeatro(c: any) {
+  const t = c && typeof c === "object" ? c.teatro : null;
+  if (!t || typeof t !== "object") return null;
+  const n = (v: any, max: number) => { const x = Number(v); return v != null && v !== "" && Number.isFinite(x) && x >= 0 ? Math.min(max, x) : undefined; };
+  const out: any = {};
+  for (const [k, max] of [["ef", 500000], ["kg", 200], ["hom", 500000], ["dos", 30]] as any[]) { const v = n(t[k], max); if (v !== undefined) out[k] = v; }
+  const l = t.log;
+  if (l && typeof l === "object" && TIPOS_LOG_TEATRO.includes(l.tipo)) {
+    const log: any = { tipo: l.tipo, de: l.de == null ? null : String(l.de).slice(0, 120), estado: "operando" };
+    for (const [k, max] of [["cap", 100000], ["t", 5000000], ["max", 5000000], ["hombres", 200000], ["procesa", 50000], ["cias", 20], ["emergencia", 50000], ["emergenciaDias", 30]] as any[]) { const v = n(l[k], max); if (v !== undefined) log[k] = v; }
+    if (l.ferro) log.ferro = true;
+    if (Array.isArray(l.apoya)) log.apoya = l.apoya.slice(0, 20).map((x: any) => String(x).slice(0, 120));
+    out.log = log;
+  }
+  return Object.keys(out).length ? out : null;
+}
+// Distancia (km) de un punto al tramo a–b (proyección local: alcanza para decir si el EPA está cortado).
+function distTramoKm(p: number[], a: number[], b: number[]) {
+  const kx = 111.32 * Math.cos((((a[1] + b[1]) / 2) * Math.PI) / 180), ky = 110.574;
+  const ax = a[0] * kx, ay = a[1] * ky, bx = b[0] * kx, by = b[1] * ky, px = p[0] * kx, py = p[1] * ky;
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+  const t = l2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)) : 0;
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+function logisticaTeatro(c: any) {
+  const { U, viva, pos, peleo, movio, dia, T, ev, lugar, frente, conLog, p0, orden, fin, memT, dos, ponDos } = c;
+  const L = LOG_TEATRO, horas = dia * 24, hora = Number(T.hora) || 0, hasta = hora + horas;
+  const R = (x: number) => Math.round(Number(x) || 0).toLocaleString("es-BO");
+  const gt = (u: any) => (u.carga && u.carga.teatro) || {};
+  const lg = (u: any) => gt(u).log || {};
+  const ponT = (u: any, x: any) => { u.carga = { ...(u.carga || {}), teatro: { ...gt(u), ...x } }; };
+  const ponL = (u: any, x: any) => ponT(u, { log: { ...lg(u), ...x } });
+  const vivas = [...U.values()].filter(viva);
+  const inst = vivas.filter(esLogT);
+  const combate = vivas.filter((u: any) => !esLogT(u));
+  const km = (a: any, b: any) => haversineKm(pos(a), pos(b)) * L.factorCamino;
+  const P = memT.log = memT.log || {};
+  memT.cortes = memT.cortes || {};
+  const parte = (b: string) => (P[b] = P[b] || { bajas: 0, m: 0, h: 0, d: 0, env: 0, lleg: 0, vuelven: 0, ent: 0 });
+  // a) cada instalación: ¿cae, queda amenazada, se desplaza, se instala u opera?
+  for (const x of inst) {
+    const l = lg(x);
+    let dMin = Infinity, quien: any = null;
+    for (const e of combate) { if (e.bando === x.bando) continue; const d = haversineKm(pos(x), pos(e)); if (d < dMin) { dMin = d; quien = e; } }
+    if (quien && dMin <= frente(quien) + L.capturaKm) {
+      x.estado = "fuera_combate"; x.poder_actual = 0;
+      ponL(x, { t: 0, hombres: 0, estado: "capturada" });
+      ev(`💥 ${nombreUnidad(x)} CAPTURADA por ${nombreUnidad(quien)} ${lugar(pos(x))}: se pierden sus abastecimientos.`, pos(x), ["azul", "rojo"]);
+      const o = orden.get(x.id); if (o) fin.add(o.id);
+      continue;
+    }
+    let estado = "operando", resta = Math.max(0, Number(l.inst) || 0);
+    if (movio.has(x.id)) { estado = "desplazandose"; resta = L.instalarH; }
+    else if (resta > 0) { resta = Math.max(0, resta - horas); if (resta > 0) estado = "instalandose"; }
+    if (estado === "operando" && dMin <= L.amenazaKm) estado = "amenazada";
+    if (estado !== (l.estado || "operando")) {
+      if (estado === "amenazada") ev(`⚠️ ${nombreUnidad(x)} AMENAZADA: ${nombreUnidad(quien)} a ${Math.round(dMin)} km; no recibe ni distribuye.`, pos(x), [x.bando]);
+      else if (estado === "desplazandose") ev(`🚚 ${nombreUnidad(x)} se DESPLAZA: mientras marcha y ${L.instalarH} h después no distribuye.`, pos(x), [x.bando]);
+      else if (estado === "operando") ev(`✅ ${nombreUnidad(x)} OPERA ${lugar(pos(x)) || "en su nueva ubicación"}.`, pos(x), [x.bando]);
+    }
+    ponL(x, { estado, inst: resta });
+  }
+  const opera = (x: any) => viva(x) && lg(x).estado === "operando";
+  const porDes = new Map<string, any>();
+  for (const x of inst) porDes.set(x.bando + "|" + String(x.designacion || ""), x);
+  const proveedor = (x: any) => { const d = lg(x).de; return d ? porDes.get(x.bando + "|" + d) || null : null; };
+  const cortado = (a: any, b: any) => { for (const e of combate) if (e.bando !== a.bando && distTramoKm(pos(e), pos(a), pos(b)) <= L.amenazaKm) return e; return null; };
+  // b) la BL la repone la Zona del Interior.
+  for (const x of inst) if (lg(x).tipo === "BL" && opera(x)) ponL(x, { t: Math.min(Number(lg(x).max) || 0, (Number(lg(x).t) || 0) + (Number(lg(x).cap) || 0) * dia) });
+  // c) las GG.UU.: cuánto les falta (t) y de qué instalación lo toman.
+  const efDe = (u: any) => Number(gt(u).ef) || L.efectivos[u.escalon] || 9000;
+  const homDe = (u: any) => { const h = Number(gt(u).hom); return gt(u).hom != null && Number.isFinite(h) ? h : efDe(u); };
+  const tDos = (u: any) => (Math.max(1, homDe(u)) * (Number(gt(u).kg) || L.kgDefecto)) / 1000;   // t de un día de abastecimiento
+  const pedidos = new Map<any, any[]>();
+  const sinApoyo: any[] = [];
+  for (const u of combate) {
+    if (!conLog.has(u.bando) || esPCTeatro(u)) continue;
+    let mejor: any = null;
+    for (const x of inst) {
+      if (x.bando !== u.bando || !opera(x) || !["SA", "SE", "SB"].includes(lg(x).tipo)) continue;
+      const d = km(x, u), pref = lg(x).tipo === "SA" ? ((lg(x).apoya || []).includes(u.designacion) ? 0.75 : 1) : 1.15;
+      if (!mejor || d * pref < mejor.puntaje) mejor = { x, d, puntaje: d * pref };
+    }
+    if (!mejor || mejor.d > L.dmaGuKm * L.alcanceDma) { sinApoyo.push(u); continue; }
+    const falta = Math.max(0, TEATRO.dosMax - dos(u));
+    if (falta < 0.01) continue;
+    if (!pedidos.has(mejor.x.id)) pedidos.set(mejor.x.id, []);
+    pedidos.get(mejor.x.id)!.push({ u, falta: falta * tDos(u) * (peleo.has(u.id) ? L.enContactoRinde : 1), km: mejor.d, gu: true });
+  }
+  // d) cada proveedor reparte su transporte, de atrás hacia adelante (BL → SB → SE → SA → GG.UU.): primero la
+  //    prioridad (orden «apoyar»), después el resto en proporción. Más allá de la DMA una tonelada gasta más
+  //    transporte (más vueltas); por ferrocarril, la mitad.
+  for (const tipo of ["BL", "SB", "SE", "SA"]) for (const s of inst.filter((y: any) => lg(y).tipo === tipo)) {
+    if (!opera(s)) continue;
+    const lista = [...(pedidos.get(s.id) || [])];
+    for (const y of inst) {
+      if (y === s || proveedor(y) !== s || lg(y).tipo === "BR" || !opera(y)) continue;
+      const falta = Math.max(0, (Number(lg(y).max) || 0) - (Number(lg(y).t) || 0));
+      const e = cortado(s, y), k = String(y.id);
+      if (e && !memT.cortes[k]) { memT.cortes[k] = 1; ev(`⛔ EPA CORTADO entre ${nombreUnidad(s)} y ${nombreUnidad(y)}: ${nombreUnidad(e)} sobre el camino ${lugar(pos(e))}.`, pos(e), [s.bando]); }
+      if (!e && memT.cortes[k]) { delete memT.cortes[k]; ev(`✅ EPA restablecido entre ${nombreUnidad(s)} y ${nombreUnidad(y)}.`, pos(y), [s.bando]); }
+      if (e || falta < 0.5) continue;
+      lista.push({ u: y, falta, km: km(s, y), ferro: !!lg(y).ferro, gu: false });
+    }
+    if (!lista.length) continue;
+    const o = orden.get(s.id);
+    const prio = o && o.tipo === "apoyar" && o.objetivo_id != null ? o.objetivo_id : null;
+    const dma = tipo === "SA" ? L.dmaGuKm : L.dmaSecKm;
+    const costo = (p: any) => Math.max(1, p.km / dma) / (p.ferro ? 2 : 1);
+    let cap = (Number(lg(s).cap) || 0) * dia, stock = Number(lg(s).t) || 0;
+    for (const grupo of [lista.filter((p) => p.u.id === prio), lista.filter((p) => p.u.id !== prio)]) {
+      if (!grupo.length || cap <= 0 || stock <= 0) continue;
+      const nCap = grupo.reduce((a: number, p: any) => a + p.falta * costo(p), 0);
+      const fc = nCap > 0 ? Math.min(1, cap / nCap) : 0;
+      const nT = grupo.reduce((a: number, p: any) => a + p.falta * fc, 0);
+      const ft = nT > 0 ? Math.min(1, stock / nT) : 0;
+      for (const p of grupo) {
+        const t = p.falta * fc * ft;
+        if (t <= 0) continue;
+        cap -= t * costo(p); stock -= t;
+        if (p.gu) { ponDos(p.u, dos(p.u) + t / tDos(p.u)); parte(s.bando).ent += t; }
+        else ponL(p.u, { t: Math.round(((Number(lg(p.u).t) || 0) + t) * 10) / 10 });
+      }
+    }
+    ponL(s, { t: Math.round(Math.max(0, stock) * 10) / 10 });
+  }
+  // e) personal: el poder perdido son bajas; los reemplazos en camino llegan y se integran.
+  const brs = inst.filter((x: any) => lg(x).tipo === "BR");
+  const brDe = (b: string, u: any) => { let m: any = null, dm = Infinity; for (const x of brs) { if (x.bando !== b) continue; const d = km(x, u); if (d < dm) { dm = d; m = x; } } return m; };
+  const d1 = (x: number) => Math.round(x * 10) / 10;
+  for (const u of combate) {
+    if (!conLog.has(u.bando) || esPCTeatro(u)) continue;
+    const ef = efDe(u), t = gt(u);
+    let hom = homDe(u), baj = t.baj || { m: 0, h: 0, d: 0 };
+    const perdio = Math.max(0, (p0.get(u.id) || 0) - Number(u.poder_actual));
+    if (perdio > 0 && hom > 0) {
+      const n = Math.min(hom, (perdio / Math.max(1, Number(u.poder_max))) * ef);
+      hom -= n;
+      const m = n * L.bajas.muertos, h = n * L.bajas.heridos, d = n * L.bajas.desaparecidos;
+      baj = { m: d1(baj.m + m), h: d1(baj.h + h), d: d1(baj.d + d) };
+      const pp = parte(u.bando); pp.bajas += n; pp.m += m; pp.h += h; pp.d += d;
+      const br = brDe(u.bando, u), vuelve = h * L.bajas.recuperables;
+      if (br && vuelve > 0) {
+        const dia0 = Math.ceil((hora + L.bajas.diasRecuperacion * 24) / 24) * 24;
+        const cola = [...(lg(br).cola || [])], k = cola.findIndex((q: any) => q[0] === dia0);
+        if (k >= 0) cola[k] = [dia0, d1(cola[k][1] + vuelve)]; else cola.push([dia0, d1(vuelve)]);
+        ponL(br, { cola: cola.slice(-40) });
+      }
+    }
+    let pend = Number(t.pend) || 0, recib = Number(t.recib) || 0;
+    const rc: any[] = [];
+    for (const q of t.rc || []) { if (Number(q[0]) <= hasta) { pend += Number(q[1]) || 0; parte(u.bando).lleg += Number(q[1]) || 0; } else rc.push(q); }
+    if (pend > 0.5 && hom < ef) {
+      const f = peleo.has(u.id) ? Math.min(1, L.integraContactoDia * dia) : 1;
+      const n = Math.min(pend * f, ef - hom);
+      hom += n; pend -= n; recib += n;
+      u.poder_actual = Math.min(Number(u.poder_max), Number(u.poder_actual) + (n / ef) * Number(u.poder_max) * L.personalDelPoder);
+    }
+    ponT(u, { ef, hom: d1(hom), pend: d1(pend), rc, baj, recib: Math.round(recib) });
+  }
+  // f) el Batallón de Reemplazos: vuelven los recuperados, llegan los pedidos, sale la prioridad y luego el resto.
+  for (const br of brs) {
+    const l = lg(br), o = orden.get(br.id);
+    let hombres = Number(l.hombres) || 0, ped = Array.isArray(l.ped) ? l.ped : null;
+    const cola: any[] = [];
+    for (const q of l.cola || []) { if (Number(q[0]) <= hasta) { hombres += Number(q[1]) || 0; parte(br.bando).vuelven += Number(q[1]) || 0; } else cola.push(q); }
+    if (ped && Number(ped[0]) <= hasta) { hombres += Number(ped[1]) || 0; ev(`📨 Llegaron de la Zona del Interior ${R(ped[1])} REEMPLAZOS al ${nombreUnidad(br)}.`, pos(br), [br.bando]); ped = null; }
+    if (o && o.tipo === "apoyar" && o.mision === "emergencia") {
+      fin.add(o.id);
+      if (ped) ev(`📨 Ya hay un pedido de emergencia en curso: llega el ${horaTeatro(Number(ped[0]))}.`, pos(br), [br.bando]);
+      else {
+        const n = Number(l.emergencia) || L.emergenciaHombres, dd = Number(l.emergenciaDias) || L.emergenciaDias;
+        ped = [hora + dd * 24, n];
+        ev(`📨 PEDIDO DE EMERGENCIA a la Zona del Interior: ${R(n)} reemplazos llegan al ${nombreUnidad(br)} el ${horaTeatro(hora + dd * 24)}.`, pos(br), [br.bando]);
+      }
+    }
+    if (lg(br).estado === "operando" && hombres >= 1) {
+      let cap = (Number(l.procesa) || 400) * dia;
+      const prio = o && o.tipo === "apoyar" && o.mision !== "emergencia" && o.objetivo_id != null ? o.objetivo_id : null;
+      const nec = combate.filter((u: any) => u.bando === br.bando && !esPCTeatro(u)).map((u: any) => {
+        const t = gt(u), enCamino = (t.rc || []).reduce((a: number, q: any) => a + (Number(q[1]) || 0), 0);
+        return { u, falta: efDe(u) - homDe(u) - (Number(t.pend) || 0) - enCamino };
+      }).filter((x: any) => x.falta >= 1)
+        .sort((a: any, b: any) => (Number(b.u.id === prio) - Number(a.u.id === prio)) || (b.falta / efDe(b.u) - a.falta / efDe(a.u)));
+      for (const x of nec) {
+        if (cap < 1 || hombres < 1) break;
+        const n = Math.min(x.falta, cap, hombres);
+        cap -= n; hombres -= n;
+        const llega = hasta + (km(br, x.u) / L.reempKmDia) * 24;
+        ponT(x.u, { rc: [...(gt(x.u).rc || []), [d1(llega), d1(n)]].slice(-12) });
+        parte(br.bando).env += n;
+      }
+    }
+    ponL(br, { hombres: d1(hombres), cola, ped });
+  }
+  // g) al cerrar el día: PARTE LOGÍSTICO y PARTE DE PERSONAL de cada bando con instalaciones.
+  if (T.cierre) {
+    const diaTxt = horaTeatro(hasta - 1e-6).split(" ")[0];
+    for (const b of conLog) {
+      const xs = inst.filter((x: any) => x.bando === b && viva(x)), pp = parte(b);
+      const est = (x: any) => { const e = lg(x).estado; return e && e !== "operando" ? ` (${e === "desplazandose" ? "se desplaza" : e === "instalandose" ? "instalándose" : e})` : ""; };
+      const stock = xs.filter((x: any) => lg(x).tipo !== "BR").map((x: any) => `${nombreUnidad(x)} ${R(lg(x).t)} t${est(x)}`);
+      const guB = combate.filter((u: any) => u.bando === b && !esPCTeatro(u));
+      const secas = guB.filter((u: any) => dos(u) < 1).map(nombreUnidad), lejos = sinApoyo.filter((u: any) => u.bando === b).map(nombreUnidad);
+      ev(`📦 PARTE LOGÍSTICO ${diaTxt} · ${stock.join(" · ") || "sin instalaciones en pie"} · entregado a las GG.UU.: ${R(pp.ent)} t`
+        + (secas.length ? ` · con menos de 1 día de abastecimiento: ${secas.join(", ")}` : "")
+        + (lejos.length ? ` · FUERA DEL ALCANCE de sus instalaciones: ${lejos.join(", ")}` : "") + ".", null, [b]);
+      const br = xs.find((x: any) => lg(x).tipo === "BR");
+      const enRec = br ? (lg(br).cola || []).reduce((a: number, q: any) => a + (Number(q[1]) || 0), 0) : 0;
+      const bajos = guB.filter((u: any) => homDe(u) < 0.75 * efDe(u)).map((u: any) => `${nombreUnidad(u)} ${Math.round((100 * homDe(u)) / efDe(u))} %`);
+      ev(`👥 PARTE DE PERSONAL ${diaTxt} · bajas del día ${R(pp.bajas)} (${R(pp.m)} muertos, ${R(pp.h)} heridos, ${R(pp.d)} desaparecidos) · reemplazos enviados ${R(pp.env)}, llegados ${R(pp.lleg)} · volvieron al servicio ${R(pp.vuelven)}`
+        + (br ? ` · ${nombreUnidad(br)}: ${R(lg(br).hombres)} disponibles, ${R(enRec)} heridos en recuperación${Array.isArray(lg(br).ped) ? `, pedido de emergencia llega el ${horaTeatro(Number(lg(br).ped[0]))}` : ""}` : " · sin Batallón de Reemplazos")
+        + (bajos.length ? ` · por debajo del 75 %: ${bajos.join(", ")}` : "") + ".", null, [b]);
+    }
+    memT.log = {};
+  }
+  return { sinApoyo };
+}
+
 function resolverTeatro(estado: any) {
   // Sin reloj continuo (turno a turno): el día en 6 pasos de 4 h.
   if (!estado.tic) {
@@ -3922,6 +4172,7 @@ function resolverTeatro(estado: any) {
   const fin: Set<any> = T.fin || new Set();
   const eventos: any[] = [], trazas: any[] = [], combates: any[] = [];
   const U = new Map<any, any>((estado.unidades || []).map((u: any) => [u.id, { ...u }]));
+  const p0 = new Map<any, number>([...U.values()].map((u: any) => [u.id, Number(u.poder_actual) || 0]));   // v2.9.486: para las bajas
   const viva = (u: any) => u && u.estado !== "fuera_combate" && Number(u.poder_actual) > 0;
   const pos = (u: any) => [Number(u.lng), Number(u.lat)];
   const frente = (u: any) => TEATRO.frenteKm[u.escalon] ?? 6;
@@ -3949,7 +4200,7 @@ function resolverTeatro(estado: any) {
   }
   const enContacto = (u: any, p: number[]) => {
     for (const e of U.values()) {
-      if (!viva(e) || e.bando === u.bando) continue;
+      if (!viva(e) || e.bando === u.bando || esLogT(e)) continue;   // v2.9.486: una instalación no frena ni combate
       if (haversineKm(p, pos(e)) <= frente(u) + frente(e)) return e;
     }
     return null;
@@ -4035,7 +4286,7 @@ function resolverTeatro(estado: any) {
     else if (detenida && !memT.prog["det" + o.id]) { memT.prog["det" + o.id] = 1; ev(`${nombreUnidad(u)} DETENIDA: ${detenida}.`, p, [u.bando]); }
   }
   // ── 2 · CONTACTO: grupos de GG.UU. cuyos frentes se tocan ───────────────────────
-  const vivas = [...U.values()].filter(viva);
+  const vivas = [...U.values()].filter((u: any) => viva(u) && !esLogT(u));   // v2.9.486: las instalaciones no combaten (caen)
   const padre = new Map<any, any>(vivas.map((u: any) => [u.id, u.id]));
   const raiz = (x: any): any => { while (padre.get(x) !== x) { padre.set(x, padre.get(padre.get(x))); x = padre.get(x); } return x; };
   const pares: any[] = [];
@@ -4158,14 +4409,22 @@ function resolverTeatro(estado: any) {
     }
   }
   // ── 5 · ABASTECIMIENTO (días de abastecimiento) ─────────────────────────────────
+  // v2.9.486: el bando con instalaciones logísticas se abastece por su cadena (logisticaTeatro); el otro, como antes.
   const pcs = [...U.values()].filter((u: any) => viva(u) && esPCTeatro(u));
+  const conLog = new Set<string>([...U.values()].filter((u: any) => viva(u) && esLogT(u)).map((u: any) => u.bando));
+  const dosAntes = new Map<any, number>();
   for (const u of U.values()) {
-    if (!viva(u) || esPCTeatro(u)) continue;
+    if (!viva(u) || esPCTeatro(u) || esLogT(u)) continue;
     const antes = dos(u);
+    dosAntes.set(u.id, antes);
     let v = antes - (peleo.has(u.id) ? TEATRO.consumo.combate : movio.has(u.id) ? TEATRO.consumo.marcha : TEATRO.consumo.quieta) * dia;
-    if (!peleo.has(u.id) && pcs.some((c: any) => c.bando === u.bando && haversineKm(pos(u), pos(c)) <= TEATRO.reaprovKm)) v += TEATRO.reaprovDia * dia;
+    if (!conLog.has(u.bando) && !peleo.has(u.id) && pcs.some((c: any) => c.bando === u.bando && haversineKm(pos(u), pos(c)) <= TEATRO.reaprovKm)) v += TEATRO.reaprovDia * dia;
     ponDos(u, v);
-    if (antes > 0 && dos(u) <= 0) ev(`⛽ ${nombreUnidad(u)} SIN ABASTECIMIENTO: marcha y pelea a menos de la mitad.`, pos(u), [u.bando]);
+  }
+  if (conLog.size) logisticaTeatro({ U, viva, pos, peleo, movio, dia, T, ev, lugar, frente, conLog, p0, orden, fin, memT, dos, ponDos });
+  for (const [id, antes] of dosAntes) {
+    const u = U.get(id);
+    if (u && viva(u) && antes > 0 && dos(u) <= 0) ev(`⛽ ${nombreUnidad(u)} SIN ABASTECIMIENTO: marcha y pelea a menos de la mitad.`, pos(u), [u.bando]);
   }
   // ── 6 · LO QUE VE CADA BANDO ────────────────────────────────────────────────────
   const detecciones: any = { azul: [], rojo: [] };
@@ -6050,6 +6309,9 @@ async function manejar(req: Request): Promise<Response> {
         if (mun) fila.municion = mun;
         const cKm = Number(u.combustible_km);
         if (Number.isFinite(cKm) && cKm > 0) fila.combustible_km = Math.min(5000, cKm);
+        // v2.9.486 — escala teatro: lo logístico de la ficha (instalación o GU) entra con ella.
+        const cT = limpiarCargaTeatro(u.carga);
+        if (cT) fila.carga = { teatro: cT };
         return fila;
       });
       if (filas.length) {
@@ -6181,13 +6443,18 @@ async function manejar(req: Request): Promise<Response> {
     const tipo = ["mover", "atacar", "defender", "fuego", "replegar", "zapa", "apoyar"].includes(o.tipo) ? o.tipo : null;
     if (!tipo) return err("Tipo de orden inválido (mover|atacar|defender|fuego|replegar|zapa|apoyar)");
     if (tipo === "apoyar") {
-      const { data: ux } = await sb.from("wg_unidades").select("id, arma").eq("id", o.unidad_id).limit(1);
-      if (!ux || !ux[0] || ux[0].arma !== CONVOY_ARMA) return err("Sólo un convoy se agrega para apoyar a una unidad");
+      const { data: ux } = await sb.from("wg_unidades").select("id, arma, carga").eq("id", o.unidad_id).limit(1);
+      // v2.9.486: una instalación logística del teatro «apoya» = prioridad; el BR, con misión «emergencia», pide a la ZI.
+      const logT = !!(ux && ux[0] && esLogT(ux[0]));
+      if (!ux || !ux[0] || (ux[0].arma !== CONVOY_ARMA && !logT)) return err("Sólo un convoy (o una instalación logística del teatro) apoya a una unidad");
+      if (logT && o.mision === "emergencia") { if (ux[0].carga.teatro.log.tipo !== "BR") return err("El pedido de emergencia lo hace el Batallón de Reemplazos"); }
+      else {
       const { data: obj } = await sb.from("wg_unidades").select("id, bando, arma, estado").eq("id", o.objetivo_id).eq("partida_id", partida.id).limit(1);
       const x = obj && obj[0];
       if (!x || x.bando !== u.bando) return err("El convoy apoya a una unidad PROPIA");
       if (x.arma === CONVOY_ARMA) return err("Un convoy no apoya a otro convoy");
       if (x.estado === "fuera_combate") return err("Esa unidad está fuera de combate");
+      }
     }
     // v2.9.217 — EL ARMA ELEGIDA SE GUARDA. El frontend la manda desde v2.9.214,
     // pero acá se tiraba a la basura porque `wg_ordenes` no tenía la columna: por
@@ -6217,7 +6484,7 @@ async function manejar(req: Request): Promise<Response> {
       ruta: ruta && ruta.length ? ruta : null,
       // v2.9.226: misión del fuego de artillería. v2.9.458: en un convoy, «corta» es la ruta que eligió
       // el G-4; v2.9.462: «marcada», la que marcó él punto por punto.
-      mision: ["destruccion", "interdiccion", "neutralizacion", "corta", "marcada"].includes(o.mision) ? o.mision : null,
+      mision: ["destruccion", "interdiccion", "neutralizacion", "corta", "marcada", "emergencia"].includes(o.mision) ? o.mision : null,
       // v2.9.325 — LA TAREA TÁCTICA Y SU PROPÓSITO. La tarea se valida contra el
       // catálogo (una inventada entra como null y el motor no la evalúa); el
       // propósito es texto libre del cursante —es SU intención, no un menú— y se
@@ -6240,7 +6507,7 @@ async function manejar(req: Request): Promise<Response> {
         tipo, destino_lat: o.destino_lat ?? null, destino_lng: o.destino_lng ?? null, objetivo_id: o.objetivo_id ?? null,
         arma, obra: typeof o.obra === "string" && OBRAS[o.obra] ? o.obra : null,
         ruta: ruta && ruta.length ? ruta : null,
-        mision: ["destruccion", "interdiccion", "neutralizacion", "corta", "marcada"].includes(o.mision) ? o.mision : null,
+        mision: ["destruccion", "interdiccion", "neutralizacion", "corta", "marcada", "emergencia"].includes(o.mision) ? o.mision : null,
         tarea: typeof o.tarea === "string" && TAREAS[o.tarea] ? o.tarea : null,
         proposito: typeof o.proposito === "string" && o.proposito.trim() ? o.proposito.trim().slice(0, 300) : null,
         inicio,
