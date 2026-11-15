@@ -1,4 +1,4 @@
-import {PRUEBAS,PRUEBAS_EXCELENCIA,esHojaExcelencia,datosHoja,valoresHoja,marca,evaluador,novedadesHoja} from './informes.mjs?v=22';
+import {PRUEBAS,PRUEBAS_EXCELENCIA,esHojaExcelencia,datosHoja,valoresHoja,marca,evaluador,novedadesHoja} from './informes.mjs?v=36';
 import {edad} from './baremos.mjs?v=22';
 import {gradoArma} from './ui.mjs?v=22';
 const xml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));

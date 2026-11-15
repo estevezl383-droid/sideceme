@@ -213,17 +213,18 @@ Deno.serve(async(req:Request)=>{
    if((!jefe||plan?.modo==='EVALUACION')&&!puedeRegistrar(plan,s.usuario_id,b.cursante_id,b.prueba))return reply(403,{ok:false,error:'PRUEBA O CURSANTE NO ASIGNADO A TU CUENTA'});
    if(plan){const q=await sb.from('efmc_condiciones').select('*').eq('organizacion_id',plan.id).eq('cursante_id',b.cursante_id).in('prueba',['TODAS',b.prueba]).order('creado_en',{ascending:false}).limit(1);if(q.error)throw q.error;if(q.data[0]&&q.data[0].estado!=='NORMAL')return reply(409,{ok:false,error:'CURSANTE CON NOVEDAD: '+CONDICIONES[q.data[0].estado]+'. EL JEFE DEBE ACTUALIZAR SU CONDICIÓN ANTES DE EVALUAR.'});}
    if(!/^[0-9a-f-]{36}$/i.test(b.id)||typeof b.valor!=='number'||!Number.isFinite(b.valor)||b.valor<0||b.valor>10000||!['flexiones','abdominales','aerobica','natacion','barras','talla_peso'].includes(b.prueba)||!['M','F'].includes(b.sexo)||!/^\d{4}-\d{2}-\d{2}$/.test(b.fecha)||edad(b.fecha,b.fecha)===null||validarNacimiento(b.nacimiento,b.fecha))return reply(400,{ok:false,error:'REVISAR MARCA, FECHAS Y TABLA'});
+  if((b.no_termino!=null&&typeof b.no_termino!=='boolean')||(b.no_termino&&(b.no_realizo||b.no_cumplio||b.valor!==0)))return reply(400,{ok:false,error:'ESTADO DE PRUEBA NO VÁLIDO'});
    if(b.no_realizo!=null&&typeof b.no_realizo!=='boolean')return reply(400,{ok:false,error:'ESTADO DE PRUEBA NO VÁLIDO'});
    if(b.no_realizo&&b.valor!==0)return reply(400,{ok:false,error:'NO REALIZÓ NO ADMITE MARCA'});
-   if(!b.no_realizo&&b.prueba==='talla_peso'&&(validarMedidas(b.valor,b.talla)))return reply(400,{ok:false,error:validarMedidas(b.valor,b.talla)});
+   if(!b.no_realizo&&!b.no_termino&&b.prueba==='talla_peso'&&(validarMedidas(b.valor,b.talla)))return reply(400,{ok:false,error:validarMedidas(b.valor,b.talla)});
    const excelencia=esExcelencia(plan?.grupos.find(g=>g.alumnos.includes(b.cursante_id)));
    if(plan&&b.prueba==='barras'&&!excelencia)return reply(403,{ok:false,error:'BARRAS REQUIERE GRUPO DE EXCELENCIA'});
    if(b.no_cumplio!==undefined&&(typeof b.no_cumplio!=='boolean'||!excelencia||!['natacion','barras'].includes(b.prueba)||b.valor!==0||b.no_realizo))return reply(400,{ok:false,error:'NO CUMPLIÓ REQUIERE GRUPO DE EXCELENCIA, BARRAS O NATACIÓN Y SIN MARCA'});
    if(b.prueba!=='aerobica'&&b.prueba!=='talla_peso'&&!(excelencia&&b.prueba==='natacion')&&!Number.isInteger(b.valor))return reply(400,{ok:false,error:'USAR UN NÚMERO ENTERO'});
    const {data:c,error:ce}=await sb.from('cursantes').select('id,ciclo,paralelo').eq('id',b.cursante_id).eq('activo',true).maybeSingle();
    if(ce||!c)return reply(400,{ok:false,error:'CURSANTE NO VÁLIDO'});
-   const calculo=b.no_cumplio?{estado:'NO_CUMPLIO',modalidad:'EXCELENCIA',cumple:false,nota:0,motivo:'NO CUMPLIÓ LA PRUEBA'}:b.no_realizo?{estado:'NO_REALIZO',nota:null,motivo:'NO REALIZÓ LA PRUEBA'}:b.prueba==='talla_peso'?calificarMedidas(b.valor,b.talla,b.sexo,b.nacimiento,b.fecha):excelencia?calificarExcelencia(b.prueba,b.valor,b.sexo,b.nacimiento,b.fecha):calificar(b.prueba,b.valor,b.sexo,b.nacimiento,b.fecha);
-   if(!b.no_realizo&&b.prueba==='talla_peso'&&calculo.nota===null)return reply(400,{ok:false,error:calculo.motivo});
+   const calculo=b.no_termino?{estado:'NO_TERMINO',nota:null,motivo:'NO TERMINÓ LA PRUEBA'}:b.no_cumplio?{estado:'NO_CUMPLIO',modalidad:'EXCELENCIA',cumple:false,nota:0,motivo:'NO CUMPLIÓ LA PRUEBA'}:b.no_realizo?{estado:'NO_REALIZO',nota:null,motivo:'NO REALIZÓ LA PRUEBA'}:b.prueba==='talla_peso'?calificarMedidas(b.valor,b.talla,b.sexo,b.nacimiento,b.fecha):excelencia?calificarExcelencia(b.prueba,b.valor,b.sexo,b.nacimiento,b.fecha):calificar(b.prueba,b.valor,b.sexo,b.nacimiento,b.fecha);
+   if(!b.no_realizo&&!b.no_termino&&b.prueba==='talla_peso'&&calculo.nota===null)return reply(400,{ok:false,error:calculo.motivo});
    calculo.evaluador_nombre=actorNombre;
    calculo.ciclo=plan?.ciclo||c.ciclo;calculo.curso=c.paralelo;
    if(plan){calculo.organizacion_nombre=plan.nombre;calculo.modalidad=excelencia?'EXCELENCIA':'ORDINARIA';calculo.grupo=plan.grupos.find(g=>g.alumnos.includes(b.cursante_id))?.color;}
@@ -232,7 +233,7 @@ Deno.serve(async(req:Request)=>{
    if(error?.code==='23505'){
     const {data:prev,error:pe}=await sb.from('efmc_registros').select('*').eq('id',b.id).single();
     if(pe)throw pe;
-    if(prev.actor_id!==row.actor_id||(prev.organizacion_id||null)!==(row.organizacion_id||null)||prev.cursante_id!==row.cursante_id||prev.prueba!==row.prueba||prev.fecha!==row.fecha||Number(prev.valor)!==row.valor||prev.sexo!==row.sexo||prev.nacimiento!==row.nacimiento||((prev.calculo.estado==='NO_REALIZO')!==!!b.no_realizo)||((prev.calculo.estado==='NO_CUMPLIO')!==!!b.no_cumplio)||(!b.no_realizo&&b.prueba==='talla_peso'&&(Number(prev.calculo.talla)!==b.talla||prev.calculo.nota!==calculo.nota)))return reply(409,{ok:false,error:'EL IDENTIFICADOR YA PERTENECE A OTRA MARCA'});
+    if(prev.actor_id!==row.actor_id||(prev.organizacion_id||null)!==(row.organizacion_id||null)||prev.cursante_id!==row.cursante_id||prev.prueba!==row.prueba||prev.fecha!==row.fecha||Number(prev.valor)!==row.valor||prev.sexo!==row.sexo||prev.nacimiento!==row.nacimiento||((prev.calculo.estado==='NO_TERMINO')!==!!b.no_termino)||((prev.calculo.estado==='NO_REALIZO')!==!!b.no_realizo)||((prev.calculo.estado==='NO_CUMPLIO')!==!!b.no_cumplio)||(!b.no_realizo&&!b.no_termino&&b.prueba==='talla_peso'&&(Number(prev.calculo.talla)!==b.talla||prev.calculo.nota!==calculo.nota)))return reply(409,{ok:false,error:'EL IDENTIFICADOR YA PERTENECE A OTRA MARCA'});
     return reply(200,{ok:true,registro:prev});
    }
    if(error)throw error;

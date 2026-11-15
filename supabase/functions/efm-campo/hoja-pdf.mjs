@@ -16,9 +16,9 @@ export async function generarHojaPDF(s,emision,{PDFDocument,StandardFonts,rgb,QR
  const groups=s.excelencia?[['NATACIÓN 100 M',3],['FLEXIONES EN BARRA',3],['ABDOMINALES',3],['FLEXIONES EN SUELO',3],['AERÓBICA 3.200 METROS',3],['NOTA FINAL',1],['FIRMA DEL EVALUADO',1],['HUELLA DIGITAL',1]]:[['PESO / TALLA',4],['NATACIÓN',3],['ABDOMINALES',3],['FLEXIONES EN SUELO',3],['AERÓBICA 3.200 METROS',3],['NOTA FINAL',1],['FIRMA DEL EVALUADO',1],['HUELLA DIGITAL',1]],widths=s.excelencia?[...Array(16).fill(37),80,80]:[...Array(17).fill(35),78,79];let x=20,j=0;
  for(const [label,count] of groups){const w=widths.slice(j,j+count).reduce((a,b)=>a+b,0);cell(label,x,180,w,34,7,true);x+=w;j+=count;}
  const sub=s.excelencia?['TIEMPO','NOTA','20 %','CANT.','NOTA','20 %','CANT.','NOTA','20 %','CANT.','NOTA','20 %','TIEMPO','NOTA','20 %','100 %','','']:['PESO KG','TALLA M','NOTA','29 %','DIST. M','NOTA','11 %','CANT.','NOTA','20 %','CANT.','NOTA','20 %','TIEMPO','NOTA','20 %','100 %','',''];x=20;sub.forEach((v,i)=>{cell(v,x,214,widths[i],28,6,true);x+=widths[i];});
- const val=r=>r.condicion||r.marca==='N/R'?'N/R':r.registro_id?r.valor:'S/R',nota=r=>r.condicion||r.marca==='N/R'?'N/R':r.nota??'S/R',aporte=r=>r.condicion||r.marca==='N/R'?'N/R':r.aporte??'S/R',r=s.rows;
- const ausente=r[0].condicion||r[0].marca==='N/R';
- const values=s.excelencia?[...r.flatMap(v=>[v.marca,nota(v),aporte(v)]),s.final??'PEND.','','']:[ausente?'N/R':r[0].peso??'S/R',ausente?'N/R':r[0].talla??'S/R',nota(r[0]),aporte(r[0]),val(r[1]),nota(r[1]),aporte(r[1]),val(r[2]),nota(r[2]),aporte(r[2]),val(r[3]),nota(r[3]),aporte(r[3]),r[4].marca,nota(r[4]),aporte(r[4]),s.final??'PEND.','',''];x=20;values.forEach((v,i)=>{cell(v,x,242,widths[i],30,6);x+=widths[i];});
+ const val=r=>r.condicion?'N/R':['N/R','N/T'].includes(r.marca)?r.marca:r.registro_id?r.valor:'S/R',nota=r=>r.condicion?'N/R':['N/R','N/T'].includes(r.marca)?r.marca:r.nota??'S/R',aporte=r=>r.condicion?'N/R':['N/R','N/T'].includes(r.marca)?r.marca:r.aporte??'S/R',r=s.rows;
+ const ausente=r[0].condicion||['N/R','N/T'].includes(r[0].marca);
+ const values=s.excelencia?[...r.flatMap(v=>[v.marca,nota(v),aporte(v)]),s.final??'PEND.','','']:[ausente?(r[0].marca==='N/T'?'N/T':'N/R'):r[0].peso??'S/R',ausente?(r[0].marca==='N/T'?'N/T':'N/R'):r[0].talla??'S/R',nota(r[0]),aporte(r[0]),val(r[1]),nota(r[1]),aporte(r[1]),val(r[2]),nota(r[2]),aporte(r[2]),val(r[3]),nota(r[3]),aporte(r[3]),r[4].marca,nota(r[4]),aporte(r[4]),s.final??'PEND.','',''];x=20;values.forEach((v,i)=>{cell(v,x,242,widths[i],30,6);x+=widths[i];});
  const short=s.excelencia?['NAT.','BARR.','ABD.','FLEX.','AER.']:['T/P','NAT.','ABD.','FLEX.','AER.'];cell(s.rows.map((v,i)=>short[i]+': '+(v.confirmado_en?'CONFORME':'PENDIENTE')).join('   |   '),20,272,752,18,7,true);
  cell('PRESIÓN ARTERIAL: __________________\n\nSATURACIÓN: _______________________\n\nPULSO: _____________________________',20,290,200,107,8);
  cell('VALORACIÓN MÉDICA DE APTITUD FÍSICA\n\nAPTO [  ]     NO APTO [  ]\n\nFECHA: ______________________',220,290,265,107,9,true);
@@ -38,7 +38,7 @@ export async function generarHojaPDF(s,emision,{PDFDocument,StandardFonts,rgb,QR
  const roleNames=s.excelencia?['EVALUADOR NATACIÓN','EVALUADOR FLEXIONES EN BARRA','EVALUADOR ABDOMINALES','EVALUADOR FLEXIONES EN SUELO','EVALUADOR AERÓBICA']:['EVALUADOR TALLA-PESO','EVALUADOR NATACIÓN','EVALUADOR ABDOMINALES','EVALUADOR FLEXIONES','EVALUADOR AERÓBICA'];
  s.rows.forEach((v,i)=>{const px=20+i*150;text('____________________________',px,483,7);text(v.evaluador,px,493,6,false,144,2);text(roleNames[i],px,514,6,true,144,2);});
  text(s.comandante||'Gral. Brig. José Jhonny Pardo Pardo',290,550,9,false,400);text('COMANDANTE DE LA ECEME.',310,566,9,true,400);
- text('SIDECEME | S/R: sin registro. N/R: no realizó o con novedad. Los espacios médicos y de firmas manuscritas no certifican una valoración.',20,586,6,false,752,1);text('1 / 1',745,599,6);
+ text('SIDECEME | S/R: sin registro. N/R: no realizó o con novedad. N/T: no terminó. Los espacios médicos y de firmas manuscritas no certifican una valoración.',20,586,6,false,752,1);text('1 / 1',745,599,6);
  return new Uint8Array(await pdf.save());
 }
 

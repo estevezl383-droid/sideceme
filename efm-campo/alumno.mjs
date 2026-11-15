@@ -1,4 +1,4 @@
-import {esc,estaciones,vigente,fichaRegistro,botonConformidad,fechaHora} from './conformidad.mjs?v=35';
+import {esc,estaciones,vigente,fichaRegistro,botonConformidad,fechaHora} from './conformidad.mjs?v=36';
 export async function abrir({invoke,onClose,evaluacionId='',authorized=()=>true}){
  document.getElementById('efmc')?.remove();
  const root=document.createElement('div');root.id='efmc';document.body.append(root);

@@ -13,7 +13,7 @@ export function snapshotHoja(c,perfil,plan,registros,condiciones=[]){
   const condicion=condiciones.filter(x=>x.cursante_id===c.id&&x.organizacion_id===plan.id&&(x.prueba==='TODAS'||x.prueba===prueba)).sort((a,b)=>String(b.creado_en).localeCompare(String(a.creado_en)))[0];
   const bloqueo=condicion&&condicion.estado!=='NORMAL'?{estado:condicion.estado,referencia:condicion.referencia||'',observacion:condicion.observacion||''}:null;
   const nota=!bloqueo&&typeof r?.calculo?.nota==='number'&&Number.isFinite(r.calculo.nota)&&r.calculo.nota>=0&&r.calculo.nota<=100?r.calculo.nota:null;
-  let marca=!r?'S/R':r.calculo?.estado==='NO_CUMPLIO'?'NO CUMPLIÓ':r.calculo?.estado==='NO_REALIZO'?'N/R':prueba==='talla_peso'?`${r.calculo.peso} KG / ${r.calculo.talla} M`:(prueba==='aerobica'||(excelencia&&prueba==='natacion'))?`${String(Math.floor(Number(r.valor)/60)).padStart(2,'0')}:${(excelencia&&prueba==='natacion'?(Number(r.valor)%60).toFixed(2).padStart(5,'0'):String(Math.floor(Number(r.valor)%60)).padStart(2,'0'))}`:String(r.valor);
+  let marca=!r?'S/R':r.calculo?.estado==='NO_CUMPLIO'?'NO CUMPLIÓ':r.calculo?.estado==='NO_TERMINO'?'N/T':r.calculo?.estado==='NO_REALIZO'?'N/R':prueba==='talla_peso'?`${r.calculo.peso} KG / ${r.calculo.talla} M`:(prueba==='aerobica'||(excelencia&&prueba==='natacion'))?`${String(Math.floor(Number(r.valor)/60)).padStart(2,'0')}:${(excelencia&&prueba==='natacion'?(Number(r.valor)%60).toFixed(2).padStart(5,'0'):String(Math.floor(Number(r.valor)%60)).padStart(2,'0'))}`:String(r.valor);
   if(bloqueo)marca='N/R';
   return {prueba,nombre,ponderacion,cumple:r?.calculo?.cumple??null,registro_id:r?.id||null,revision:r?.revision??null,valor:r?.valor??null,peso:prueba==='talla_peso'?r?.calculo?.peso??null:null,talla:prueba==='talla_peso'?r?.calculo?.talla??null:null,marca,nota,aporte:nota==null?null:redondear(nota*ponderacion/100),evaluador:r?.calculo?.evaluador_nombre||r?.evaluador_nombre||r?.actor_id||'',registrado_en:r?.creado_en||null,confirmado_en:r?.conformidad?.confirmado_en||null,condicion:bloqueo};
  });
@@ -37,3 +37,4 @@ export async function datosHojaServidor(sb,cursanteId,organizacionId){
  const byId=new Map(cf.data.map(x=>[x.registro_id,x]));
  return {cursante:c.data,perfil:p.data,plan:o.data,snapshot:snapshotHoja(c.data,p.data,o.data,r.data.map(x=>({...x,conformidad:byId.get(x.id)||null})),n.data)};
 }
+
