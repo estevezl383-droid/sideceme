@@ -150,10 +150,7 @@
     if (!selected || selected.tabla !== form.elements.tabla.value || String(selected.ci) !== form.elements.ci.value) { errorLabel.textContent = 'BUSCÁ POR NOMBRE Y SELECCIONÁ UNA CUENTA DE LA LISTA.'; return; }
     if(selected.tabla==='postulantes'){
       const id=selected.id;dialog.close();
-      try{const {abrirVistaPostulante}=await import('./efm-campo/vista-postulante.mjs?v=32');await abrirVistaPostulante({simularId:id,invoke:async body=>{
-        const {data,error}=await sb.functions.invoke('efm-campo',{body:{...body,token:getTokenSesion()}});
-        if(error||!data?.ok)throw new Error(data?.error||'No se pudieron consultar las notas.');return data;
-      }});}catch(e){alert(e.message);}return;
+      window.open(new URL('postulantes/?personal=1&soporte='+encodeURIComponent(id),location.href).href,'_blank');return;
     }
     // Open synchronously so browsers do not block the new tab after authentication.
     const tab = window.open('about:blank', '_blank');
