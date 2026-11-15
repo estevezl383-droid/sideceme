@@ -277,6 +277,11 @@ export function cursosTeatro(T = typeof window !== 'undefined' ? window.SIDPicbT
       }) })
     }
   }
+  // 🚚 15-11-2026 · APOYO LOGÍSTICO (paso 6 del Teatro): el calco de apoyo logístico de cada fase (BL, SB, SE, SA por CE,
+  // BR, EPA, DMA y a quién apoya cada una) sobre las fichas azules de esa fase.
+  const lg = typeof T.logistica === 'function' ? T.logistica() : null
+  if (lg?.fases?.length) lista.push({ id: 'teatro-logistica', nombre: '🌎 APOYO LOGÍSTICO · calco de apoyo logístico y de personal (Teatro)', bando: 'teatro', sinMarcar: true,
+    fases: lg.fases.map((f, idx) => { const corto = `${f.id} ${f.nombre} (${f.ventana || ''})`; return { bando: 'teatro', cae: 'logistica', idx, corto, titulo: `Apoyo logístico · ${corto}` } }) })
   return lista
 }
 
