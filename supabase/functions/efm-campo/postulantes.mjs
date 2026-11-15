@@ -23,6 +23,7 @@ export async function operarPostulantes({sb,b,actor,reply}){
   if(!uuid(b.organizacion_id))return fail('ORGANIZACIÓN NO VÁLIDA');
   plan=await checked(sb.from('post_ef_organizaciones').select('*').eq('id',b.organizacion_id).maybeSingle());
   if(!plan||(!consulta&&!asignaciones(plan,id).length))return fail('ORGANIZACIÓN DE POSTULANTES NO HABILITADA PARA SU CUENTA',403);
+  if(b.accion==='cargar')b.fecha=plan.fecha;
   if(b.fecha&&b.fecha!==plan.fecha)return fail('LA FECHA NO CORRESPONDE A LA ORGANIZACIÓN');
  }
  const accionesJefe=['organizar','condicion','reiniciar_practica'];
@@ -74,6 +75,11 @@ export async function operarPostulantes({sb,b,actor,reply}){
    const actual=vigentes.find(p=>(consulta||asignaciones(p,id).length)&&(p.fecha===hoy||p.modo==='PILOTO'&&p.fecha<=hoy&&p.practica_hasta>=hoy));
    if(actual){plan=actual;b.fecha=actual.fecha;ps=vigentes.filter(p=>p.fecha===actual.fecha);}
   }
+  if(jefe){
+   ps=await checked(sb.from('post_ef_organizaciones').select('*').order('actualizado_en',{ascending:false}));
+   if(!plan){const hoy=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/La_Paz'}).format(new Date());plan=ps.find(p=>p.habilitado&&p.modo==='PILOTO'&&p.fecha<=hoy&&p.practica_hasta>=hoy)||ps.find(p=>p.habilitado)||ps[0]||null;}
+   if(plan)b.fecha=plan.fecha;
+  }
   if(actor.supervisor_id)ps=ps.filter(p=>p.habilitado&&p.modo==='PILOTO');
   const disponibles=consulta?ps:ps.filter(p=>asignaciones(p,id).length);
   if(!plan&&!consulta)plan=disponibles[0]||null;
@@ -82,7 +88,7 @@ export async function operarPostulantes({sb,b,actor,reply}){
   const [roster,profiles,records,conditions,personal]=await Promise.all([getNomina(ids),checked(ids?sb.from('post_ef_perfiles').select('*').in('postulante_id',ids):sb.from('post_ef_perfiles').select('*')),plan?getRecords(plan):[],plan?getConditions(plan):[],jefe?checked(sb.from('profesores').select('id,nombre_completo,grado,activo,es_suboficial,es_auxiliar,solo_lectura').eq('activo',true).order('nombre_completo')):[]]);
   if(plan)for(const c of roster){const g=plan.grupos.find(g=>g.alumnos.includes(c.id));c.paralelo=g?.origen_paralelos?.[c.id]||g?.paralelo||'';}
   const safePlan=!plan?null:consulta?plan:{...plan,grupos:plan.grupos.filter(g=>assignments.some(a=>a.grupo===g.id)).map(g=>({id:g.id,color:g.color,modalidad:g.modalidad,paralelo:g.paralelo,alumnos:g.alumnos}))};
-  return reply(200,{ok:true,fecha:b.fecha,ciclo:POST,jefe:consulta,puede_organizar:jefe&&!actor.supervisor_id,solo_consulta:consulta&&!jefe&&!asignaciones(plan,id).length,actor_nombre:actorNombre,organizacion:safePlan,organizaciones:disponibles.map(p=>({id:p.id,nombre:p.nombre,ciclo:p.ciclo,modo:p.modo,habilitado:p.habilitado})),asignaciones:assignments,condiciones:conditions.filter(x=>consulta||ids.includes(x.postulante_id)&&(x.prueba==='TODAS'||puedeRegistrar(plan,id,x.postulante_id,x.prueba))).map(serialize),personal,cursantes:roster.map(c=>{const p=profiles.find(p=>p.postulante_id===c.id);return {...c,...(p?{fecha_nacimiento:p.fecha_nacimiento,sexo:p.sexo,sexoConfirmado:true}:{sexo:'',sexoConfirmado:false})};}),registros:plan?safeRecords(records,plan):[]});
+  return reply(200,{ok:true,fecha:b.fecha,ciclo:POST,jefe:consulta,puede_organizar:jefe&&!actor.supervisor_id,solo_consulta:consulta&&!jefe&&!asignaciones(plan,id).length,actor_nombre:actorNombre,organizacion:safePlan,organizaciones:disponibles.map(p=>({id:p.id,nombre:p.nombre,fecha:p.fecha,ciclo:p.ciclo,modo:p.modo,habilitado:p.habilitado})),asignaciones:assignments,condiciones:conditions.filter(x=>consulta||ids.includes(x.postulante_id)&&(x.prueba==='TODAS'||puedeRegistrar(plan,id,x.postulante_id,x.prueba))).map(serialize),personal,cursantes:roster.map(c=>{const p=profiles.find(p=>p.postulante_id===c.id);return {...c,...(p?{fecha_nacimiento:p.fecha_nacimiento,sexo:p.sexo,sexoConfirmado:true}:{sexo:'',sexoConfirmado:false})};}),registros:plan?safeRecords(records,plan):[]});
  }
  if(b.accion==='sincronizar'){
   if(!plan)return fail('SELECCIONE UNA ORGANIZACIÓN');const [rs,cs]=await Promise.all([getRecords(plan),getConditions(plan)]);const ids=new Set(asignaciones(plan,id).flatMap(a=>a.alumnos));
