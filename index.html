@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.486</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.487</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -29922,7 +29922,7 @@ const WG_COL = { rojo:'#e23b3b', azul:'#1f6dff' };
 // v2.9.481 — modo de videojuego independiente por partida.
 let _wgTeatroPromesa=null, _wgTeatroAPI=null;
 function _wgTeatroModulo(){
-  if(!_wgTeatroPromesa) _wgTeatroPromesa=import('./assets/wargame-teatro.mjs?v=2.9.486')
+  if(!_wgTeatroPromesa) _wgTeatroPromesa=import('./assets/wargame-teatro.mjs?v=2.9.487')
     .then(m=>{ _wgTeatroAPI=m; return m; }).catch(e=>{ _wgTeatroPromesa=null; throw e; });
   return _wgTeatroPromesa;
 }
@@ -29983,7 +29983,7 @@ function _wgTeatroRender(){
 // ============================================================
 let _wgLogTeatroPromesa=null;
 function _wgLogTeatroModulo(){
-  if(!_wgLogTeatroPromesa) _wgLogTeatroPromesa=import('./assets/wargame-logistica-teatro.mjs?v=2.9.486').catch(e=>{ _wgLogTeatroPromesa=null; throw e; });
+  if(!_wgLogTeatroPromesa) _wgLogTeatroPromesa=import('./assets/wargame-logistica-teatro.mjs?v=2.9.487').catch(e=>{ _wgLogTeatroPromesa=null; throw e; });
   return _wgLogTeatroPromesa;
 }
 function _wgLogTeatroPanel(el, cual){
@@ -43097,6 +43097,8 @@ function _wgEnfComoEjercicio(j){
   const u=(x,bando)=>({ tipo:'unidad', bando, designacion:x.designacion, escalon:x.escalon, arma:x.arma, lng:x.lng, lat:x.lat, ...(gud[x.designacion]?{ logGu:gud[x.designacion] }:{}) });
   const us=j.unidades||{};
   const inst=((lgj&&lgj.instalaciones)||[]).map(x=>({ tipo:'logistica', bando:x.bando==='rojo'?'enemigo':'propias', designacion:x.designacion, escalon:x.escalon, arma:'logistica', lng:x.lng, lat:x.lat, log:x }));
+  // v2.9.487: y sus columnas de transporte automáticas (camiones que van y vuelven solos).
+  inst.push(...((lgj&&lgj.columnas)||[]).map(x=>({ tipo:'columna', bando:x.bando==='rojo'?'enemigo':'propias', designacion:x.designacion, escalon:'compania', arma:'convoy', lng:x.lng, lat:x.lat, col:x })));
   return { nombre:'⚔ '+(j.ejercicio||'Enfrentamiento')+' · '+((j.rojo||{}).curso||'CAE')+' contra '+((j.azul||{}).curso||'CAP'),
     unidades:[...(us.rojo||[]).map(x=>u(x,'enemigo')),...(us.azul||[]).map(x=>u(x,'propias')),...inst],
     resultados:{ picbTeatro:{ teatro:{ deop:(j.deop||[]).map(x=>({ n:x.n, nombre:x.nombre, linea:(x.itinerario||[]).map(p=>[p.lng,p.lat]) })) } } } };
@@ -43592,6 +43594,8 @@ function _wgVarianteDibujo(u){
   // mirar la carta y saber qué le están llevando a cada unidad sin abrir nada.
   if(u.arma==='sanidad'||u.arma==='ambulancia') return 'ambulancia';
   if(u.arma!=='convoy') return u.arma;
+  // v2.9.487: la columna automática del teatro: cisterna cuando va cargada, camión vacío cuando no.
+  if(u.carga && u.carga.teatro && u.carga.teatro.col) return (Number(u.carga.teatro.col.t)||0)>0 ? 'convoy_iii' : 'convoy';
   const c=(u.carga)||{};
   const q=(k)=>Math.max(0,Number(c[k])||0);
   const orden=['EVAC','V','III','AGUA','I'];        // la que más lleva manda
@@ -47148,6 +47152,11 @@ function _wgEsFichaDelG4(u){
 }
 function _wgPuedeOrdenarA(u){
   const r=_wgRol();
+  // v2.9.487 — las columnas de transporte del teatro son AUTOMÁTICAS: no reciben órdenes.
+  if(u && u.arma==='convoy' && u.carga && u.carga.teatro && u.carga.teatro.col){
+    _wgAviso('🚚 <b>'+_rgEsc(u.designacion||'Esta columna')+'</b> es automática: sale sola, carga, entrega y vuelve. Se la conduce desde 📦 LOGÍSTICA (prioridades) o desplazando su instalación.',5500);
+    return false;
+  }
   // v2.9.448 — el G-1 conduce sus convoyes de reemplazos (y nada más).
   // v2.9.486 — y, a escala teatro, su Batallón de Reemplazos (prioridad y pedido de emergencia).
   const brT=!!(u && u.arma==='logistica' && u.carga && u.carga.teatro && u.carga.teatro.log && u.carga.teatro.log.tipo==='BR');
