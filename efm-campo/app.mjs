@@ -10,7 +10,7 @@ import {fechaEditable,leerFechaEditable,validarNacimiento,fechaPerfil} from './p
 import {calificar,edad,calificarExcelencia,esExcelencia} from './baremos.mjs?v=22';
 import {resumen,PRUEBAS,marca,ultima} from './informes.mjs?v=36';
 import {validarMedidas,calificarMedidas} from './medidas.mjs?v=22';
-import {descargar} from './descargas.mjs?v=36';
+import {descargar} from './descargas.mjs?v=37';
 import {digital,nacimiento,sexoInicial,siguiente,gradoArma} from './ui.mjs?v=22';
 const names={talla_peso:'TALLA / PESO',flexiones:'FLEXIONES',abdominales:'ABDOMINALES',aerobica:'AERÓBICA 3.200 M',natacion:'NATACIÓN',barras:'BARRAS · EXCELENCIA'};
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -191,7 +191,7 @@ export async function abrir({invoke:invokeBase,onClose,owner,vistaInicial='estac
   get('efmc-course')?.addEventListener('change',e=>{curso=e.target.value;selected=null;render();});
   root.querySelectorAll('[data-firmante]').forEach(e=>e.oninput=()=>{config[e.dataset.firmante]=e.value;try{localStorage.setItem(configKey,JSON.stringify(config));}catch{}});
   for(const [id,k] of [['efmc-peso','peso'],['efmc-talla','talla']])get(id)?.addEventListener('input',e=>{medidas[k]=e.target.value;get('efmc-medidas-status').textContent=measureStatus();});
-  root.querySelectorAll('[data-export]').forEach(e=>e.onclick=async()=>{if(exportBusy||busy)return;const scope=e.dataset.scope,list=(scope==='individual'?[cur()]:courseList()).filter(Boolean).map(c=>resumen(c,records,fecha));exportBusy=true;error='';success='GENERANDO DOCUMENTO…';render();try{await descargar({formato:e.dataset.export,scope,list,config:{...config,cursoLabel:curso||'TODOS'},authorized});success='DOCUMENTO GENERADO CON LAS NOTAS CARGADAS';}catch(err){error=err.message;}finally{exportBusy=false;render();}});
+  root.querySelectorAll('[data-export]').forEach(e=>e.onclick=async()=>{if(exportBusy||busy)return;const scope=e.dataset.scope,list=(scope==='individual'?[cur()]:courseList()).filter(Boolean).map(c=>resumen(c,records,fecha));exportBusy=true;error='';success='GENERANDO DOCUMENTO…';render();try{if(esPostulante()){await Promise.all(list.map(async row=>{if(row.c.tiene_foto&&!row.c.foto){row.c.foto=await cargarFoto(row.c);if(!row.c.foto)throw Error('NO SE PUDO CARGAR LA FOTO DE '+row.c.nombre_completo+'. REINTENTE LA DESCARGA.');}}));}await descargar({formato:e.dataset.export,scope,list,config:{...config,cursoLabel:curso||'TODOS'},authorized});success='DOCUMENTO GENERADO CON LAS NOTAS CARGADAS';}catch(err){error=err.message;}finally{exportBusy=false;render();}});
   get('efmc-sheet-student')?.addEventListener('change',e=>select(e.target.value));
   root.querySelectorAll('[data-group]').forEach(e=>e.onchange=()=>{if(run.running||run.laps.length)return;if(esPostulante()&&e.checked&&run.group.length>=10){error='MÁXIMO DIEZ POSTULANTES POR TANDA.';render();return;}run.group=e.checked?[...run.group,e.dataset.group]:run.group.filter(x=>x!==e.dataset.group);saveDraft();render();});
   root.querySelectorAll('[data-lap]').forEach(e=>e.onchange=()=>{run.laps[+e.dataset.lap].cursante=e.value;saveDraft();render();});

@@ -21,7 +21,7 @@ export function snapshotHoja(c,perfil,plan,registros,condiciones=[]){
  const latest=registros.filter(r=>r.cursante_id===c.id&&r.organizacion_id===plan.id).sort(reciente)[0];
  const nacimiento=perfil?.fecha_nacimiento||latest?.nacimiento||null;
  let edad=null;if(nacimiento){const [y,m,d]=nacimiento.split('-').map(Number),[a,b,e]=plan.fecha.split('-').map(Number);edad=a-y-(b<m||(b===m&&e<d)?1:0);}
- return {formato:'efmc-hoja-individual-v2',comandante:'Gral. Brig. José Jhonny Pardo Pardo',excelencia,evaluacion:{id:plan.id,nombre:plan.nombre,fecha:plan.fecha,ciclo:plan.ciclo,grupo:plan.grupos.find(g=>g.alumnos.includes(c.id))?.color||''},cursante:{id:c.id,nombre:c.nombre_completo,grado:c.grado||'',arma:c.arma||'',ci:c.ci||'',ciclo:c.ciclo,curso:c.paralelo||'',nacimiento,edad,sexo:perfil?.sexo||latest?.sexo||null},rows,completos,conformes,final:completos===5?redondear(rows.reduce((sum,r)=>sum+r.aporte,0)):null,estado:completos===5&&conformes===5?'COMPLETA CON CONFORMIDAD':'PARCIAL / CONFORMIDADES PENDIENTES'};
+ return {formato:'efmc-hoja-individual-v2',comandante:'Gral. Brig. José Jhonny Pardo Pardo',excelencia,evaluacion:{id:plan.id,nombre:plan.nombre,fecha:plan.fecha,ciclo:plan.ciclo,grupo:plan.grupos.find(g=>g.alumnos.includes(c.id))?.color||''},cursante:{id:c.id,foto:c.foto||null,nombre:c.nombre_completo,grado:c.grado||'',arma:c.arma||'',ci:c.ci||'',ciclo:c.ciclo,curso:c.paralelo||'',nacimiento,edad,sexo:perfil?.sexo||latest?.sexo||null},rows,completos,conformes,final:completos===5?redondear(rows.reduce((sum,r)=>sum+r.aporte,0)):null,estado:completos===5&&conformes===5?'COMPLETA CON CONFORMIDAD':'PARCIAL / CONFORMIDADES PENDIENTES'};
 }
 export async function datosHojaServidor(sb,cursanteId,organizacionId){
  const [c,p,o,r,n]=await Promise.all([

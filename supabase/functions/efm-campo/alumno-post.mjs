@@ -19,9 +19,10 @@ export async function operarAlumnoPost({sb,b,reply,supervisor=null}){
   const plan=planes.find(p=>p.id===b.organizacion_id);if(!plan)return fail('EVALUACIÓN NO ASIGNADA A ESTE POSTULANTE');
   const perfil=await checked(sb.from('post_ef_perfiles').select('fecha_nacimiento,sexo').eq('postulante_id',pid).maybeSingle());
   const condiciones=await checked(sb.from('post_ef_condiciones').select('*').eq('postulante_id',pid).eq('organizacion_id',plan.id));
+  const foto=await checked(sb.from('post_postulantes').select('foto').eq('id',pid).maybeSingle());
   const grupo=plan.grupos.find(g=>g.alumnos.includes(pid));
   const records=registros.map(r=>({...r,cursante_id:r.postulante_id,conformidad:confirmadas.find(c=>c.registro_id===r.id)||null}));
-  const snapshot=snapshotHoja({...persona,ciclo:'POSTULANTES 2027',paralelo:grupo.paralelo||grupo.origen_paralelos?.[pid]||''},perfil,plan,records,condiciones.map(r=>({...r,cursante_id:r.postulante_id})));
+  const snapshot=snapshotHoja({...persona,foto:foto?.foto||null,ciclo:'POSTULANTES 2027',paralelo:grupo.paralelo||grupo.origen_paralelos?.[pid]||''},perfil,plan,records,condiciones.map(r=>({...r,cursante_id:r.postulante_id})));
   snapshot.estado=(plan.modo==='PILOTO'?'PRÁCTICA · ':'')+(simulada?'CONSULTA DE SOPORTE · ':'')+snapshot.estado;
   const lib=await import('https://esm.sh/pdf-lib@1.17.1?target=deno');
   const bytes=await generarHojaPDF(snapshot,{id:crypto.randomUUID(),emitido_en:new Date().toISOString(),sin_verificacion:true},{...lib});

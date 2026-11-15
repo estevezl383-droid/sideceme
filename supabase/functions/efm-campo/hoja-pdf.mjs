@@ -11,6 +11,14 @@ export async function generarHojaPDF(s,emision,{PDFDocument,StandardFonts,rgb,QR
  text(s.evaluacion.nombre,20,96,8,true,752,2);
  text('FECHA: '+fechaTexto(s.evaluacion.fecha)+' | '+s.estado+' | '+s.completos+'/5 NOTAS | '+s.conformes+'/5 CONFORMIDADES',20,112,7,false);
  const c=s.cursante;
+ if(c.foto){
+  if(!/^data:image\/(jpeg|png);base64,/.test(c.foto))throw Error('FOTOGRAFÍA NO VÁLIDA');
+  const photo=c.foto.startsWith('data:image/png')?await pdf.embedPng(c.foto):await pdf.embedJpg(c.foto);
+  const ratio=Math.min(76/photo.width,100/photo.height),w=photo.width*ratio,h=photo.height*ratio;
+  page.drawRectangle({x:684,y:492,width:88,height:106,borderWidth:.6,borderColor:rgb(.2,.2,.2)});
+  page.drawImage(photo,{x:690+(76-w)/2,y:495+(100-h)/2,width:w,height:h});
+ }
+
  cell('GRADO, APELLIDOS Y NOMBRES: '+[c.grado,c.arma,c.nombre].filter(Boolean).join(' ')+'     CICLO: '+c.ciclo+'     CURSO: '+(c.curso||'S/R'),20,128,752,28,8,true);
  cell('NACIMIENTO: '+fechaTexto(c.nacimiento)+'     EDAD: '+(c.edad??'PENDIENTE')+' AÑOS     CI: '+(c.ci||'S/R')+'     SEXO: '+(c.sexo==='F'?'FEMENINO':c.sexo==='M'?'MASCULINO':'PENDIENTE'),20,156,752,24,8);
  const groups=s.excelencia?[['NATACIÓN 100 M',3],['FLEXIONES EN BARRA',3],['ABDOMINALES',3],['FLEXIONES EN SUELO',3],['AERÓBICA 3.200 METROS',3],['NOTA FINAL',1],['FIRMA DEL EVALUADO',1],['HUELLA DIGITAL',1]]:[['PESO / TALLA',4],['NATACIÓN',3],['ABDOMINALES',3],['FLEXIONES EN SUELO',3],['AERÓBICA 3.200 METROS',3],['NOTA FINAL',1],['FIRMA DEL EVALUADO',1],['HUELLA DIGITAL',1]],widths=s.excelencia?[...Array(16).fill(37),80,80]:[...Array(17).fill(35),78,79];let x=20,j=0;
