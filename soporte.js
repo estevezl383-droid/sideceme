@@ -78,7 +78,7 @@
   button.addEventListener('lostpointercapture', endDrag);
   const dialog = document.createElement('dialog');
   dialog.style.cssText = 'max-width:420px;width:calc(100% - 40px);border:0;border-radius:12px;padding:24px';
-  dialog.innerHTML = '<form><h3>ACCESO DE SOPORTE</h3><p>INGRESARÁS EN OTRA PESTAÑA COMO LA CUENTA SELECCIONADA. EL ACCESO QUEDARÁ REGISTRADO A TU NOMBRE.</p><label>TIPO DE CUENTA<select name="tabla" required style="display:block;width:100%;margin:8px 0 16px"><option value="cursantes">CURSANTE</option><option value="profesores">PERSONAL / PROFESOR</option></select></label><label>NOMBRE DE LA CUENTA DESTINO<input name="nombre" maxlength="120" autocomplete="off" placeholder="ESCRIBÍ NOMBRE O APELLIDO" style="display:block;width:100%;margin:8px 0"></label><p data-search-status aria-live="polite"></p><div data-results style="max-height:210px;overflow:auto"></div><p data-selected aria-live="polite"></p><input name="ci" type="hidden"><label>MOTIVO<input name="motivo" required minlength="5" maxlength="500" autocomplete="off" style="display:block;width:100%;margin:8px 0 16px"></label><label>TU CONTRASEÑA PERSONAL<input name="password" type="password" required autocomplete="off" style="display:block;width:100%;margin:8px 0 16px"></label><p role="alert" style="color:#991b1b"></p><button type="submit">INGRESAR</button> <button type="button" data-cancel>CANCELAR</button></form>';
+  dialog.innerHTML = '<form><h3>ACCESO DE SOPORTE</h3><p>PROFESORES Y CURSANTES: ACCESO EN OTRA PESTAÑA. POSTULANTES: VISTA DE SUS NOTAS, IMPRESIÓN Y CONFORMIDAD DE PRUEBA, IDENTIFICADA COMO SIMULACIÓN DE MORALES.</p><label>TIPO DE CUENTA<select name="tabla" required style="display:block;width:100%;margin:8px 0 16px"><option value="postulantes">POSTULANTES · NOTAS Y CONFORMIDAD</option><option value="cursantes">CURSANTE</option><option value="profesores">PERSONAL / PROFESOR</option></select></label><label>NOMBRE DE LA CUENTA DESTINO<input name="nombre" maxlength="120" autocomplete="off" placeholder="ESCRIBÍ NOMBRE O APELLIDO" style="display:block;width:100%;margin:8px 0"></label><p data-search-status aria-live="polite"></p><div data-results style="max-height:210px;overflow:auto"></div><p data-selected aria-live="polite"></p><input name="ci" type="hidden"><label>MOTIVO<input name="motivo" required minlength="5" maxlength="500" autocomplete="off" style="display:block;width:100%;margin:8px 0 16px"></label><label>TU CONTRASEÑA PERSONAL<input name="password" type="password" required autocomplete="off" style="display:block;width:100%;margin:8px 0 16px"></label><p role="alert" style="color:#991b1b"></p><button type="submit">INGRESAR</button> <button type="button" data-cancel>CANCELAR</button></form>';
   document.body.append(dialog);
   const form = dialog.querySelector('form');
   const errorLabel = form.querySelector('[role="alert"]');
@@ -116,7 +116,17 @@
     if (!isOwner()) return;
     searchStatus.textContent = 'CARGANDO CUENTAS…';
     const tabla = form.elements.tabla.value;
+    form.elements.password.required = tabla !== 'postulantes';
+    form.elements.password.parentElement.hidden = tabla === 'postulantes';
+    form.elements.motivo.required = tabla !== 'postulantes';
+    form.elements.motivo.parentElement.hidden = tabla === 'postulantes';
     try {
+      if (tabla === 'postulantes') {
+        const {data,error}=await sb.functions.invoke('efm-campo',{body:{accion:'cargar',ciclo:'POSTULANTES 2027',fecha:new Intl.DateTimeFormat('sv-SE',{timeZone:'America/La_Paz'}).format(new Date()),inicial:true,token:getTokenSesion()}});
+        if(error||!data?.ok)throw new Error('No se pudo cargar la nómina de postulantes.');
+        if(version!==loadVersion||!isOwner()||!dialog.open)return;
+        accounts=data.cursantes;renderAccounts();return;
+      }
       let rows = [];
       for (let offset = 0; ; offset += 500) {
         const { data, error } = await sb.from(tabla === 'cursantes' ? 'v_cursantes' : 'v_profesores')
@@ -138,6 +148,13 @@
     event.preventDefault();
     if (busy || !isOwner()) return;
     if (!selected || selected.tabla !== form.elements.tabla.value || String(selected.ci) !== form.elements.ci.value) { errorLabel.textContent = 'BUSCÁ POR NOMBRE Y SELECCIONÁ UNA CUENTA DE LA LISTA.'; return; }
+    if(selected.tabla==='postulantes'){
+      const id=selected.id;dialog.close();
+      try{const {abrirVistaPostulante}=await import('./efm-campo/vista-postulante.mjs?v=32');await abrirVistaPostulante({simularId:id,invoke:async body=>{
+        const {data,error}=await sb.functions.invoke('efm-campo',{body:{...body,token:getTokenSesion()}});
+        if(error||!data?.ok)throw new Error(data?.error||'No se pudieron consultar las notas.');return data;
+      }});}catch(e){alert(e.message);}return;
+    }
     // Open synchronously so browsers do not block the new tab after authentication.
     const tab = window.open('about:blank', '_blank');
     if (!tab) { errorLabel.textContent = 'PERMITÍ ABRIR UNA NUEVA PESTAÑA PARA EL SOPORTE.'; return; }
