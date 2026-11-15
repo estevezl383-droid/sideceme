@@ -80,13 +80,26 @@ export async function calcularRuta(origen, destinos, base) {
 
 export async function escenario(d, fase, base) {
   const fuente = (fase?.unidades || d?.unidades || [])
-  const unidades = fuente.filter(u => u && u.tipo !== 'instalacion' && Object.hasOwn(PODER, u.escalon) && punto([u.lng, u.lat])).map(u => {
+  const unidades = fuente.filter(u => u && u.tipo !== 'instalacion' && u.tipo !== 'logistica' && Object.hasOwn(PODER, u.escalon) && punto([u.lng, u.lat])).map(u => {
     const arma = String(u.arma || 'infanteria'), pc = u.tipo === 'pc' || u.escalon === 'ejercito'
     const factor = /blindada/.test(arma) ? 1.3 : /mecanizada|cabmec/.test(arma) ? 1.2 : /infanteria|andina/.test(arma) ? .9 : 1
+    // v2.9.486: efectivos y consumo de la GU (PICB del Teatro, paso 6) para la logística y los reemplazos del motor.
+    const ef = Number(u.logGu?.ef)
     return { bando: /enemig|rojo/i.test(u.bando || '') ? 'rojo' : 'azul', designacion: String(u.designacion || u.nombreKmz || 'Ficha').slice(0, 120),
       escalon: pc ? 'ejercito' : u.escalon, arma, medio: /andina/.test(arma) ? 'pie' : /blindada|mecanizada|cabmec/.test(arma) ? 'oruga' : 'motor',
-      lng: Number(u.lng), lat: Number(u.lat), poder_max: pc ? 10 : Math.round(PODER[u.escalon] * factor), obs_km: OBS[pc ? 'ejercito' : u.escalon] }
+      lng: Number(u.lng), lat: Number(u.lat), poder_max: pc ? 10 : Math.round(PODER[u.escalon] * factor), obs_km: OBS[pc ? 'ejercito' : u.escalon],
+      ...(!pc && ef > 0 ? { carga: { teatro: { ef, kg: Number(u.logGu.kg) || 20, hom: ef } } } : {}) }
   })
+  // v2.9.486 — 🚚 las instalaciones logísticas (BL, SB, SE, SA, BR) entran como FICHAS: el motor encadena su
+  // abastecimiento por «de» (la designación de quien la abastece) y las hace caer si el enemigo llega a ellas.
+  for (const u of fuente) if (u && u.tipo === 'logistica' && u.log && punto([u.lng, u.lat])) {
+    const l = u.log
+    unidades.push({ bando: /enemig|rojo/i.test(u.bando || '') ? 'rojo' : 'azul', designacion: String(u.designacion || 'Instalación').slice(0, 120),
+      escalon: ['division', 'brigada', 'batallon'].includes(u.escalon) ? u.escalon : 'brigada', arma: 'logistica', medio: 'motor',
+      lng: Number(u.lng), lat: Number(u.lat), poder_max: 5, obs_km: 20,
+      carga: { teatro: { log: { tipo: l.tipo, de: l.de || null, cap: l.cap, t: l.t, max: l.max, ferro: !!l.ferro, apoya: l.apoya || [],
+        hombres: l.hombres, procesa: l.procesa, cias: l.cias, emergencia: l.emergencia, emergenciaDias: l.emergenciaDias } } } })
+  }
   const areas = areasDelEjercicio(d), original = d?.resultados?.picbTeatro?.teatro || {}
   const t = { ...original, deop: (original.deop || []).map(x => ({ ...x, puntos: x.puntos || [] })),
     ejes: (original.ejes || []).filter(x => punto(x.linea?.[0])) }
@@ -136,7 +149,17 @@ export async function renderizar(map, L, unidades, sigueVigente = () => true, ba
     }
   }
   c.frentes.clearLayers()
-  for (const u of unidades || []) if (u.estado !== 'fuera_combate' && punto([u.lng, u.lat])) L.circle([u.lat, u.lng], {
+  // v2.9.486 — la cadena logística: el EPA de cada instalación a su proveedor (verde si opera, amarillo si no,
+  // gris si cayó; a trazos largos, por ferrocarril) y la DMA de cada Sección Avanzada (80 km por camino).
+  const log = (unidades || []).filter(u => u.arma === 'logistica' && u.carga?.teatro?.log && punto([u.lng, u.lat]))
+  const porDes = new Map(log.map(u => [u.bando + '|' + u.designacion, u]))
+  for (const u of log) {
+    const l = u.carga.teatro.log, de = l.de ? porDes.get(u.bando + '|' + l.de) : null, cayo = u.estado === 'fuera_combate'
+    if (de) L.polyline([[de.lat, de.lng], [u.lat, u.lng]], { color: cayo || de.estado === 'fuera_combate' ? '#8a8a8a' : l.estado === 'operando' || !l.estado ? (u.bando === 'rojo' ? '#f47768' : '#4fd17f') : '#ffd166',
+      weight: l.ferro ? 3.5 : 2.5, dashArray: l.ferro ? '14 6' : l.estado && l.estado !== 'operando' ? '6 6' : null, opacity: .85, interactive: false }).addTo(c.frentes)
+    if (l.tipo === 'SA' && !cayo) L.circle([u.lat, u.lng], { radius: (80 / 1.3) * 1000, color: u.bando === 'rojo' ? '#f47768' : '#4fd17f', weight: 1, dashArray: '2 8', fill: false, opacity: .5, interactive: false }).addTo(c.frentes)
+  }
+  for (const u of unidades || []) if (u.estado !== 'fuera_combate' && u.arma !== 'logistica' && punto([u.lng, u.lat])) L.circle([u.lat, u.lng], {
     radius: (FRENTES[u.escalon] || 6) * 1000, color: u.bando === 'rojo' ? '#f47768' : '#73b5ff',
     weight: 1.2, dashArray: '6 6', fillOpacity: .025, opacity: .65, interactive: false,
   }).addTo(c.frentes)
