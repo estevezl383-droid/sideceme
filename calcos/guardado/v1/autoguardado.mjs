@@ -30,6 +30,12 @@ export const REINTENTOS = [10000, 30000, 60000] // después de un guardado falli
 // (al azar por equipo, para que no caigan todos juntos). Tocar el sello, Ctrl+S y salir de la
 // pestaña guardan EN EL MOMENTO, como siempre.
 export const MIN_ENTRE = [45000, 75000]
+// 15-11-2026: al empezar la clase, 25 Mesas abriendo a la vez un ejercicio de 4 MB ya hacían que el
+// servidor contestara «ocupado» (503) o se cortara. Abrir se vuelve a pedir solo, hasta 3 veces, con
+// una pausa que lleva azar para que no golpeen todas juntas. Lo pide calco-ops v13 (codigo:'ocupado').
+export const ABRIR_REINTENTOS = 3
+export const ABRIR_PAUSA_MS = [4000, 10000]
+const ABRIR_REINTENTAR = new Set([502, 503, 504, 546])
 export const minEntreAlAzar = (azar = Math.random) => Math.round(MIN_ENTRE[0] + azar() * (MIN_ENTRE[1] - MIN_ENTRE[0]))
 
 export function horaDe(ms) {
@@ -368,10 +374,10 @@ const partesDe = (payload) => {
   return m
 }
 
-export function crearDelta({ fetch0, activo = () => true } = {}) {
+export function crearDelta({ fetch0, activo = () => true, pausa = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
   // calco_id → { rev, partes: Map(clave → JSON), crudo: lo que mandó el servidor al abrir | null }
   const bases = new Map()
-  const cuenta = { sueltos: 0, enteros: 0, conflictos: 0, bytesSueltos: 0, bytesEnteros: 0, bytesAhorrados: 0 }
+  const cuenta = { sueltos: 0, enteros: 0, conflictos: 0, bytesSueltos: 0, bytesEnteros: 0, bytesAhorrados: 0, reintentosAbrir: 0 }
   let cola = Promise.resolve()
   const enCola = (f) => {
     const p = cola.then(f, f)
@@ -444,6 +450,21 @@ export function crearDelta({ fetch0, activo = () => true } = {}) {
     return r
   }
 
+  // Abrir (mi_calco / abrir_mio / abrir): si el servidor está ocupado o se corta, se vuelve a pedir solo.
+  async function abrirConReintento(u, o) {
+    for (let intento = 0; ; intento++) {
+      let r = null
+      try {
+        r = await fetch0(u, o)
+      } catch (e) {
+        if (intento >= ABRIR_REINTENTOS) throw e
+      }
+      if (r && (r.ok || !ABRIR_REINTENTAR.has(r.status) || intento >= ABRIR_REINTENTOS)) return r
+      cuenta.reintentosAbrir++
+      await pausa(ABRIR_PAUSA_MS[0] + Math.random() * (ABRIR_PAUSA_MS[1] - ABRIR_PAUSA_MS[0]))
+    }
+  }
+
   function pedir(u, o) {
     let url = ''
     try {
@@ -453,7 +474,7 @@ export function crearDelta({ fetch0, activo = () => true } = {}) {
     const accion = (o.body.slice(0, 300).match(/"accion":"(\w+)"/) || [])[1] || ''
     if (accion === 'guardar') return enCola(() => guardar(u, o))
     if (accion === 'mi_calco' || accion === 'abrir_mio' || accion === 'abrir') {
-      const p = fetch0(u, o)
+      const p = abrirConReintento(u, o)
       // La copia se saca ANTES de que la Mesa lea la respuesta (después ya no se puede).
       const copia = p.then((r) => (r.ok ? r.clone() : null), () => null)
       enCola(() => copia.then((c) => (c ? c.json().then(anotarAbierto, () => {}) : null), () => null))
