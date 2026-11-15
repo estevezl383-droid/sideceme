@@ -92,6 +92,7 @@ const fichas = (page, sel) => page.evaluate((s) => [...document.querySelectorAll
     const j = JSON.parse(fs.readFileSync(ruta, 'utf8'))
     assert.equal(j.logistica?.formato, 'sideceme/logistica-teatro')
     assert.ok(j.logistica.instalaciones.length >= 9 && Object.keys(j.logistica.gu).length >= 5)
+    assert.ok((j.logistica.columnas || []).filter((c) => c.tipo === 'empuje').length >= 6 && j.logistica.columnas.filter((c) => c.tipo === 'retiro').length === 5, 'columnas automáticas: empuje por tramo y retiro por CE')
     const [dk] = await Promise.all([page.waitForEvent('download'), page.locator('.sidpt [data-a="logkmz"]').click()])
     await dk.saveAs(path.join(SALIDAS, dk.suggestedFilename()))
     console.log(`  ✓ ${path.basename(ruta)} (${j.logistica.instalaciones.length} instalaciones) · ${dk.suggestedFilename()}`)
