@@ -1,3 +1,4 @@
+import {operarSoporteEvaluador} from './soporte-post.mjs';
 import {operarAlumnoPost} from './alumno-post.mjs';
 import {POST_CONSULTA,esPost,accesoPost,operarPostulantes} from './postulantes.mjs';
 import {JEFES,ESTACIONES,CONDICIONES,puedeEvaluar,validarPlan,asignaciones,puedeRegistrar} from './organizacion.mjs';
@@ -37,9 +38,10 @@ Deno.serve(async(req:Request)=>{
   if(s.es_master!==false)return reply(403,{ok:false,error:'USÁ TU CUENTA PERSONAL'});
   const soporte=s.soporte_actor_id!=null||s.soporte_actor_ci!=null;
   if(soporte){
-   if(s.usuario_tabla!=='cursantes'||s.soporte_actor_id!=='P030'||typeof s.soporte_actor_ci!=='string'||!s.soporte_actor_ci)return reply(403,{ok:false,error:'SOPORTE DE CURSANTE NO AUTORIZADO'});
+   if(!['cursantes','profesores'].includes(s.usuario_tabla)||s.soporte_actor_id!=='P030'||typeof s.soporte_actor_ci!=='string'||!s.soporte_actor_ci)return reply(403,{ok:false,error:'SOPORTE DE CURSANTE NO AUTORIZADO'});
    const a=await sb.from('profesores').select('id,activo,rol').eq('id',s.soporte_actor_id).eq('ci',s.soporte_actor_ci).maybeSingle();if(a.error)throw a.error;
    if(a.data?.activo!==true||a.data?.rol!=='ciencia_tecnologia')return reply(403,{ok:false,error:'CUENTA DE SOPORTE NO HABILITADA'});
+   if(s.usuario_tabla==='profesores')return await operarSoporteEvaluador({sb,b,s,reply});
    if(!['acceso','mis_evaluaciones'].includes(b.accion))return reply(403,{ok:false,error:'SOPORTE ES SÓLO CONSULTA. LA CONFORMIDAD DEBE DARLA EL ALUMNO DESDE SU CUENTA PERSONAL.'});
   }
   if(s.usuario_tabla==='cursantes'){

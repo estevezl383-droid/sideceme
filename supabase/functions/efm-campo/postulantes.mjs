@@ -16,7 +16,7 @@ export async function accesoPost(sb,id){
  return ps.some(p=>asignaciones(p,id).length);
 }
 export async function operarPostulantes({sb,b,actor,reply}){
- const id=actor.id,jefe=JEFES.includes(id),consulta=jefe||POST_CONSULTA.includes(id),actorNombre=[actor.grado,actor.nombre_completo].filter(Boolean).join(' ');
+ const id=actor.id,jefe=JEFES.includes(id)&&!actor.supervisor_id,consulta=jefe||!actor.supervisor_id&&POST_CONSULTA.includes(id),actorNombre=[actor.grado,actor.nombre_completo].filter(Boolean).join(' ');
  const fail=(error,status=400)=>reply(status,{ok:false,error});
  let plan=null;
  if(b.organizacion_id){
@@ -74,6 +74,7 @@ export async function operarPostulantes({sb,b,actor,reply}){
    const actual=vigentes.find(p=>(consulta||asignaciones(p,id).length)&&(p.fecha===hoy||p.modo==='PILOTO'&&p.fecha<=hoy&&p.practica_hasta>=hoy));
    if(actual){plan=actual;b.fecha=actual.fecha;ps=vigentes.filter(p=>p.fecha===actual.fecha);}
   }
+  if(actor.supervisor_id)ps=ps.filter(p=>p.habilitado&&p.modo==='PILOTO');
   const disponibles=consulta?ps:ps.filter(p=>asignaciones(p,id).length);
   if(!plan&&!consulta)plan=disponibles[0]||null;
   if(!consulta&&!plan)return fail('SIN DESIGNACIONES DE POSTULANTES PARA ESTA FECHA',403);

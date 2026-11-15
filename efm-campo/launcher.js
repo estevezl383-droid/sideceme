@@ -2,7 +2,7 @@
 (()=>{
  'use strict';
  const enSoporte=()=>!!sessionStorage.getItem('sideceme_soporte');
- const session=()=>{try{const s=getSession();return ['docente','cursante'].includes(s?.tipo)&&s.user?.id&&(s.tipo==='cursante'||!enSoporte())?s:null;}catch{return null;}};
+ const session=()=>{try{const s=getSession();return ['docente','cursante'].includes(s?.tipo)&&s.user?.id?s:null;}catch{return null;}};
  const key=()=>{const s=session();return s?[s.tipo,s.user.id,enSoporte()?'soporte':'personal'].join(':'):'';};
  if(!document.getElementById('efmc-avisos-style')){const css=document.createElement('link');css.id='efmc-avisos-style';css.rel='stylesheet';css.href='efm-campo/avisos.css?v=22';document.head.append(css);}
  let loading=false,open=false,checking=false,allowedKey='',checkedKey='',checkedAt=0,studentData=null,accessError='',chief=false,postulantes=false,soloPostulantes=false;
@@ -17,8 +17,8 @@
   if(loading||open||!owner())return;loading=true;
   try{
    if(!document.getElementById('efmc-style')){const s=document.createElement('link');s.id='efmc-style';s.rel='stylesheet';s.href='efm-campo/style.css?v=29';document.head.append(s);}
-   const tipo=session().tipo,app=tipo==='cursante'?await import('./alumno.mjs?v=22'):await import('./app.mjs?v=30');
-   open=true;const account=allowedKey;await app.abrir({invoke,evaluacionId,vistaInicial,postulantes,cicloInicial:soloPostulantes?'POSTULANTES 2027':'1ER CICLO',owner:session().user.id,authorized:()=>owner()&&allowedKey===account,onClose:()=>{open=false;checkedAt=0;refresh();}});
+   const tipo=session().tipo,app=tipo==='cursante'?await import('./alumno.mjs?v=22'):await import('./app.mjs?v=31');
+   open=true;const account=allowedKey;await app.abrir({invoke,evaluacionId,vistaInicial,postulantes,cicloInicial:soloPostulantes?'POSTULANTES 2027':'1ER CICLO',owner:session().user.id,authorized:()=>owner()&&allowedKey===account,soporteEvaluador:enSoporte()&&tipo==='docente',onClose:()=>{open=false;checkedAt=0;refresh();}});
   }catch(e){open=false;alert(e.message);}finally{loading=false;}
  }
  const style='background:linear-gradient(135deg,#164959,#18372e);margin:0 0 12px;border:1px solid #5dcdb5;color:white;width:100%;white-space:normal';
