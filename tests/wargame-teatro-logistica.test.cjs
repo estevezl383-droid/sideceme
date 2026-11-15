@@ -105,3 +105,49 @@ test('importar guarda la carga logística saneada y la orden «apoyar» de una i
   const c = await lab.invoke('enviar_orden', { orden: { unidad_id: ce, tipo: 'apoyar', objetivo_id: sa } });
   assert.equal(c.ok, false, 'una GU de combate no «apoya»');
 });
+
+// v2.9.487 — 🚚 COLUMNAS DE TRANSPORTE AUTOMÁTICAS: empuje SB → SA y retiro del CE.
+const col = (id, des, [lng, lat], k, bando = 'azul') => ({ id, partida_id: 91, bando, designacion: des, escalon: 'compania', arma: 'convoy', medio: 'motor',
+  lng, lat, poder_max: 3, poder_actual: 3, estado: 'activa', carga: { teatro: { col: { fase: 'base', t: 0, km: 0, ...k } } } });
+function correr(model, us, dias, ordenes = []) { let r = { unidades: us, eventos: [] }; const ev = []; for (let d = 1; d <= dias; d++) { r = dia(model, r.unidades, ordenes, d); ev.push(...r.eventos) } return { ...r, eventos: ev }; }
+
+test('EMPUJE: la columna de la SB sale sola cuando la SA baja del 75 %, va por el EPA, descarga y vuelve', () => {
+  const { model } = laboratorio();
+  const us = tablero().map(u => (u.id === 3 ? { ...u, carga: { teatro: { log: { ...u.carga.teatro.log, t: 400, max: 1600 } } } } : u))
+  us.push(col(30, 'Col. Transp. CLSB Oruro → CLSA CE-I', P.oruro, { tipo: 'empuje', base: 'CLSB Oruro', para: 'CLSA CE-I', cap: 800, vel: 240, ruta: [P.oruro, [-67.6, -18.1], P.sa] }));
+  const r1 = dia(model, us);
+  const c1 = U(r1, 30).carga.teatro.col;
+  assert.ok(c1.viajes >= 1 || ['ida', 'descarga', 'vuelta', 'carga'].includes(c1.fase), `salió: ${JSON.stringify(c1)}`);
+  assert.ok((c1.t > 0 || c1.viajes >= 1) && c1.ult != null, 'la SB cargó la columna (la BL la vuelve a llenar en el mismo día)');
+  const r = correr(model, us, 3);
+  const c = U(r, 30).carga.teatro.col;
+  assert.ok(c.viajes >= 1 && c.entregado > 0, `entregó: ${JSON.stringify(c)}`);
+  assert.ok(r.eventos.some(e => /convoyes: [1-9]/.test(e.descripcion)), 'el parte cuenta los viajes');
+});
+
+test('RETIRO: la columna del CE va a su SA cuando baja de 3,5 días, carga y vuelve; el CE no recibe sin ella', () => {
+  const { model } = laboratorio();
+  const us = tablero();
+  us.push(col(31, 'Col. Log. CE-I', [P.ce[0] + 0.1, P.ce[1] - 0.05], { tipo: 'retiro', base: 'CE-I', cap: 900, vel: 160 }));
+  const r = correr(model, us, 2);
+  const c = U(r, 31).carga.teatro.col, ce = U(r, 10).carga.teatro;
+  assert.ok(c.viajes >= 1 && c.entregado > 0, `la columna hizo su viaje: ${JSON.stringify(c)}`);
+  assert.ok(ce.dos > 2, `el CE recibió (dos ${ce.dos})`);
+  // la misma situación sin columna sigue el reparto abstracto; con columna destruida, no hay reparto abstracto
+  const enemigo = { id: 22, partida_id: 91, bando: 'rojo', designacion: 'Brig. Mot. 9', escalon: 'brigada', arma: 'motorizada', medio: 'motor', lng: P.sa[0] + 0.05, lat: P.sa[1] + 0.1, poder_max: 40, poder_actual: 40, estado: 'activa' };
+  // (en camino: en su base la columna está en el área de trenes del CE, lejos del enemigo)
+  const us2 = tablero([enemigo]); us2.push(col(32, 'Col. Log. CE-I', [P.sa[0] + 0.06, P.sa[1] + 0.1], { tipo: 'retiro', base: 'CE-I', cap: 900, vel: 160, fase: 'ida', dest: 'CLSA CE-I' }));
+  const r2 = dia(model, us2);
+  assert.equal(U(r2, 32).estado, 'fuera_combate', 'el enemigo encima destruye la columna');
+  assert.ok(r2.eventos.some(e => /DESTRUIDA/.test(e.descripcion) && /48 h/.test(e.descripcion)));
+  const vuelve = correr(model, us2.filter(u => u.id !== 22), 3);
+  assert.equal(U(vuelve, 32).estado, 'activa', 'se reconstituye a las 48 h');
+});
+
+test('las columnas no combaten ni frenan, y no aceptan la marcha de una orden', () => {
+  const { model } = laboratorio();
+  const us = tablero(); us.push(col(33, 'Col. Log. CE-I', [P.ce[0] + 0.1, P.ce[1] - 0.05], { tipo: 'retiro', base: 'CE-I', cap: 900, vel: 160 }));
+  const r = dia(model, us, [{ id: 9, unidad_id: 33, tipo: 'mover', destino_lng: -60, destino_lat: -10, ruta: [[-60, -10]] }]);
+  assert.ok(Math.abs(U(r, 33).lng - (-60)) > 5, 'la orden no la lleva a otro lado');
+  assert.equal(r.combates.length, 0);
+});
