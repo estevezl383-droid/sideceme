@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.485</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.486</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -29922,7 +29922,7 @@ const WG_COL = { rojo:'#e23b3b', azul:'#1f6dff' };
 // v2.9.481 — modo de videojuego independiente por partida.
 let _wgTeatroPromesa=null, _wgTeatroAPI=null;
 function _wgTeatroModulo(){
-  if(!_wgTeatroPromesa) _wgTeatroPromesa=import('./assets/wargame-teatro.mjs?v=2.9.481')
+  if(!_wgTeatroPromesa) _wgTeatroPromesa=import('./assets/wargame-teatro.mjs?v=2.9.486')
     .then(m=>{ _wgTeatroAPI=m; return m; }).catch(e=>{ _wgTeatroPromesa=null; throw e; });
   return _wgTeatroPromesa;
 }
@@ -29963,11 +29963,47 @@ function _wgTeatroRender(){
   const mapa=WG.map, pid=WG.partidaId;
   const reservas=document.getElementById('wg-teatro-reservas'), seleccionada=_wgUnidadPorId(WG.sel);
   if(reservas){ reservas.style.display=WG.teatro&&seleccionada?'':'none';
-    const dos=Number((((seleccionada||{}).carga||{}).teatro||{}).dos);
-    reservas.textContent='🥫 Reservas: '+(Number.isFinite(dos)?dos:5).toFixed(1)+' d'; }
+    const ct=(((seleccionada||{}).carga||{}).teatro||{}), dos=Number(ct.dos), lg=ct.log;
+    // v2.9.486: una instalación logística muestra sus toneladas (o los hombres del BR) en vez de días.
+    reservas.textContent=lg ? (lg.tipo==='BR' ? '👥 Reemplazos: '+Math.round(Number(lg.hombres)||0).toLocaleString('es-BO')
+        : '📦 '+Math.round(Number(lg.t)||0).toLocaleString('es-BO')+' / '+Math.round(Number(lg.max)||0).toLocaleString('es-BO')+' t'+(lg.estado&&lg.estado!=='operando'?' · '+lg.estado:''))
+      : '🥫 Reservas: '+(Number.isFinite(dos)?dos:5).toFixed(1)+' d'; }
   if(!WG.teatro){ if(_wgTeatroAPI && mapa) _wgTeatroAPI.ocultar(mapa); return; }
   _wgTeatroModulo().then(m=>m.renderizar(mapa,L,_wgUnidadesVisibles(),()=>WG.map===mapa && WG.partidaId===pid && WG.teatro))
     .catch(e=>{ if(WG.map===mapa && WG.partidaId===pid && !WG._teatroCartaError){ WG._teatroCartaError=true; _wgAviso('La carta de teatro no se pudo cargar: '+_rgEsc(e.message||e),5000); } });
+}
+// ============================================================
+// v2.9.486 — 🚚 LOGÍSTICA Y 👥 PERSONAL A ESCALA TEATRO (15-11-2026). Sergio: «habilitá lo que es logística… a nivel
+// FF.TT.T.O.… base logística, sección base, sección especial… para que en la ficha hagamos jugar… la logística y los
+// reemplazos también». Con el «enfrentamiento CON logística» del PICB del Teatro (paso 6) entran como fichas la Base
+// Logística, la Sección Base, la Sección Especial, una Sección Avanzada por CE y el Batallón de Reemplazos; el motor
+// (logisticaTeatro) mueve toneladas y hombres por esa cadena. Las hojas 📦 LOGÍSTICA (G-4) y 👥 PERSONAL (G-1) de una
+// partida de teatro las arma assets/wargame-logistica-teatro.mjs; las órdenes son las de siempre: `apoyar` (prioridad
+// o pedido de emergencia) y `mover` (desplazar la sección).
+// ============================================================
+let _wgLogTeatroPromesa=null;
+function _wgLogTeatroModulo(){
+  if(!_wgLogTeatroPromesa) _wgLogTeatroPromesa=import('./assets/wargame-logistica-teatro.mjs?v=2.9.486').catch(e=>{ _wgLogTeatroPromesa=null; throw e; });
+  return _wgLogTeatroPromesa;
+}
+function _wgLogTeatroPanel(el, cual){
+  const pid=WG.partidaId;
+  _wgLogTeatroModulo().then(m=>{
+    if(WG.partidaId!==pid || !WG.teatro) return;
+    const ctx={ unidades:_wgMisUnidades(), ordenes:(WG.estado&&WG.estado.ordenes)||[],
+      puede:u=>{ try{ return _wgEsMaqueta()?false:(_wgRol()==='g1'||_wgRol()==='g4'||_wgRolOrdena()) && !!_wgUnidadPorId(u.id) && (WG.soy==='arbitro'||u.bando===WG.soy); }catch(_e){ return false; } },
+      hora:h=>(_wgTeatroAPI&&_wgTeatroAPI.hora)?_wgTeatroAPI.hora(h):String(h),
+      elegir:id=>{ const u=_wgUnidadPorId(id); if(!u) return; if(String(WG.sel)!==String(u.id)) wgElegirUnidad(u.id);
+        _wgAviso(`📍 Elegiste <b>${_rgEsc(u.designacion||'')}</b>: marcá en la carta su nueva ubicación (orden de MOVER, por la red vial). Mientras se desplaza y 12 h después no distribuye.`,6000); },
+      ordenar:async(id,o,btn)=>{ const u=_wgUnidadPorId(id); if(!u) return;
+        if(!_wgPuedeOrdenarA(u)) return;
+        WG.ordenes[u.id]=Object.assign({ _local:1 },o);
+        if(btn) btn.disabled=true;
+        await _wgEnviarOrdenesLote([u.id], btn, true);
+        _wgAviso(o.mision==='emergencia'?'📨 Pedido de emergencia elevado a la Zona del Interior: lo verás en la bitácora.':'⭐ Prioridad ordenada: '+_rgEsc(u.designacion||''),4500);
+        setTimeout(()=>{ try{ if(WG.hoja==='logistica') wgPanelLogistica(); if(WG.hoja==='personal') wgPanelPersonal(); }catch(_e){} },1500); } };
+    if(cual==='personal') m.panelPersonal(el,ctx); else m.panelLogistica(el,ctx);
+  }).catch(e=>{ el.innerHTML='<div class="rg-meta">No se pudo cargar la logística de teatro: '+_rgEsc(e.message||e)+'</div>'; });
 }
 async function wgTeatroEjecutar(uid,btn){
   if(!_wgPuedeOrdenar()) return;
@@ -31092,6 +31128,7 @@ function _wgBarra(pct,col){
 }
 function wgPanelPersonal(){
   const el=document.getElementById('wg-personal'); if(!el) return;
+  if(WG.teatro) return _wgLogTeatroPanel(el,'personal');   // v2.9.486
   const uds=_wgMisUnidades();
   if(!uds.length){ el.innerHTML='<div class="rg-meta">Sin unidades en el tablero.</div>'; return; }
   let totMax=0, totAct=0, fuera=0, desg=0;
@@ -31309,6 +31346,7 @@ async function wgCivilQuitar(id){
 }
 function wgPanelLogistica(){
   const el=document.getElementById('wg-logistica'); if(!el) return;
+  if(WG.teatro) return _wgLogTeatroPanel(el,'logistica');   // v2.9.486
   const uds=_wgMisUnidades();
   if(!uds.length){ el.innerHTML='<div class="rg-meta">Sin unidades en el tablero.</div>'; return; }
   const conTanque=uds.filter(u=>_wgCombustible(u));
@@ -43054,10 +43092,13 @@ function _wgBalancePoder(fichas, html){
 // ============================================================
 const _WG_ENF='sid_wg_enf_';
 function _wgEnfComoEjercicio(j){
-  const u=(x,bando)=>({ tipo:'unidad', bando, designacion:x.designacion, escalon:x.escalon, arma:x.arma, lng:x.lng, lat:x.lat });
+  // v2.9.486: con la LOGÍSTICA del PICB del Teatro (paso 6) vienen las instalaciones (fichas) y los efectivos de cada GU.
+  const lgj=(j.logistica&&j.logistica.formato==='sideceme/logistica-teatro')?j.logistica:null, gud=(lgj&&lgj.gu)||{};
+  const u=(x,bando)=>({ tipo:'unidad', bando, designacion:x.designacion, escalon:x.escalon, arma:x.arma, lng:x.lng, lat:x.lat, ...(gud[x.designacion]?{ logGu:gud[x.designacion] }:{}) });
   const us=j.unidades||{};
+  const inst=((lgj&&lgj.instalaciones)||[]).map(x=>({ tipo:'logistica', bando:x.bando==='rojo'?'enemigo':'propias', designacion:x.designacion, escalon:x.escalon, arma:'logistica', lng:x.lng, lat:x.lat, log:x }));
   return { nombre:'⚔ '+(j.ejercicio||'Enfrentamiento')+' · '+((j.rojo||{}).curso||'CAE')+' contra '+((j.azul||{}).curso||'CAP'),
-    unidades:[...(us.rojo||[]).map(x=>u(x,'enemigo')),...(us.azul||[]).map(x=>u(x,'propias'))],
+    unidades:[...(us.rojo||[]).map(x=>u(x,'enemigo')),...(us.azul||[]).map(x=>u(x,'propias')),...inst],
     resultados:{ picbTeatro:{ teatro:{ deop:(j.deop||[]).map(x=>({ n:x.n, nombre:x.nombre, linea:(x.itinerario||[]).map(p=>[p.lng,p.lat]) })) } } } };
 }
 function _wgEnfPlan(pid){ try{ return JSON.parse(localStorage.getItem(_WG_ENF+(pid||WG.partidaId))||'null'); }catch(_e){ return null; } }
@@ -44399,6 +44440,12 @@ function _wgDibujo(){
       D.push(_wgD.txt(t.lng,t.lat, alcanza
         ? `⚔️ ${arma?arma.nom:'combate'} · ${d.toFixed(1)} km · relación ${rel.toFixed(1)}:1 → ${txtRel}`
         : `🔥 TIRO CORTO · ${arma?arma.nom:'el sistema'} bate ${alcance.toFixed(1)} km y está a ${d.toFixed(1)} km. Dispara igual: gasta munición y delata su posición.`, uid));
+    }else if(o.tipo==='apoyar' && WG.teatro && u.arma==='logistica'){
+      // v2.9.486 — a escala teatro, «apoyar» de una instalación es PRIORIDAD (o el pedido de emergencia del BR): no es
+      // un convoy que sale, así que no se le busca camino.
+      const t=o.objetivo_id?uById[o.objetivo_id]:null;
+      if(t){ D.push(_wgD.lin([[u.lng,u.lat],[t.lng,t.lat]],'#ffd166',2.5,'6 6',.9)); D.push(_wgD.txt(u.lng,u.lat,`⭐ prioridad: ${t.designacion||''}`, uid)); }
+      else if(o.mision==='emergencia') D.push(_wgD.txt(u.lng,u.lat,'📨 pedido de emergencia a la Zona del Interior', uid));
     }else if(o.tipo==='apoyar' && o.objetivo_id && uById[o.objetivo_id]){
       // v2.9.443 — el convoy agregado: una línea verde hasta la unidad que apoya.
       // v2.9.444 — 🚚 ABASTECER A: la ruta por camino hasta donde para, y si desde
@@ -46582,6 +46629,9 @@ function _wgMatrizFilas(){
       if(_wgEsConvoy(u)){ const rc=_wgRutaConvoyPuntos([u.lng,u.lat],ruta,null,_wgViaOrden(o)); if(rc.sinCamino){ f.imposible=true; f.motivo=rc.motivo; ruta=[]; } else ruta=rc.ruta; }
       f.tarea=(o.tipo==='replegar'?'↩️ Romper contacto':'Desplazarse')+(((o.ruta||[]).length>1)?` (${o.ruta.length} puntos)`:'');
       if(ruta.length){ const c=_wgPreverRuta(u,ruta,500); f.km=c.avanzadoKm; f.dur=c.horasUsadas; if(c.detenida){ f.imposible=true; f.motivo=c.motivo; } }
+    }else if(o.tipo==='apoyar' && WG.teatro && u && u.arma==='logistica'){
+      const t=uById[o.objetivo_id];   // v2.9.486: prioridad o pedido de emergencia de una instalación del teatro
+      f.tarea=o.mision==='emergencia'?'📨 Pedido de emergencia de reemplazos a la ZI':'⭐ Prioridad a '+_rgEsc((t&&t.designacion)||'?');
     }else if(o.tipo==='apoyar'){
       const t=uById[o.objetivo_id];
       f.tarea=(_wgCargaDe(u,'EVAC')>0?'🚑 Evacuar a ':(_wgCargaDe(u,'REEMP')>0?'👥 Reemplazos a ':'🚚 Abastecer a '))+_rgEsc((t&&t.designacion)||'?');
@@ -47099,7 +47149,9 @@ function _wgEsFichaDelG4(u){
 function _wgPuedeOrdenarA(u){
   const r=_wgRol();
   // v2.9.448 — el G-1 conduce sus convoyes de reemplazos (y nada más).
-  if(r==='g1' && _wgEsConvoy(u) && _wgCargaDe(u,'REEMP')>0){
+  // v2.9.486 — y, a escala teatro, su Batallón de Reemplazos (prioridad y pedido de emergencia).
+  const brT=!!(u && u.arma==='logistica' && u.carga && u.carga.teatro && u.carga.teatro.log && u.carga.teatro.log.tipo==='BR');
+  if(r==='g1' && ((_wgEsConvoy(u) && _wgCargaDe(u,'REEMP')>0) || brT)){
     if(_wgEsMaqueta()) return false;
     const p=(WG.estado&&WG.estado.partida)||{};
     if(p.estado!=='en_curso'){ _wgPuedeOrdenar(); return false; }
