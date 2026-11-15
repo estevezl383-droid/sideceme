@@ -14,9 +14,10 @@ import * as A from './analisis.mjs'
 import { armarRed } from './red.mjs'
 import * as D from './doctrina.mjs'
 import * as CA from './cap-azul.mjs?v=20261115'
+import * as LG from './logistica.mjs?v=20261115'
 
 const VERSION_DATOS = '20261109'
-const VERSION_PANEL = '20261115' // 15-11-2026: paso 5 con OPCIONES (CE sobre la frontera en sus AO, reservas que contraatacan desde la F-II, GG.UU. que pasan a reserva, arrancar desplegados) · 14-11-2026 c: paso 5 FASES AZUL (CAP por fases) y ⚔ enfrentamiento para el Juego de Guerra · b: verFase, para imprimir las FASES ROJO una hoja por fase · 14-11-2026: plantilla doctrinal, CAE por fases, prompt para la IA
+const VERSION_PANEL = '20261115b' // 15-11-2026 b: paso 6 LOGÍSTICA Y REEMPLAZOS (logistica.mjs): BL, SB, SE, SA por CE, BR, EPA, DMA, niveles, bajas, al juego y a la impresión. Antes: 15-11-2026: paso 5 con OPCIONES (CE sobre la frontera en sus AO, reservas que contraatacan desde la F-II, GG.UU. que pasan a reserva, arrancar desplegados) · 14-11-2026 c: paso 5 FASES AZUL (CAP por fases) y ⚔ enfrentamiento para el Juego de Guerra · b: verFase, para imprimir las FASES ROJO una hoja por fase · 14-11-2026: plantilla doctrinal, CAE por fases, prompt para la IA
 const DATOS = new URL(`./datos/teatro-base.json?v=${VERSION_DATOS}`, import.meta.url).href
 const LECTOR_KMZ = new URL('../../areas-operaciones/abrir-kmz.mjs?v=cae20261114', import.meta.url).href
 const CLAVE = 'picbTeatro'
@@ -27,8 +28,8 @@ const S = {
   foto: null, base: null, cargando: null, error: '', red: null,
   areas: [], resumen: null, unidades: { enemigas: [], propias: [] }, g: {},
   ai: null, capas: null, analisis: [], nudos: [], ains: [], prc: [], cae: null, efectos: null,
-  modelo: null, caes: null, vista: null, caeVisto: 'probable', faseVista: null, capAzul: null, capaFase: null,
-  ver: { comunicaciones: true, poblaciones: true, obstaculos: true, efectos: true, enemigo: true, mascara: true, fases: true, azul: true },
+  modelo: null, caes: null, vista: null, caeVisto: 'probable', faseVista: null, capAzul: null, capaFase: null, enf: [], logPlan: null,
+  ver: { comunicaciones: true, poblaciones: true, obstaculos: true, efectos: true, enemigo: true, mascara: true, fases: true, azul: true, logistica: true },
   aviso: '',
 }
 try { Object.assign(S.ver, JSON.parse(localStorage.getItem(LS) || '{}').ver || {}) } catch (e) {}
@@ -117,6 +118,13 @@ function recalcular() {
   S.vista = D.vista(S.modelo, S.caes, S.g.ia?.datos || null)
   // 14-11-2026 c: FASES AZUL (cap-azul.mjs) frente al CAE elegido, con lo que el G-3 movió o corrigió.
   try { S.capAzul = S.analisis.length && S.vista?.caes ? CA.capAzul({ analisis: S.analisis, caes: S.vista.caes, unidades: S.unidades, frente: S.g.capAzul?.frente || 'probable', ediciones: S.g.capAzul || {} }) : null } catch (e) { console.warn('PICB Teatro · CAP azul:', e); S.capAzul = null }
+  // 15-11-2026 b: LOGÍSTICA Y REEMPLAZOS (paso 6) sobre las FASES AZUL; se recalcula sólo si cambió algo que la mueve.
+  try {
+    S.enf = S.capAzul ? CA.enfrentamientos(S.vista.caes[S.capAzul.frente] || S.vista.caes.probable, S.capAzul, S.analisis) : []
+    const k = S.capAzul ? JSON.stringify([S.nombre, S.capAzul.fases.map((f) => f.acciones.map((a) => [a.designacion, a.lng, a.lat, a.papel])), S.enf.map((e) => [e.fase, e.azul, e.contacto]),
+      S.g.logistica || null, S.analisis.map((a) => [a.n, a.puntos?.[0]?.lng, (a.enemigas || []).length]), (S.g.teatro?.origenes || []).length, (S.unidades.propias || []).map((u) => [u.designacion, u.escalon, u.arma])]) : ''
+    if (k !== S._logClave) { S._logClave = k; S.logPlan = k ? LG.planLogistico({ base: S.base, red: S.red, analisis: S.analisis, cap: S.capAzul, enf: S.enf, unidades: S.unidades, teatro: S.g.teatro || {}, foto: S.foto, ed: S.g.logistica || {} }) : null }
+  } catch (e) { console.warn('PICB Teatro · logística:', e); S.logPlan = null; S._logClave = '' }
 }
 const cruceDe = () => (Number(S.g.cruce) >= 0 && S.g.cruce !== '' && S.g.cruce != null ? Number(S.g.cruce) : 5)
 
@@ -145,7 +153,7 @@ function seguir() {
 
 // ═══════════════════════════════ LA CARTA ═══════════════════════════════
 const PANES = { sidptFondo: 352, sidptMascara: 356, sidptRed: 412, sidptDeop: 424, sidptRotulos: 594 }
-let mapa = null, capas = {}, rotulos = [], zoomHook = null
+let mapa = null, capas = {}, rotulos = [], zoomHook = null, lienzos = []
 function prepararMapa() {
   const m = window.__mapa2d, L = window.L
   if (!m || !L) return null
@@ -159,7 +167,10 @@ function prepararMapa() {
 }
 function quitarCapas() {
   for (const k of Object.keys(capas)) { try { capas[k].remove() } catch (e) {} }
-  capas = {}; rotulos = []
+  // 15-11-2026 b: también los lienzos de cada dibujo. Antes quedaba uno más por cada dibujar() (vacío… o con el dibujo
+  // viejo si el navegador no llegaba a repintarlo) y la hoja impresa los copiaba todos, uno encima del otro.
+  for (const r of lienzos) { try { r.remove() } catch (e) {} }
+  capas = {}; rotulos = []; lienzos = []
 }
 const ll = (c) => c.map((p) => [p[1], p[0]])
 function grupo(nombre) { const g = window.L.layerGroup(); capas[nombre] = g; return g }
@@ -193,7 +204,7 @@ function firmaDibujo() {
   return JSON.stringify([S.abierto, S.nivel.teatro, !!S.capas, S.paso >= 4, S.ver, S.ai?.anillo?.length, S.ai?.anillo?.[0],
     S.analisis.map((a) => [a.n, Math.round(a.kmRuta), a.ritmo, a.puntos.length]), S.ains.length, S.nudos.map((n) => n.nombre),
     (S.g.teatro?.deop || []).length, (S.g.teatro?.ejes || []).length, S.unidades.enemigas.length, S.unidades.propias.length,
-    S.ver.fases, S.caeVisto, S.faseVista, S.capaFase, JSON.stringify(S.g.capAzul || null), S.g.cruce, !!S.g.ia, S.g.ia?.cuando, S.paso])
+    S.ver.fases, S.caeVisto, S.faseVista, S.capaFase, JSON.stringify(S.g.capAzul || null), S.g.cruce, !!S.g.ia, S.g.ia?.cuando, S.paso, JSON.stringify(S.g.logistica || null), S._logClave?.length || 0])
 }
 let ultimaFirmaDibujo = ''
 function dibujar(forzar = false) {
@@ -206,7 +217,9 @@ function dibujar(forzar = false) {
   quitarCapas()
   if ((!S.abierto && S.capaFase === null) || !S.nivel.teatro || !S.capas) return   // 🖨️ imprimiendo (capaFase) dibuja aunque el panel esté cerrado
   const L = window.L, C = S.capas
-  const lienzo = (pane) => L.canvas({ pane, padding: 0.4 })
+  // 🖨️ 15-11-2026 b: al imprimir (S.capaFase) se dibuja en SVG: la hoja clona el DOM y, con pantalla Retina (DPR 2), los
+  // lienzos <canvas> salían corridos o vacíos (DEOP, máscara, EPA). En pantalla sigue el canvas (más liviano).
+  const lienzo = (pane) => { const r = S.capaFase !== null ? L.svg({ pane, padding: 0.4 }) : L.canvas({ pane, padding: 0.4 }); lienzos.push(r); return r }
   const rFondo = lienzo('sidptFondo'), rMasc = lienzo('sidptMascara'), rRed = lienzo('sidptRed'), rDeop = lienzo('sidptDeop')
   const pol = (lista) => lista.map((p) => p.map(ll))
 
@@ -354,10 +367,10 @@ function dibujar(forzar = false) {
   // las fichas de esa fase, visibles a cualquier zoom, y el recorrido hasta ella. En el paso 5 el rojo es el CAE que
   // enfrenta el CAP azul.
   const imp = S.capaFase !== null
-  const fv = Number.isInteger(S.faseVista) && (imp || S.paso === 5) ? S.faseVista : null
+  const fv = Number.isInteger(S.faseVista) && (imp || S.paso === 5 || S.paso === 6) ? S.faseVista : null
   const frente = S.capAzul?.frente || 'probable'
-  const cv = imp ? (S.capaFase === 'rojo' ? S.caeVisto : frente) : S.paso === 5 ? frente : S.caeVisto
-  if ((imp ? S.capaFase !== 'azul' : (S.paso === 4 || S.paso === 5) && S.ver.fases) && S.vista?.caes) {
+  const cv = imp ? (S.capaFase === 'rojo' ? S.caeVisto : frente) : S.paso >= 5 ? frente : S.caeVisto
+  if ((imp ? !['azul', 'logistica'].includes(S.capaFase) : (S.paso === 4 || S.paso === 5) && S.ver.fases) && S.vista?.caes) {
     const c = cv === 'peligroso' ? S.vista.caes.peligroso : S.vista.caes.probable
     if (c && c.fases?.length) {
       const g = grupo('fases')
@@ -377,7 +390,7 @@ function dibujar(forzar = false) {
     }
   }
   // 🔵 FASES AZUL (paso 5 o impresión): las GG.UU. propias al fin de cada fase; se arrastran para corregir el CAP.
-  if ((imp ? S.capaFase !== 'rojo' : S.paso === 5 && S.ver.azul) && S.capAzul?.fases?.length) {
+  if ((imp ? S.capaFase !== 'rojo' : (S.paso === 5 || S.paso === 6) && S.ver.azul) && S.capAzul?.fases?.length) {
     const g = grupo('azul')
     const porQuien = new Map()
     for (const [i, f] of S.capAzul.fases.entries()) if (fv === null || i <= fv) for (const a of f.acciones) {
@@ -393,9 +406,59 @@ function dibujar(forzar = false) {
     for (const [, pts] of porQuien) if (pts.length >= 2) g.addLayer(L.polyline(ll(pts), { renderer: rDeop, color: '#1565c0', weight: 2.4, dashArray: '6 5', opacity: 0.9, interactive: false }))
     g.addTo(m)
   }
+  // 🚚 APOYO LOGÍSTICO (paso 6 o impresión): instalaciones, EPA, DMA y a quién apoya cada una, en la fase elegida.
+  if ((imp ? S.capaFase === 'logistica' : S.paso === 6 && S.ver.logistica) && S.logPlan) dibujarLogistica(m, L, rDeop, fv, imp)
   visibilidadPorZoom()
   S.msDibujo = Math.round(performance.now() - t0)
 }
+const ICONO_LOG = { BL: '🏭', SB: '📦', SE: '📦', SA: '🚚', BR: '👥' }
+function dibujarLogistica(m, L, rDeop, fv, imp) {
+  const p = S.logPlan, i = Number.isInteger(fv) ? fv : 0, f = p.fases[i]
+  if (!f) return
+  const g = grupo('logistica')
+  const P = (id) => f.pos[id] || p.porId.get(id)
+  for (const x of p.instalaciones) {
+    if (!x.de) continue
+    const a = P(x.de), b = P(x.id), q = f.pos[x.id] || {}
+    const coords = !q.desplaza && !q.movida && !f.pos[x.de]?.movida && x.epa ? x.epa.coords : [[a.lng, a.lat], [b.lng, b.lat]]
+    const col = x.ferro ? '#111' : '#2e7d32'
+    g.addLayer(L.polyline(ll(coords), { renderer: rDeop, color: '#fff', weight: x.ferro ? 7 : 6.5, opacity: 0.9, interactive: false }))
+    g.addLayer(L.polyline(ll(coords), { renderer: rDeop, color: col, weight: x.ferro ? 4.5 : 3.6, opacity: 1, interactive: false }))
+    if (x.ferro) g.addLayer(L.polyline(ll(coords), { renderer: rDeop, color: '#fff', weight: 1.6, dashArray: '8 8', opacity: 1, interactive: false }))
+    flecha(g, coords, col)
+    const mid = D.puntoEnLinea(coords, M.largoKm(coords) / 2)
+    if (mid) rotulo(g, mid, `EPA ${esc(x.km ?? '')} km${x.ferro ? ' 🚆' : ''}`, 'r4', imp ? 0 : 6, 30)
+  }
+  const azul = new Map((S.capAzul?.fases?.[i]?.acciones || []).map((a) => [a.designacion, a]))
+  for (const gu of f.gu) {
+    const a = azul.get(gu.designacion), x = P(gu.apoyo)
+    if (a && x) g.addLayer(L.polyline([[x.lat, x.lng], [a.lat, a.lng]], { renderer: rDeop, color: gu.dentroDma ? '#0d47a1' : '#d32f2f', weight: 2, dashArray: '3 5', opacity: 0.95, interactive: false }))
+  }
+  for (const s of p.sa) { const q = P(s.id); g.addLayer(L.circle([q.lat, q.lng], { renderer: rDeop, radius: (p.dmaGu / 1.3) * 1000, color: '#1565c0', weight: 1.2, dashArray: '2 6', fill: false, opacity: 0.7, interactive: false })) }
+  const marca = (x, q, arrastrable, html, titulo) => {
+    const mk = L.marker([q.lat, q.lng], { pane: 'sidptRotulos', draggable: arrastrable, interactive: true, bubblingMouseEvents: false, keyboard: false, zIndexOffset: 1200,
+      icon: L.divIcon({ className: '', html, iconSize: [0, 0] }) })
+    mk.bindTooltip(titulo, { className: 'sidpt-tt', direction: 'top' })
+    if (arrastrable) mk.on('dragend', () => { const z = mk.getLatLng(); moverLog(x, i, z.lng, z.lat) })
+    mk.__z = [0, 30]; g.addLayer(mk); rotulos.push(mk)
+  }
+  for (const x of p.instalaciones) {
+    const q = P(x.id), fl = f.flujo.find((y) => y.id === x.id)
+    const extra = x.tipo === 'BR' ? `${x.cias} Cías` : fl ? `${LG.miles(fl.tDia)} t/d · ${fl.pct} %` : ''
+    marca(x, q, !imp, `<div class="sidpt-fch" style="width:max-content;background:${LG.COLOR_TIPO[x.tipo]};border-color:${fl && fl.estado !== 'ok' ? '#ffd166' : '#fff'}">${ICONO_LOG[x.tipo] || ''} ${esc(LG.designacion(x))}${extra ? ` <small>${esc(extra)}</small>` : ''}${q.desplaza ? ' <small>↗ se desplaza</small>' : ''}</div>`,
+      `<b>${esc(x.nombre)}</b><br>${esc(q.lugar || x.lugar || '')}${x.de ? `<br>Abastecida por ${esc(p.porId.get(x.de)?.nombre || '')} · ${esc(x.km ?? '')} km${x.ferro ? ' (ferrocarril)' : ''}` : x.tipo === 'BL' ? '<br>Recibe de la Zona del Interior' : ''}${x.tipo === 'BR' ? `<br>${x.cias} Cías de reemplazos · reserva ${LG.miles(x.reserva)} · procesa ${LG.miles(x.procesa)} por día` : `<br>Transporte ${LG.miles(x.cap)} t/día · nivel ${x.nivelDias} días (${LG.miles(x.tMax)} t)`}${!imp ? `<br><i>Arrastrala para cambiar su ubicación${x.tipo === 'SA' ? ' en esta fase' : ''}.</i>` : ''}`)
+  }
+  for (const h of p.hosp) rotulo(g, [h.lng, h.lat], `✚ Hosp. ${esc(h.nombre)}`, 'r3', imp ? 0 : 6, 30, `Hospital de 3er nivel (coordinar con las autoridades de salud) · ${h.km} km del frente`)
+  if (p.rojo) for (const x of [p.rojo.bl, ...p.rojo.aal]) marca(x, x, !imp, `<div class="sidpt-fch" style="width:max-content;background:#7f0000;border-color:#ffcdd2">◆ ${esc(x.tipo === 'BL' ? `BL enem. ${x.lugar}` : x.id)}</div>`,
+    `<b>${esc(x.nombre)}</b><br>Logística probable del enemigo (blanco para la defensa en profundidad)${x.apoya ? `<br>Apoya a ${esc(x.apoya.join(', '))}` : ''}`)
+  g.addTo(m)
+}
+function moverLog(x, i, lng, lat) {
+  const p = S.logPlan, ed = S.g.logistica || {}
+  const k = x.bando === 'rojo' ? (x.tipo === 'BL' ? 'BL rojo' : `${p.fases[0].id}|${x.id}`) : x.tipo === 'SA' ? `${p.fases[i].id}|${x.id}` : x.id
+  guardarLog({ pos: { ...(ed.pos || {}), [k]: [Math.round(lng * 1e5) / 1e5, Math.round(lat * 1e5) / 1e5] } })
+}
+function guardarLog(cambios) { guardar({ logistica: { ...(S.g.logistica || {}), ...cambios } }); recalcular(); pintar(); dibujar(true) }
 function flecha(g, coords, color) {
   const L = window.L, n = coords.length
   if (n < 2) return
@@ -502,6 +565,7 @@ const PASOS = [
   [3, 'Amenaza', 'Evaluar la amenaza'],
   [4, 'CAE', 'Cursos de acción del enemigo'],
   [5, 'Azul', 'FASES AZUL: curso de acción propio por fases y enfrentamiento con el rojo'],
+  [6, 'Logística', 'Apoyo logístico y de personal (reemplazos) de las FF.TT.T.O., fase por fase'],
 ]
 function pintar() {
   if (!raiz || !S.abierto) return
@@ -512,7 +576,7 @@ function pintar() {
       <button type="button" data-a="min" title="${S.min ? 'Desplegar' : 'Plegar el panel (la carta sigue)'}">${S.min ? '▸' : '▾'}</button>
       <button type="button" data-a="cerrar" title="Cerrar (quita los calcos del teatro de la carta)">✕</button></div>
     <nav class="sidpt-pasos" style="grid-template-columns:repeat(${PASOS.length},1fr)">${PASOS.map(([n, c, t]) => `<button type="button" data-a="paso" data-n="${n}" class="${S.paso === n ? 'on' : ''}" title="${t}"><b>${n}</b>${c}</button>`).join('')}</nav>
-    <div class="sidpt-bd">${S.error ? `<div class="sidpt-error">${esc(S.error)}</div>` : ''}${!S.base && !S.error ? '<div class="sidpt-aviso">Cargando la carta del teatro (rutas, poblaciones, relieve)…</div>' : ''}${S.aviso ? `<div class="sidpt-aviso">${esc(S.aviso)}</div>` : ''}${[paso1, paso2, paso3, paso4, paso5][S.paso - 1]()}</div>
+    <div class="sidpt-bd">${S.error ? `<div class="sidpt-error">${esc(S.error)}</div>` : ''}${!S.base && !S.error ? '<div class="sidpt-aviso">Cargando la carta del teatro (rutas, poblaciones, relieve)…</div>' : ''}${S.aviso ? `<div class="sidpt-aviso">${esc(S.aviso)}</div>` : ''}${[paso1, paso2, paso3, paso4, paso5, paso6][S.paso - 1]()}</div>
     <div class="sidpt-pie">Terreno: © OpenStreetMap (ODbL) · Natural Earth · Terrain Tiles AWS, generalizado a 1:1.000.000. Poder y ritmos: referencias a validar.</div>`
 }
 
@@ -676,6 +740,70 @@ function paso5() {
     <p class="sidpt-guia">El .json lleva cada GU roja y azul con su posición al final de cada fase y quién enfrenta a quién: es lo que va a leer el Juego de Guerra. Las hojas por fase (rojo, azul y enfrentamiento) salen en «🖨️ Imprimir por fases y capas».</p></div>`
 }
 
+// ── PASO 6: LOGÍSTICA Y REEMPLAZOS (logistica.mjs) ──
+function opcionesBL() {
+  if (S._blOpc?.k === S.nombre && S._blOpc.l.length) return S._blOpc.l
+  const c = S.logPlan ? [S.logPlan.sb.lng, S.logPlan.sb.lat] : null, iso = paisDe(S.unidades.propias)
+  const l = (S.base?.poblaciones || []).filter((q) => q[1] <= 2 && (!c || M.distKm(c, [q[2], q[3]]) <= 800) &&
+    (!iso || (S.base.paises || []).some(([, i, partes]) => i === iso && partes.some((pp) => M.enPoligono([q[2], q[3]], pp[0])))))
+    .sort((a, b) => (b[4] || 0) - (a[4] || 0)).slice(0, 30).map((q) => q[0])
+  S._blOpc = { k: S.nombre, l }
+  return l
+}
+function paso6() {
+  if (!S.capAzul) return `<div class="sidpt-card"><h3>🚚 Logística</h3><div class="sidpt-aviso">Primero las FASES AZUL (paso 5): la logística apoya al curso de acción propio, fase por fase.</div></div>`
+  const p = S.logPlan
+  if (!p) return `<div class="sidpt-card"><h3>🚚 Logística</h3><div class="sidpt-aviso">No pude armar el apoyo logístico: falta la carta del teatro o las GG.UU. propias de las FASES AZUL.</div></div>`
+  const ed = S.g.logistica || {}, fsel = Number.isInteger(S.faseVista) ? S.faseVista : null, fV = p.fases[fsel ?? 0]
+  const nom = (id) => esc(p.porId.get(id)?.nombre || id)
+  const col = { ok: '#4fd17f', limite: '#ffd166', insuficiente: '#ff6b6b' }
+  const chip = (fl) => (fl ? `<b style="color:${col[fl.estado]}">${fl.pct} %</b>` : '—')
+  const num = (a, k, v, extra = '') => `<input type="number" data-a="${a}" data-k="${esc(k)}" value="${esc(v)}" ${extra}>`
+  const opc = opcionesBL()
+  return `
+  <div class="sidpt-capa"><span class="sw" style="background:linear-gradient(90deg,#2e7d32 0 33%,#ef6c00 33% 66%,#1565c0 66%)"></span><div><b>🚚 Apoyo logístico y de personal</b><small>BL → Sección Base → (Especial) → Avanzada de cada CE → GG.UU. · reemplazos por el BR.</small></div>
+    <label class="sidpt-tog" title="Calco logístico en la carta"><input type="checkbox" data-a="ver" data-k="logistica" ${S.ver.logistica ? 'checked' : ''}><span></span></label></div>
+  <div class="sidpt-card"><h3>🚚 Organización logística del teatro <small>Zona de Etapas a cargo del CL FF.TT.T.O.</small></h3>
+    <div class="sidpt-fila"><span class="sidpt-radio">Base Logística: <select class="sidpt-inp" style="width:auto" data-a="logbl">${[...new Set([p.bl.lugar, ...opc])].map((n) => `<option ${n === p.bl.lugar ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select> <small>${esc(p.bl.fuente)}</small></span></div>
+    <div class="sidpt-fila"><span class="sidpt-radio"><label><input type="checkbox" data-a="logse" ${ed.se !== 'no' ? 'checked' : ''}> Sección Especial si una SA queda a más de ${p.umbralSE} km de la SB (TO extenso)</label>
+      <label><input type="checkbox" data-a="logrojo" ${ed.rojo !== false ? 'checked' : ''}> Logística probable del enemigo (blancos; también juega en el Juego de Guerra)</label></span></div>
+    <div class="sidpt-fila"><span class="sidpt-radio" title="DMA = (10 h del conductor − 2 h de carga y descarga) × velocidad ÷ 2">DMA: velocidad nocturna ${num('logvel', 'gu', ed.vel?.gu || LG.DMA.velGu, 'min="5" max="60" style="width:52px"')} km/h → <b>${p.dmaGu} km</b> GU ↔ apoyo · entre secciones ${num('logvel', 'secciones', ed.vel?.secciones || LG.DMA.velSecciones, 'min="5" max="60" style="width:52px"')} km/h → <b>${p.dmaSec} km</b></span></div>
+    <div class="sidpt-fila"><span class="sidpt-radio">En la carta: ${p.fases.map((f, i) => `<label><input type="radio" name="sidpt-lgv" data-a="logfase" value="${i}" ${(fsel ?? 0) === i ? 'checked' : ''}> ${esc(f.id)}</label>`).join('')}</span></div>
+    <table class="sidpt-tabla"><thead><tr><th>Instalación</th><th>Abastecida por</th><th>Camino</th><th title="toneladas por día puestas a la DMA">Transporte t/día</th><th>Nivel</th><th title="uso del transporte en la fase de la carta">${esc(fV.id)}</th></tr></thead><tbody>
+    ${p.instalaciones.map((x) => `<tr><td><b style="color:${LG.COLOR_TIPO[x.tipo]}">■</b> ${esc(x.nombre)}${fV.pos[x.id]?.movida || (x.tipo !== 'SA' && (ed.pos || {})[x.id]) ? ' <small>(movida)</small>' : ''}${fV.pos[x.id]?.desplaza ? ' <small>↗ se desplaza</small>' : ''}<br><small>${esc(fV.pos[x.id]?.lugar || x.lugar || '')}</small></td>
+      <td>${x.de ? nom(x.de) : x.tipo === 'BL' ? 'Zona del Interior' : '—'}</td><td>${x.km != null ? `${x.km} km` : '—'}${x.ferro ? ' 🚆' : ''}</td>
+      <td>${x.tipo === 'BR' ? '—' : num('logcap', x.id, x.cap, 'min="50" step="50" style="width:64px"')}</td>
+      <td>${x.tipo === 'BR' ? `${x.cias} Cías · reserva ${LG.miles(x.reserva)}` : `${x.nivelDias} d · ${LG.miles(x.tMax)} t`}</td><td>${x.tipo === 'BR' ? '' : chip(fV.flujo.find((y) => y.id === x.id))}</td></tr>`).join('')}
+    </tbody></table>
+    <p class="sidpt-guia" style="margin-top:6px">Arrastrá las instalaciones en la carta (las SA, fase por fase). Verde = el transporte alcanza, amarillo = al límite, rojo = no alcanza. <button class="sidpt-ir" data-a="logreset">↺ volver a la propuesta</button></p></div>
+  <div class="sidpt-card"><h3>📜 Concepto de apoyo logístico <small>párrafo IV · apoyo por fases</small></h3>
+    ${p.concepto.general.map((t) => `<p class="sidpt-guia" style="margin:4px 0">${esc(t)}</p>`).join('')}
+    ${p.concepto.porFase.map((t) => `<p class="sidpt-guia" style="margin:4px 0">• ${esc(t)}</p>`).join('')}
+    ${p.avisos.length ? `<div class="sidpt-aviso" style="margin-top:6px">${p.avisos.map((t) => `⚠ ${esc(t)}`).join('<br>')}</div>` : ''}</div>
+  <div class="sidpt-card"><h3>🔵 ${esc(fV.id)} · quién apoya a quién <small>${esc(fV.ventana || '')} · ${LG.miles(fV.tDia)} t por día</small></h3>
+    <table class="sidpt-tabla"><thead><tr><th>GU</th><th>Hace</th><th>Efectivos</th><th>kg/h/día</th><th>t/día</th><th>Se apoya en</th><th>Distancia</th></tr></thead><tbody>
+    ${fV.gu.map((g) => `<tr><td>${esc(g.designacion)}</td><td>${esc(g.papel)}${g.contacto ? ' ⚔' : ''}</td><td>${num('logef', g.designacion, g.ef, 'min="100" step="500" style="width:70px"')}</td><td>${num('logkg', g.designacion, g.kg, 'min="1" step="0.5" style="width:52px"')}</td>
+      <td>${LG.miles(g.tDia)}</td><td>${nom(g.apoyo)}</td><td style="color:${g.dentroDma ? '#4fd17f' : '#ff6b6b'}">${g.km} km ${g.dentroDma ? '✓' : `> DMA ${p.dmaGu}`}</td></tr>`).join('')}
+    </tbody></table></div>
+  <div class="sidpt-card"><h3>👥 Personal y reemplazos <small>SPAC cap. XVII · Anexo «C»</small></h3>
+    <div class="sidpt-fila"><span class="sidpt-radio">Batallón de Reemplazos en ${esc(p.br.lugar)}: ${num('logbr', 'cias', ed.br?.cias || '', `min="1" max="9" placeholder="${p.br.ciasAuto}" style="width:48px"`)} Cías (propuesta ${p.br.ciasAuto}, de 3 a 7, de ~400 hombres) · reserva al D ${num('logbr', 'reserva', ed.br?.reserva ?? '', `min="0" step="100" placeholder="${p.br.cias * 400}" style="width:64px"`)} hombres · procesa ${LG.miles(p.br.procesa)} por día</span></div>
+    <table class="sidpt-tabla"><thead><tr><th>Fase</th><th>Bajas</th><th>Muertos</th><th>Heridos</th><th>Desap.</th><th title="heridos que se recuperan dentro del nivel de evacuación de 15 días">Vuelven</th><th>Reemplazos</th></tr></thead><tbody>
+    ${p.fases.map((f) => `<tr><td>${esc(f.id)} <small>${f.dias} d</small></td><td>${LG.miles(f.personal.bajas)}</td><td>${LG.miles(f.personal.muertos)}</td><td>${LG.miles(f.personal.heridos)}</td><td>${LG.miles(f.personal.desaparecidos)}</td><td>${LG.miles(f.personal.recuperan)}</td><td><b>${LG.miles(f.personal.reemplazos)}</b></td></tr>`).join('')}
+    </tbody></table>
+    <p class="sidpt-guia" style="margin-top:6px">Tabla de bajas de referencia: defensa en contacto ${LG.BAJAS.defensa * 100} % por día, ataque ${LG.BAJAS.ataque * 100} %, sin contacto ${LG.BAJAS.sinContacto * 100} % (mal de altura, frío); 20 % muertos, 65 % heridos, 15 % desaparecidos; 40 % de los heridos vuelven antes de 15 días. Nivel de reemplazos a pedir a la ZI cada 30 días: <b>${LG.miles(p.br.nivelMensual)}</b>.${p.br.emergencia ? ` Pedido de emergencia: <b>${LG.miles(p.br.emergencia.hombres)}</b> hombres hacia el ${esc(M.fmtDia(p.br.emergencia.pedirEn))} (llegan en ${LG.REEMPLAZOS.emergenciaDias} días).` : ''}</p></div>
+  <div class="sidpt-card"><h3>📦 Niveles de abastecimiento <small>Anexo «E» · ${LG.miles(p.efTotal)} hombres · ${esc(p.kgPromedio)} kg/h/día</small></h3>
+    <table class="sidpt-tabla"><thead><tr><th>Clase</th><th>Operativo (d)</th><th>Seguridad (d)</th><th>Máximo</th><th>kg/h/día</th><th>t/día</th><th>t nivel máx.</th></tr></thead><tbody>
+    ${p.nivelesClase.map((c) => { const fija = LG.CLASES.find((x) => x.id === c.id)?.kg != null
+      return `<tr><td><b>${esc(c.id)}</b> <small>${esc(c.nombre)}</small></td><td>${num('logclase', `${c.id}|nivel`, c.operativo, 'min="1" style="width:46px"')}</td><td>${num('logclase', `${c.id}|seg`, c.seguridad, 'min="0" style="width:46px"')}</td><td>${c.maximo}</td>
+        <td>${fija ? num('logclase', `${c.id}|kg`, c.kg, 'min="0" step="0.1" style="width:52px"') : `${esc(c.kg)} <small>según arma</small>`}</td><td>${LG.miles(c.tDia)}</td><td>${LG.miles(c.tMax)}</td></tr>` }).join('')}
+    </tbody></table></div>
+  <div class="sidpt-card"><h3>Llevarlo al Juego de Guerra e imprimirlo</h3><div class="sidpt-fila">
+    <button class="sidpt-b ok" data-a="enfjson">⚔ Descargar enfrentamiento CON logística (.json)</button>
+    <button class="sidpt-b" data-a="logkmz">⬇ KMZ del calco logístico</button>
+    <button class="sidpt-b sec" data-a="word">📄 Word (con el concepto y las tablas)</button></div>
+    <p class="sidpt-guia">En el juego, cada instalación es una FICHA: tiene sus toneladas, mueve su transporte a la DMA, se desplaza con una orden de mover y cae si el enemigo llega a ella. El G-4 la conduce en «📦 LOGÍSTICA» y el G-1 maneja los reemplazos en «👤 PERSONAL». El calco de cada fase sale en «🖨️ Imprimir por fases y capas» → «🌎 APOYO LOGÍSTICO».</p></div>`
+}
+
 // ── PASO 3: la plantilla doctrinal (modelo de la amenaza) ──
 function cardModelo() {
   const m = S.vista?.modelo
@@ -756,6 +884,8 @@ function alClic(ev) {
   if (a === 'propuesta') { guardar({ notas: { ...(S.g.notas || {}), [b.dataset.k]: '' } }); return pintar() }
   if (a === 'azulreset') { if (window.confirm('¿Volver a la propuesta de las FASES AZUL? Se pierden las fichas azules movidas y los textos corregidos.')) { guardar({ capAzul: { frente: S.g.capAzul?.frente || 'probable', despliegue: S.g.capAzul?.despliegue, reservas: S.g.capAzul?.reservas, enReserva: S.g.capAzul?.enReserva, desplegados: S.g.capAzul?.desplegados } }); recalcular(); pintar(); dibujar(true) } return }
   if (a === 'enfjson') return bajarEnfrentamiento()
+  if (a === 'logkmz') return bajarKmzLogistica()
+  if (a === 'logreset') { if (window.confirm('¿Volver a la propuesta logística? Se pierden las instalaciones movidas (las capacidades y efectivos corregidos se conservan).')) guardarLog({ pos: {} }); return }
   if (a === 'enfkmz') return bajarKmzEnfrentamiento()
   if (a === 'kmzout') return bajarKmz()
   if (a === 'word') return bajarWord()
@@ -780,6 +910,17 @@ function alCambio(ev) {
   if (a === 'azulenres') { const ca = S.g.capAzul || {}, l = new Set(ca.enReserva || []); if (t.checked) l.add(t.value); else l.delete(t.value); guardar({ capAzul: { ...ca, enReserva: [...l] } }); recalcular(); pintar(); return dibujar(true) }
   if (a === 'azulfase') { S.faseVista = t.value === '' ? null : Number(t.value); return dibujar(true) }
   if (a === 'caevisto') { S.caeVisto = t.value; return dibujar(true) }
+  if (a === 'logfase') { S.faseVista = Number(t.value); pintar(); return dibujar(true) }
+  const ed = S.g.logistica || {}, v = t.value === '' ? undefined : Number(t.value)
+  if (a === 'logbl') return guardarLog({ bl: t.value })
+  if (a === 'logse') return guardarLog({ se: t.checked ? 'auto' : 'no' })
+  if (a === 'logrojo') return guardarLog({ rojo: t.checked })
+  if (a === 'logvel') return guardarLog({ vel: { ...(ed.vel || {}), [t.dataset.k]: v > 0 ? v : undefined } })
+  if (a === 'logcap') return guardarLog({ cap: { ...(ed.cap || {}), [t.dataset.k]: v > 0 ? v : undefined } })
+  if (a === 'logef') return guardarLog({ ef: { ...(ed.ef || {}), [t.dataset.k]: v > 0 ? v : undefined } })
+  if (a === 'logkg') return guardarLog({ kg: { ...(ed.kg || {}), [t.dataset.k]: v > 0 ? v : undefined } })
+  if (a === 'logbr') return guardarLog({ br: { ...(ed.br || {}), [t.dataset.k]: v >= 0 ? v : undefined } })
+  if (a === 'logclase') { const [id, c] = t.dataset.k.split('|'); return guardarLog({ clases: { ...(ed.clases || {}), [id]: { ...((ed.clases || {})[id] || {}), [c]: v >= 0 ? v : undefined } } }) }
 }
 let tNota = null
 function alEscribir(ev) {
@@ -845,7 +986,19 @@ function moverAzul(fid, quien, lng, lat) {
 }
 function paqueteEnfrentamiento() {
   if (!S.capAzul || !S.vista?.caes) return null
-  return CA.paquete({ ejercicio: S.nombre, cae: S.vista.caes[S.capAzul.frente] || S.vista.caes.probable, cap: S.capAzul, unidades: S.unidades, analisis: S.analisis })
+  const p = CA.paquete({ ejercicio: S.nombre, cae: S.vista.caes[S.capAzul.frente] || S.vista.caes.probable, cap: S.capAzul, unidades: S.unidades, analisis: S.analisis })
+  // 15-11-2026 b: la logística viaja en el mismo .json (el juego la lee si está; un juego viejo la ignora).
+  if (p && S.logPlan) p.logistica = LG.paraJuego(S.logPlan)
+  return p
+}
+async function bajarKmzLogistica() {
+  if (!S.logPlan) { S.aviso = 'Primero las FASES AZUL (paso 5): la logística apoya a ese curso de acción.'; return pintar() }
+  const kml = LG.kmlLogistica(S.logPlan, S.nombre), base = nombreArchivo('kmz').replace(/\.kmz$/, ' - CALCO DE APOYO LOGISTICO')
+  const Z = window.__SIDECEME_JSZIP || window.JSZip
+  if (Z) {
+    try { const z = new Z(); z.file('doc.kml', kml); const b = await z.generateAsync({ type: 'blob', compression: 'DEFLATE' }); return descargar(b, base + '.kmz') } catch (e) {}
+  }
+  descargar(new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' }), base + '.kml')
 }
 const FALTA_ENF = 'Para el enfrentamiento hacen falta las FASES ROJO (paso 4) y las FASES AZUL (paso 5).'
 function bajarEnfrentamiento() {
@@ -872,7 +1025,7 @@ async function bajarKmz() {
   descargar(new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' }), nombreArchivo('kml'))
 }
 function textoHtml() {
-  return A.textoApreciacion({ ejercicio: S.nombre, resumen: S.resumen, efectos: S.efectos, analisis: S.analisis, nudos: S.nudos, ains: S.ains, prc: S.prc, cae: S.cae, unidades: S.unidades, notas: S.g.notas || {}, extras: D.textoCaes({ modelo: S.vista?.modelo, caes: S.vista?.caes, cruce: cruceDe() }) })
+  return A.textoApreciacion({ ejercicio: S.nombre, resumen: S.resumen, efectos: S.efectos, analisis: S.analisis, nudos: S.nudos, ains: S.ains, prc: S.prc, cae: S.cae, unidades: S.unidades, notas: S.g.notas || {}, extras: D.textoCaes({ modelo: S.vista?.modelo, caes: S.vista?.caes, cruce: cruceDe() }) + (S.logPlan ? LG.textoLogistica(S.logPlan) : '') })
 }
 // ── 🤖 el prompt para la IA y su respuesta ──
 function armarPrompt() {
@@ -915,8 +1068,9 @@ function verFase(cae, fase) {
   }
   if (!S.nivel.teatro || !S.capas || !S.vista?.caes) return false
   if ((cae === 'azul' || cae === 'ambos') && !S.capAzul) return false
+  if (cae === 'logistica' && !S.logPlan) return false
   if (antesDeImprimir === null) antesDeImprimir = { cae: S.caeVisto, fase: S.faseVista }
-  S.capaFase = cae === 'azul' || cae === 'ambos' ? cae : 'rojo'
+  S.capaFase = cae === 'azul' || cae === 'ambos' || cae === 'logistica' ? cae : 'rojo'
   if (S.capaFase === 'rojo') S.caeVisto = cae === 'peligroso' ? 'peligroso' : 'probable'
   S.faseVista = Number.isInteger(fase) ? fase : null
   dibujar(true)
@@ -931,4 +1085,4 @@ function arrancar() {
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar)
 else arrancar()
-window.SIDPicbTeatro = { abrir, cerrar, estado: () => S, version: VERSION_DATOS, panel: VERSION_PANEL, vista: () => S.vista, prompt: armarPrompt, cargarArchivos: (fs) => cargarKmz([...fs]), aplicarIA, verFase, capAzul: () => S.capAzul, enfrentamiento: () => paqueteEnfrentamiento() }
+window.SIDPicbTeatro = { abrir, cerrar, estado: () => S, version: VERSION_DATOS, panel: VERSION_PANEL, vista: () => S.vista, prompt: armarPrompt, cargarArchivos: (fs) => cargarKmz([...fs]), aplicarIA, verFase, capAzul: () => S.capAzul, enfrentamiento: () => paqueteEnfrentamiento(), logistica: () => S.logPlan, logisticaJuego: () => LG.paraJuego(S.logPlan) }
