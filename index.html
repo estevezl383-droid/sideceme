@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.484</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.485</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8915,7 +8915,7 @@ body.wg-teatro #screen-wargame.wg-full #wg-game.wg-hud-on #wg-hoja:not(.abierta)
      (restringido / severo / clave) y las unidades ya colocadas. Sin terreno
      cargado todos los bonos defensivos valen 1 y el combate sale parejo. -->
 <div class="section-label">🌄 Traer escenario del Generador de Calcos</div>
-<div class="wg-cfg-txt">Elegí el <b>ejercicio.json</b> de la carpeta del ejercicio.</div>
+<div class="wg-cfg-txt">Elegí el <b>ejercicio.json</b> de la carpeta del ejercicio, o el <b>«… ENFRENTAMIENTO ROJO vs AZUL.json»</b> del PICB del Teatro (paso 5): trae las GG.UU. de los dos bandos y su plan por fases.</div>
 <!-- v2.9.352 — VARIOS ARCHIVOS A LA VEZ. Sergio: «¿puedo cargar 2 o más
      archivos JSON a la vez?». Sí, y es lo que pide el método de trabajo POR
      CAPAS: cada G baja la suya del Generador (el G-3 la maniobra, el G-4 la
@@ -8929,6 +8929,7 @@ body.wg-teatro #screen-wargame.wg-full #wg-game.wg-hud-on #wg-hoja:not(.abierta)
   <button class="rg-doc" onclick="document.getElementById('wg-imp-file-add').click()" title="Suma sin borrar lo que ya está cargado: cada G sube la suya cuando la tiene lista.">➕ Agregar capa (suma)</button>
   <button class="rg-doc" onclick="wgVaciarEscenario(this)">🧹 Vaciar escenario</button>
 </div>
+<div style="margin-bottom:6px"><button class="rg-doc" onclick="_wgEnfPanel()" title="v2.9.485: fase por fase, cada GU roja y azul recibe la orden de su fase (marchar o defender); con ▶ PLAY combaten donde se encuentran">⚔ Órdenes por fase (rojo vs azul)</button></div>
 <div id="wg-imp-estado" class="wg-cfg-txt" style="margin-bottom:10px"></div>
 
 <!-- v2.9.441 — EL PLAN DE BARRERAS, CONSTRUIDO O PROYECTADO, EN CUALQUIER TURNO.
@@ -43038,6 +43039,87 @@ function _wgBalancePoder(fichas, html){
   return html ? `<br>${_rgEsc(t1)}${t2?'<br><span style="opacity:.8">'+_rgEsc(t2)+'</span>':''}`
               : `\n• ${t1}${t2?'\n   '+t2:''}`;
 }
+// ============================================================
+// v2.9.485 — ⚔ ENFRENTAMIENTO ROJO vs AZUL POR FASES (14-11-2026).
+// Sergio: «elaborar un curso de acción propio donde se puedan descargar y enfrentar las fuerzas para llevarlos
+// al juego de guerra… debe quedar fases de ROJO y luego fases de AZUL para que se enfrenten… quiero combates
+// entre rojo y azul de varias fuerzas». El Generador de Calcos (PICB del Teatro, paso 5) baja
+// «… ENFRENTAMIENTO ROJO vs AZUL.json» (formato sideceme/enfrentamiento-teatro v1): las GG.UU. de los dos
+// bandos y, fase por fase (F-I…F-IV, los mismos días para los dos), dónde termina cada una.
+// «📂 Cargar escenario» lo reconoce y arma la partida en ESCALA TEATRO con esas GG.UU. (por el mismo módulo que
+// un ejercicio de teatro: poder, medio y observación por escalón y arma) y guarda el plan en este navegador.
+// «⚔ Órdenes por fase» le da a cada GU, de un golpe, la orden de su fase: marchar a su posición por la red vial
+// o defender si ya está ahí. Con ▶ PLAY marchan, y donde se encuentran rojas y azules, el motor combate.
+// No toca el motor (wargame-ops): usa importar_escenario y enviar_orden como siempre.
+// ============================================================
+const _WG_ENF='sid_wg_enf_';
+function _wgEnfComoEjercicio(j){
+  const u=(x,bando)=>({ tipo:'unidad', bando, designacion:x.designacion, escalon:x.escalon, arma:x.arma, lng:x.lng, lat:x.lat });
+  const us=j.unidades||{};
+  return { nombre:'⚔ '+(j.ejercicio||'Enfrentamiento')+' · '+((j.rojo||{}).curso||'CAE')+' contra '+((j.azul||{}).curso||'CAP'),
+    unidades:[...(us.rojo||[]).map(x=>u(x,'enemigo')),...(us.azul||[]).map(x=>u(x,'propias'))],
+    resultados:{ picbTeatro:{ teatro:{ deop:(j.deop||[]).map(x=>({ n:x.n, nombre:x.nombre, linea:(x.itinerario||[]).map(p=>[p.lng,p.lat]) })) } } } };
+}
+function _wgEnfPlan(pid){ try{ return JSON.parse(localStorage.getItem(_WG_ENF+(pid||WG.partidaId))||'null'); }catch(_e){ return null; } }
+function _wgEnfFase(pid){ try{ const v=localStorage.getItem(_WG_ENF+'fase_'+(pid||WG.partidaId)); return v==null?-1:Number(v); }catch(_e){ return -1; } }
+function _wgEnfGuardar(j, abrir){
+  if(!WG.partidaId || !j || !Array.isArray(j.fases)) return;
+  try{ localStorage.setItem(_WG_ENF+WG.partidaId, JSON.stringify(j)); localStorage.removeItem(_WG_ENF+'fase_'+WG.partidaId); }
+  catch(e){ _wgAviso('No se pudo guardar el plan por fases en este navegador: '+_rgEsc(e.message||e),5000); return; }
+  if(abrir!==false) setTimeout(()=>_wgEnfPanel(),1200);
+}
+const _wgEnfNorm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+function _wgEnfKm(a,b){ const r=Math.PI/180, dLa=(b.lat-a.lat)*r, dLo=(b.lng-a.lng)*r;
+  const h=Math.sin(dLa/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLo/2)**2; return 12742*Math.asin(Math.min(1,Math.sqrt(h))); }
+async function _wgEnfOrdenes(i, btn){
+  const plan=_wgEnfPlan(), f=plan&&plan.fases&&plan.fases[i];
+  if(!f) return;
+  const p=WG.estado&&WG.estado.partida;
+  if(!p || p.estado!=='en_curso'){ _wgAviso('Primero iniciá la partida (▶ Iniciar): las órdenes sólo se reciben con la partida en curso.',5000); return; }
+  const porNombre=new Map();
+  for(const u of _wgUnidadesVisibles()||[]) if(u && u.designacion) porNombre.set(_wgEnfNorm(u.designacion),u);
+  const ids=[], faltan=[];
+  for(const x of [...(f.rojo||[]),...(f.azul||[])]){
+    const u=porNombre.get(_wgEnfNorm(x.unidad));
+    if(!u || u.estado==='fuera_combate'){ faltan.push(x.unidad); continue; }
+    if(!Number.isFinite(x.lng) || !Number.isFinite(x.lat)) continue;
+    WG.ordenes[u.id] = _wgEnfKm(u,x)<3 ? { tipo:'defender', _local:1, _plan:1 }
+      : { tipo:'mover', destino_lng:x.lng, destino_lat:x.lat, ruta:[[x.lng,x.lat]], _local:1, _plan:1 };
+    if(!ids.includes(u.id)) ids.push(u.id);
+  }
+  if(!ids.length){ _wgAviso('No encontré en la partida ninguna GU de esta fase: ¿importaste este mismo enfrentamiento?',5000); return; }
+  await _wgEnviarOrdenesLote(ids, btn, true);
+  try{ localStorage.setItem(_WG_ENF+'fase_'+WG.partidaId, String(i)); }catch(_e){}
+  _wgEnfPanel();
+  const sin=[...new Set(faltan)];
+  _wgAviso(`⚔ ${f.id}: órdenes para ${ids.length} GG.UU.`+(sin.length?` · sin ficha en la partida: ${sin.slice(0,4).join(', ')}${sin.length>4?'…':''}`:'')+' · ahora ▶ PLAY.',7000);
+}
+function _wgEnfPanel(){
+  let caja=document.getElementById('wg-enf');
+  if(!caja){ caja=document.createElement('div'); caja.id='wg-enf';
+    caja.style.cssText='position:fixed;right:14px;top:90px;width:340px;max-height:72vh;overflow:auto;z-index:10050;background:#0f1d2a;color:#dbe9f2;border:1px solid #5ce1ff;border-radius:9px;padding:10px 12px;font:12px/1.4 Arial,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5)';
+    document.body.appendChild(caja); }
+  const plan=_wgEnfPlan(), act=_wgEnfFase(), e=_rgEsc;
+  const enCurso=!!(WG.estado&&WG.estado.partida&&WG.estado.partida.estado==='en_curso');
+  caja.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="color:#5ce1ff">⚔ Enfrentamiento por fases</b><button onclick="document.getElementById('wg-enf').remove()" style="background:none;border:0;color:#dbe9f2;font-size:16px;cursor:pointer" title="Cerrar">✕</button></div>`
+    +(plan ? `<div style="margin-bottom:6px">🔴 <b>${e((plan.rojo||{}).curso||'CAE')}</b> contra 🔵 <b>${e((plan.azul||{}).curso||'CAP')}</b><br><span style="color:#8ea3b3">${e(plan.ejercicio||'')}</span></div>`
+      +(enCurso?'':'<div style="color:#ffb37a;margin-bottom:6px">Primero <b>▶ Iniciar</b> la partida; después, las órdenes de la F-I.</div>')
+      +plan.fases.map((f,i)=>`<div style="border-top:1px solid #1f3442;padding:6px 0"><b>${i===act?'✓ ':''}${e(f.id)}</b> <span style="color:#8ea3b3">${e(f.ventana||'')}</span><br>`
+        +`<span style="color:#ff8a80">🔴 ${e(f.nombreRojo||'')}</span><br><span style="color:#8ec5ff">🔵 ${e(f.nombreAzul||'')}</span><br>`
+        +`<span style="color:#8ea3b3">${(f.rojo||[]).length} rojas · ${(f.azul||[]).length} azules · ${(f.enfrentamientos||[]).filter(x=>x.contacto).length} choques previstos</span><br>`
+        +`<button class="rg-doc" style="margin-top:4px" onclick="_wgEnfOrdenes(${i},this)" ${enCurso?'':'disabled'}>▶ Dar las órdenes de la ${e(f.id)}</button></div>`).join('')
+      +`<div style="color:#8ea3b3;margin-top:4px">Cada GU recibe la orden de su fase: marchar a su posición por la red vial (o defender si ya está ahí). Con <b>▶ PLAY</b> marchan y, donde se encuentran rojas y azules, combaten. Cuando el reloj llegue al final de la fase, dá las órdenes de la siguiente.</div>`
+      : `<div style="margin-bottom:6px">Esta partida no tiene un plan por fases. Cargalo con «📂 Cargar escenario» (el .json del enfrentamiento) o elegilo acá abajo si las GG.UU. ya están en la partida.</div>`)
+    +`<div style="margin-top:8px"><button class="rg-doc" onclick="document.getElementById('wg-enf-file').click()" title="Sólo el plan: no toca las unidades ni el terreno de la partida">📂 ${plan?'Cambiar':'Elegir'} el .json del enfrentamiento (sólo el plan)</button>`
+    +`<input type="file" id="wg-enf-file" accept=".json,application/json" style="display:none" onchange="_wgEnfLeer(this)"></div>`;
+}
+async function _wgEnfLeer(inp){
+  const f=inp.files&&inp.files[0]; inp.value=''; if(!f) return;
+  let j=null; try{ j=JSON.parse(await f.text()); }catch(_e){}
+  if(!j || j.formato!=='sideceme/enfrentamiento-teatro'){ _wgAviso('Ese archivo no es un «ENFRENTAMIENTO ROJO vs AZUL.json» del Generador de Calcos (paso 5 del PICB del Teatro).',6000); return; }
+  if(!WG.partidaId){ _wgAviso('Abrí primero la partida.',4000); return; }
+  _wgEnfGuardar(j,false); _wgEnfPanel();
+}
 async function wgImportarEscenario(inp, sumar){
   const files=[...((inp&&inp.files)||[])]; if(!files.length) return;
   inp.value=''; // permite volver a elegir el MISMO archivo
@@ -43054,6 +43136,12 @@ async function wgImportarEscenario(inp, sumar){
     let d;
     try{ d=JSON.parse(await f.text()); }
     catch(e){ poner('❌ <b>'+_rgEsc(f.name)+'</b> no es un JSON válido. Buscá el <b>ejercicio.json</b> dentro de la carpeta del ejercicio.'); return; }
+    // v2.9.485 — ⚔ el enfrentamiento rojo vs azul por fases (PICB del Teatro, paso 5): escala teatro, sin preguntar la fase.
+    if(d && d.formato==='sideceme/enfrentamiento-teatro'){
+      try{ const e2=await (await _wgTeatroModulo()).escenario(_wgEnfComoEjercicio(d),null); e2.enfrentamiento=d; partes.push({ nombre:f.name, d, esc:e2 }); }
+      catch(e){ poner('❌ No se pudo preparar '+_rgEsc(f.name)+': '+_rgEsc(e.message||e)); return; }
+      continue;
+    }
     // v2.9.292 — ELEGIR EL CURSO DE ACCIÓN. El Generador guarda cada fase del COA
     // con las unidades en su posición de esa fase, y además el «estado vivo», que
     // es la fase que quedó abierta. El importador tomaba ese estado vivo, así que
@@ -43114,6 +43202,7 @@ async function wgImportarEscenario(inp, sumar){
     esc.obsMecanicos += (e.obsMecanicos||0);
     if(!esc.nombre && e.nombre) esc.nombre=e.nombre;
     if(!esc.fase && e.fase) esc.fase=e.fase;
+    if(!esc.enfrentamiento && e.enfrentamiento) esc.enfrentamiento=e.enfrentamiento;   // v2.9.485
     detalle.push(`  · ${p.nombre}: ${(e.unidades||[]).length} unidad(es), `
       +`${(e.terreno||[]).length} elemento(s) de carta`
       +((e.instalaciones||[]).length?`, ${(e.instalaciones||[]).length} instalación(es)`:'')
@@ -43188,6 +43277,7 @@ async function wgImportarEscenario(inp, sumar){
     insT += (r.terreno||0);
     if(r.aviso_medios) avisoMedios=r.aviso_medios;   // v2.9.439
   }
+  if(esc.enfrentamiento) _wgEnfGuardar(esc.enfrentamiento);   // v2.9.485: el plan por fases, para «⚔ Órdenes por fase»
   // v2.9.205: si se mandaron capas de carta y el servidor no las guardó, es que
   // la Edge Function `wargame-ops` está DESACTUALIZADA (la vieja sólo acepta
   // restringido/severo/clave y descarta el resto sin chistar). Antes esto se
