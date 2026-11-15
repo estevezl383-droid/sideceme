@@ -17,6 +17,9 @@ function kmCamino(a, b) {
   return 12742 * Math.asin(Math.min(1, Math.sqrt(h))) * FACTOR
 }
 export const logDe = (u) => (u && u.arma === 'logistica' && u.carga?.teatro?.log) || null
+// v2.9.487 — 🚚 columna de transporte automática (empuje de la BL/SB/SE o retiro de un CE)
+export const colDe = (u) => (u && u.arma === 'convoy' && u.carga?.teatro?.col) || null
+const FASE = { base: ['en su base', '#8ea3b3'], carga: ['cargando', '#ffd166'], ida: ['en camino', '#5ce1ff'], descarga: ['descargando', '#ffd166'], vuelta: ['volviendo', '#8ec5ff'], destruida: ['DESTRUIDA', '#ff6b6b'] }
 export const hayLogistica = (us) => (us || []).some((u) => logDe(u) && u.estado !== 'fuera_combate')
 const viva = (u) => u && u.estado !== 'fuera_combate' && Number(u.poder_actual) > 0
 const barra = (pct, col) => `<span style="display:inline-block;width:70px;height:7px;background:#1f3442;border-radius:4px;vertical-align:middle"><span style="display:block;height:7px;width:${Math.max(0, Math.min(100, pct))}%;background:${col};border-radius:4px"></span></span>`
@@ -57,6 +60,14 @@ export function panelLogistica(el, ctx) {
       <small>${clientes.length ? 'Apoya a ' + esc(clientes.map((c) => c.designacion).slice(0, 6).join(', ')) + (clientes.length > 6 ? '…' : '') : 'Sin a quién apoyar a su alcance'}</small>${prio ? `<br><small style="color:#ffd166">⭐ prioridad: ${esc(prio.designacion)}</small>` : ''}
       ${puede ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${l.tipo !== 'BL' ? `<button class="rg-doc" data-lg="mover" data-id="${esc(x.id)}" title="Elegir la ficha para darle una orden de MOVER en la carta">📍 Desplazar</button>` : ''}${clientes.length ? elegirGU(clientes, 'prio', x.id, '⭐ Prioridad a…') : ''}</div>` : ''}</div>`
   }).join('')
+  // v2.9.487: las columnas automáticas (no se les da orden: van y vuelven solas).
+  const cols = us.filter(colDe).sort((a, b) => (a.bando > b.bando ? 1 : a.bando < b.bando ? -1 : 0) || (colDe(a).tipo > colDe(b).tipo ? 1 : -1))
+  const filasCol = cols.map((c) => {
+    const k = colDe(c), f = c.estado === 'fuera_combate' ? FASE.destruida : FASE[k.fase || 'base'] || FASE.base
+    const hacia = k.tipo === 'empuje' ? `→ ${k.para || '?'}` : k.fase && k.fase !== 'base' ? `↔ ${k.dest || 'su apoyo'}` : `de ${k.base || '?'}`
+    return `<div style="border-top:1px solid #1f3442;padding:4px 0"><div style="display:flex;justify-content:space-between;gap:6px"><b style="color:${c.bando === 'rojo' ? '#ff8a80' : '#8ec5ff'}">🚚 ${esc(c.designacion)}</b><b style="color:${f[1]};white-space:nowrap">${f[0]}</b></div>
+      <small style="color:#8ea3b3">${k.tipo === 'empuje' ? 'empuje' : 'retiro'} ${esc(hacia)} · ${R(k.t)} de ${R(k.cap)} t a bordo · ${R(k.viajes)} viajes · ${R(k.entregado)} t entregadas${c.estado === 'fuera_combate' && k.reconst != null && ctx.hora ? ` · se reconstituye el ${esc(ctx.hora(k.reconst))}` : ''}</small></div>`
+  }).join('')
   const filasGu = gus.filter((g) => inst.some((x) => x.bando === g.bando)).map((g) => {
     const t = g.carga?.teatro || {}, dos = Number.isFinite(Number(t.dos)) ? Number(t.dos) : 5, a = apoyoDe(g, inst)
     const col = dos >= 3 ? '#4fd17f' : dos >= 1 ? '#ffd166' : '#ff6b6b'
@@ -66,6 +77,7 @@ export function panelLogistica(el, ctx) {
   el.innerHTML = `<div style="font-size:12px;line-height:1.35">
     <div class="rg-meta" style="margin-bottom:6px">🌎 <b>Cadena logística del teatro</b>: BL → Sección Base → (Especial) → Sección Avanzada de cada CE → GG.UU. Cada instalación mueve su transporte a la DMA (${DMA_GU} km a las GG.UU.); más lejos rinde menos. Con el enemigo a 30 km queda <b>amenazada</b> (no recibe ni distribuye) y si llega, <b>cae</b>.</div>
     ${filas}
+    ${filasCol ? `<div style="margin:10px 0 2px;color:#5ce1ff"><b>🚚 Columnas de transporte (automáticas)</b></div><div class="rg-meta" style="margin-bottom:2px">Empuje: salen solas cuando su instalación baja del 75 % (o cada 24 h). Retiro: la columna del CE va a su SA cuando el CE baja de 3,5 días. Si el enemigo las alcanza, se pierden con su carga y se reconstituyen en 48 h.</div>${filasCol}` : ''}
     <div style="margin:10px 0 4px;color:#5ce1ff"><b>GG.UU.: días de abastecimiento y de dónde los toman</b></div>
     <table style="width:100%;border-collapse:collapse"><thead><tr style="color:#8ea3b3;text-align:left"><th>GU</th><th>Días</th><th>Se abastece de</th></tr></thead><tbody>${filasGu || '<tr><td colspan="3" class="rg-meta">Sin GG.UU. con logística.</td></tr>'}</tbody></table>
     <div class="rg-meta" style="margin-top:6px">Sin días de abastecimiento, la GU marcha y pelea a menos de la mitad. En contacto recibe la mitad. Los partes del día salen en la 📜 bitácora.</div></div>`

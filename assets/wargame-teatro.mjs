@@ -100,6 +100,13 @@ export async function escenario(d, fase, base) {
       carga: { teatro: { log: { tipo: l.tipo, de: l.de || null, cap: l.cap, t: l.t, max: l.max, ferro: !!l.ferro, apoya: l.apoya || [],
         hombres: l.hombres, procesa: l.procesa, cias: l.cias, emergencia: l.emergencia, emergenciaDias: l.emergenciaDias } } } })
   }
+  // v2.9.487 — 🚚 las COLUMNAS DE TRANSPORTE automáticas (empuje de la BL/SB/SE, retiro de cada CE) entran como camiones.
+  for (const u of fuente) if (u && u.tipo === 'columna' && u.col && punto([u.lng, u.lat])) {
+    const k = u.col
+    unidades.push({ bando: /enemig|rojo/i.test(u.bando || '') ? 'rojo' : 'azul', designacion: String(u.designacion || 'Columna').slice(0, 120),
+      escalon: 'compania', arma: 'convoy', medio: 'motor', lng: Number(u.lng), lat: Number(u.lat), poder_max: 3, obs_km: 10,
+      carga: { teatro: { col: { tipo: k.tipo, base: k.base || null, para: k.para || null, cap: k.cap, vel: k.vel, ruta: Array.isArray(k.ruta) ? limpiar(k.ruta) : null } } } })
+  }
   const areas = areasDelEjercicio(d), original = d?.resultados?.picbTeatro?.teatro || {}
   const t = { ...original, deop: (original.deop || []).map(x => ({ ...x, puntos: x.puntos || [] })),
     ejes: (original.ejes || []).filter(x => punto(x.linea?.[0])) }
@@ -153,9 +160,14 @@ export async function renderizar(map, L, unidades, sigueVigente = () => true, ba
   // gris si cayó; a trazos largos, por ferrocarril) y la DMA de cada Sección Avanzada (80 km por camino).
   const log = (unidades || []).filter(u => u.arma === 'logistica' && u.carga?.teatro?.log && punto([u.lng, u.lat]))
   const porDes = new Map(log.map(u => [u.bando + '|' + u.designacion, u]))
+  // v2.9.487: si el tramo tiene columna de empuje con el EPA del plan (por la red vial), se dibuja por ahí.
+  const km = (a, b) => { const r = Math.PI / 180, x = (b[0] - a[0]) * r * Math.cos(((a[1] + b[1]) / 2) * r), y = (b[1] - a[1]) * r; return 6371 * Math.hypot(x, y) }
+  const rutas = new Map((unidades || []).filter(u => u.arma === 'convoy' && u.carga?.teatro?.col?.tipo === 'empuje' && Array.isArray(u.carga.teatro.col.ruta)).map(u => [u.bando + '|' + u.carga.teatro.col.para, u.carga.teatro.col.ruta]))
   for (const u of log) {
     const l = u.carga.teatro.log, de = l.de ? porDes.get(u.bando + '|' + l.de) : null, cayo = u.estado === 'fuera_combate'
-    if (de) L.polyline([[de.lat, de.lng], [u.lat, u.lng]], { color: cayo || de.estado === 'fuera_combate' ? '#8a8a8a' : l.estado === 'operando' || !l.estado ? (u.bando === 'rojo' ? '#f47768' : '#4fd17f') : '#ffd166',
+    const r = rutas.get(u.bando + '|' + u.designacion)
+    const linea = de && r && r.length > 1 && km(r[0], [de.lng, de.lat]) <= 8 && km(r[r.length - 1], [u.lng, u.lat]) <= 8 ? r.map(p => [p[1], p[0]]) : de ? [[de.lat, de.lng], [u.lat, u.lng]] : null
+    if (de) L.polyline(linea, { color: cayo || de.estado === 'fuera_combate' ? '#8a8a8a' : l.estado === 'operando' || !l.estado ? (u.bando === 'rojo' ? '#f47768' : '#4fd17f') : '#ffd166',
       weight: l.ferro ? 3.5 : 2.5, dashArray: l.ferro ? '14 6' : l.estado && l.estado !== 'operando' ? '6 6' : null, opacity: .85, interactive: false }).addTo(c.frentes)
     if (l.tipo === 'SA' && !cayo) L.circle([u.lat, u.lng], { radius: (80 / 1.3) * 1000, color: u.bando === 'rojo' ? '#f47768' : '#4fd17f', weight: 1, dashArray: '2 8', fill: false, opacity: .5, interactive: false }).addTo(c.frentes)
   }
