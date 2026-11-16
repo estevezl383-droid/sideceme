@@ -1935,14 +1935,17 @@ function difRumbo(a: number, b: number) {
 // decía «Observa 24 km» y el servidor detectaba a 16 (un batallón): el operador
 // volaba encima del enemigo y no le aparecía nada.
 const CW40_SENSOR_KM = 24;
-function ojoDron(u: any) {
+// v2.9.489 — 🛩️ A ESCALA TEATRO el G-2 vuela un medio de reconocimiento del Teatro: mismo mando, sensor más
+// ancho (las fichas son Cuerpos y Divisiones separados por cientos de km). Gemelo de `_wgCw40()` del navegador.
+const CW40_SENSOR_TEATRO_KM = 40;
+function ojoDron(u: any, kmVuelo: number = CW40_SENSOR_KM) {
   const dron: any = dronDe(u);
   if (!dron) return null;
   const v: any = u.dron_vuelo;
   const vivo = v && Number.isFinite(Number(v.lng)) && Number.isFinite(Number(v.lat));
   if (!vivo) return { pos: [u.lng, u.lat], dron, volando: false };
   return { pos: [Number(v.lng), Number(v.lat)],
-           dron: { ...dron, km: CW40_SENSOR_KM }, volando: true };
+           dron: { ...dron, km: kmVuelo }, volando: true };
 }
 // ============================================================
 // v2.9.285 — QUÉ ALCANZA A VER UN BANDO EN ESTE INSTANTE.
@@ -1954,7 +1957,7 @@ function ojoDron(u: any) {
 // Se usa igual desde `estado` y desde `pulso` — a propósito, una sola fuente.
 // ============================================================
 const VISTA_TROPA_KM = 4;
-function idsVisiblesEnVivo(bando: string, unidades: any[]) {
+function idsVisiblesEnVivo(bando: string, unidades: any[], kmVuelo: number = CW40_SENSOR_KM) {
   const vistos = new Set<any>();
   const viva = (u: any) => u && u.estado !== "fuera_combate"
     && Number.isFinite(Number(u.lng)) && Number.isFinite(Number(u.lat));
@@ -1962,7 +1965,7 @@ function idsVisiblesEnVivo(bando: string, unidades: any[]) {
   const enemigas = (unidades || []).filter((u: any) => u.bando !== bando && viva(u));
   if (!mias.length || !enemigas.length) return vistos;
   for (const obs of mias) {
-    const o = ojoDron(obs);
+    const o = ojoDron(obs, kmVuelo);
     for (const en of enemigas) {
       if (vistos.has(en.id)) continue;
       const pt = [Number(en.lng), Number(en.lat)];
@@ -3857,6 +3860,8 @@ const TEATRO: any = {
   postura: { atacar: 1, mover: 1, defender: 1.5, quieta: 1.25, replegar: 0.7 },
   sueloDefensa: { severo: 1.5, restringido: 1.25, libre: 1 },
   dosInicial: 5, dosMax: 5, consumo: { combate: 1, marcha: 0.6, quieta: 0.3 }, reaprovDia: 2, reaprovKm: 80,
+  // v2.9.489 — 💣 la munición es otra reserva (días de fuego): sólo se gasta combatiendo.
+  consumoMun: 0.7,
   fueraDeCombate: 0.25,
   pasoKm: 2,
 };
@@ -3936,7 +3941,7 @@ function limpiarCargaTeatro(c: any) {
   if (!t || typeof t !== "object") return null;
   const n = (v: any, max: number) => { const x = Number(v); return v != null && v !== "" && Number.isFinite(x) && x >= 0 ? Math.min(max, x) : undefined; };
   const out: any = {};
-  for (const [k, max] of [["ef", 500000], ["kg", 200], ["hom", 500000], ["dos", 30]] as any[]) { const v = n(t[k], max); if (v !== undefined) out[k] = v; }
+  for (const [k, max] of [["ef", 500000], ["kg", 200], ["hom", 500000], ["dos", 30], ["mun", 30]] as any[]) { const v = n(t[k], max); if (v !== undefined) out[k] = v; }
   const l = t.log;
   if (l && typeof l === "object" && TIPOS_LOG_TEATRO.includes(l.tipo)) {
     const log: any = { tipo: l.tipo, de: l.de == null ? null : String(l.de).slice(0, 120), estado: "operando" };
@@ -4024,7 +4029,7 @@ function logisticaTeatro(c: any) {
   //     baja de 3,5 días va vacía a la instalación que lo apoya, carga 1 h, vuelve y descarga 1 h;
   //   · el enemigo que la alcanza (su frente + 2 km) la DESTRUYE con lo que lleva; se reconstituye en su base a las 48 h.
   //   Donde hay columna no corre el reparto abstracto de ese tramo (ni el de esa GU): lo que llega, llega en camión.
-  const cols = [...U.values()].filter((u: any) => esColT(u));
+  const cols = [...U.values()].filter((u: any) => esColT(u) && !esColG4(u));   // v2.9.489: las del G-4 van aparte (columnasG4Teatro)
   const kc = (u: any) => gt(u).col || {};
   const ponC = (u: any, x: any) => ponT(u, { col: { ...kc(u), ...x } });
   const conEmpuje = new Set<string>(), conRetiro = new Set<string>();
@@ -4308,6 +4313,204 @@ function logisticaTeatro(c: any) {
   return { sinApoyo };
 }
 
+// ============================================================
+// v2.9.489 — 🚚💣🚑 LAS COLUMNAS A LA ORDEN DEL G-4 (16-11-2026).
+// Sergio: «el G-4 puede mover sus abastecimientos: debe tener un botón que diga mover abastecimientos, un botón
+// que diga mover evacuaciones, mover munición… para éste y todos los ejercicios». En la partida 32 (teatro, sin
+// instalaciones) tres Cuerpos terminaron con 0 días de reservas y el G-4 no tenía nada que apretar.
+// Cada bando tiene TRES columnas que manda el G-4 (acción `g4_columna`; la ficha nace la primera vez que se usa):
+//   · 🚚 ABASTECIMIENTOS (Cl. I y III): lleva hasta 3 días de reservas a una GU;
+//   · 💣 MUNICIÓN (Cl. V): lleva hasta 3 días de fuego;
+//   · 🚑 EVACUACIÓN: va vacía, carga los heridos y, de vuelta en su base, los recuperables vuelven a filas
+//     (25 % del poder perdido desde la evacuación anterior; 10 % si además hay Batallón de Reemplazos, que ya
+//     devuelve los suyos por su cuenta).
+// Salen de la instalación propia con existencias más cercana a la GU (BL/SB/SE/SA: baja su estiba) o, si el
+// bando no tiene, del puesto de comando (lo trae la Zona del Interior). Marchan a 240 km/día por la ruta que
+// calculó la pantalla (red vial) o, sin ella, en línea recta con el factor de camino; cargan y descargan en 1 h;
+// entregan en los trenes de la GU (no en su primera línea) y VUELVEN SOLAS. El enemigo que las alcanza las
+// destruye con lo que llevan; se reconstituyen a las 48 h. La orden es un `apoyar` común de la ficha columna.
+// ============================================================
+const G4_TEATRO: any = {
+  clases: {
+    abast: { nom: "Col. Abastecimientos G-4", ico: "🚚", que: "abastecimientos" },
+    mun: { nom: "Col. Munición G-4", ico: "💣", que: "munición" },
+    evac: { nom: "Col. Evacuación G-4", ico: "🚑", que: "evacuación" },
+  },
+  dias: 3, kmDia: 240, cargaH: 1, factorCamino: 1.3, peligroKm: 2, reconstH: 48,
+  evacVuelve: 0.25, evacVuelveConBR: 0.1, tMun: 0.5,
+};
+function esColG4(u: any) { return esColT(u) && u.carga.teatro.col.tipo === "g4"; }
+// De dónde sale una columna del G-4 hacia `hacia`: instalación con existencias → puesto de comando → la GU más a retaguardia.
+function baseG4Teatro(unidades: any[], bando: string, hacia: number[], menos: any = null) {
+  const viva = (u: any) => u && u.estado !== "fuera_combate" && Number(u.poder_actual) > 0;
+  const p = (u: any) => [Number(u.lng), Number(u.lat)];
+  const mias = (unidades || []).filter((u: any) => u.bando === bando && viva(u) && !esColT(u) && (menos == null || String(u.id) !== String(menos)));
+  const cerca = (l: any[]) => l.slice().sort((a: any, b: any) => haversineKm(p(a), hacia) - haversineKm(p(b), hacia))[0] || null;
+  const inst = mias.filter((u: any) => esLogT(u) && ["SA", "SE", "SB", "BL"].includes(u.carga.teatro.log.tipo)
+    && (u.carga.teatro.log.estado || "operando") === "operando" && Number(u.carga.teatro.log.t) > 1);
+  if (inst.length) return cerca(inst);
+  const pcs = mias.filter((u: any) => esPCTeatro(u) && !esLogT(u));
+  if (pcs.length) return cerca(pcs);
+  const enem = (unidades || []).filter((u: any) => u.bando !== bando && viva(u) && !esColT(u) && !esLogT(u));
+  const gus = mias.filter((u: any) => !esLogT(u));
+  if (!gus.length) return null;
+  const lejos = (u: any) => enem.reduce((m: number, e: any) => Math.min(m, haversineKm(p(u), p(e))), Infinity);
+  return gus.slice().sort((a: any, b: any) => lejos(b) - lejos(a))[0];
+}
+function columnasG4Teatro(c: any) {
+  const { U, viva, pos, dia, T, ev, lugar, frente, orden, fin, dos, ponDos, mun, ponMun } = c;
+  const cols = [...U.values()].filter(esColG4);
+  if (!cols.length) return;
+  const G = G4_TEATRO, horas = dia * 24, hasta = (Number(T.hora) || 0) + horas, kmH = G.kmDia / 24;
+  const todas = () => [...U.values()];
+  const gt = (u: any) => (u.carga && u.carga.teatro) || {};
+  const kc = (u: any) => gt(u).col || {};
+  const ponT = (u: any, x: any) => { u.carga = { ...(u.carga || {}), teatro: { ...gt(u), ...x } }; };
+  const ponC = (u: any, x: any) => ponT(u, { col: { ...kc(u), ...x } });
+  const aqui = (u: any, p: number[]) => { u.lng = Math.round(p[0] * 1e6) / 1e6; u.lat = Math.round(p[1] * 1e6) / 1e6; };
+  const r2 = (x: number) => Math.round(x * 100) / 100;
+  const dec = (x: number) => (Math.round(x * 10) / 10).toLocaleString("es-BO");
+  const tDia = (u: any) => { const t = gt(u), h = Number(t.hom != null ? t.hom : t.ef) || LOG_TEATRO.efectivos[u.escalon] || 9000; return (Math.max(1, h) * (Number(t.kg) || LOG_TEATRO.kgDefecto)) / 1000; };
+  const largo = (r: number[][]) => { let a = 0; for (let i = 1; i < r.length; i++) a += haversineKm(r[i - 1], r[i]); return a; };
+  const enLinea = (r: number[][], d: number) => {
+    let a = 0;
+    for (let i = 1; i < r.length; i++) { const t = haversineKm(r[i - 1], r[i]); if (a + t >= d) { const f = t ? (d - a) / t : 0; return [r[i - 1][0] + (r[i][0] - r[i - 1][0]) * f, r[i - 1][1] + (r[i][1] - r[i - 1][1]) * f]; } a += t; }
+    return r[r.length - 1];
+  };
+  const hayBR = (b: string) => todas().some((u: any) => u.bando === b && viva(u) && esLogT(u) && gt(u).log.tipo === "BR");
+  const baseDe = (col: any) => todas().find((u: any) => u.bando === col.bando && !esColT(u) && viva(u) && String(u.designacion || "") === String(kc(col).base || "")) || null;
+  for (const col of cols) {
+    const C = G.clases[kc(col).clase] || G.clases.abast, ico = C.ico, nom = nombreUnidad(col);
+    const o = orden.get(col.id);
+    let base = baseDe(col);
+    if (col.estado === "fuera_combate") {
+      const k = kc(col);
+      if (k.reconst != null && hasta >= Number(k.reconst)) {
+        if (!base) { base = baseG4Teatro(todas(), col.bando, pos(col)); if (base) ponC(col, { base: String(base.designacion || "") }); }
+        if (base) {
+          aqui(col, pos(base)); col.estado = "activa"; col.poder_actual = Number(col.poder_max) || 3;
+          ponC(col, { fase: "base", t: 0, km: 0, reconst: null, resta: 0, dest: null, ruta: null });
+          ev(`${ico} ${nom} se RECONSTITUYÓ ${lugar(pos(base))}: el G-4 puede volver a mandarla.`, pos(base), [col.bando]);
+        }
+      }
+      continue;
+    }
+    if ((kc(col).fase || "base") === "base" && base) aqui(col, pos(base));
+    let cerca: any = null, dc = Infinity;
+    for (const e of U.values()) {
+      if (e.bando === col.bando || !viva(e) || esLogT(e) || esColT(e)) continue;
+      const d = haversineKm(pos(col), pos(e)); if (d < dc) { dc = d; cerca = e; }
+    }
+    if (cerca && dc <= frente(cerca) + G.peligroKm) {
+      col.estado = "fuera_combate"; col.poder_actual = 0;
+      ponC(col, { t: 0, fase: "destruida", reconst: hasta + G.reconstH, dest: null, ruta: null });
+      if (o) fin.add(o.id);
+      ev(`💥 ${nom} DESTRUIDA por ${nombreUnidad(cerca)} ${lugar(pos(col))}. Se reconstituye en ${G.reconstH} h.`, pos(col), ["azul", "rojo"]);
+      continue;
+    }
+    let h = horas;
+    for (let guard = 0; h > 1e-6 && guard < 14; guard++) {
+      const k = kc(col), f = k.fase || "base", t = Number(k.t) || 0;
+      if (f === "carga" || f === "descarga") {
+        const r = Number(k.resta) || 0, usa = Math.min(h, r);
+        h -= usa;
+        if (r - usa > 1e-6) { ponC(col, { resta: r - usa }); break; }
+      }
+      if (f === "base") {
+        if (!o || o.tipo !== "apoyar" || fin.has(o.id)) break;
+        const D = U.get(o.objetivo_id);
+        if (!D || !viva(D)) { fin.add(o.id); ev(`${ico} ${nom}: su destino ya no combate; se queda en su base.`, pos(col), [col.bando]); break; }
+        // Sale de donde le quede más cerca a ESA Gran Unidad.
+        const b2 = baseG4Teatro(todas(), col.bando, pos(D), D.id) || base;
+        if (!b2) { fin.add(o.id); ev(`${ico} ${nom} no tiene de dónde salir (ni instalación ni puesto de comando).`, pos(col), [col.bando]); break; }
+        base = b2; aqui(col, pos(base));
+        let lleva = 0;
+        if (k.clase !== "evac") {
+          lleva = G.dias;
+          if (esLogT(base)) {
+            const stock = Number(gt(base).log.t) || 0, td = tDia(D) * (k.clase === "mun" ? G.tMun : 1);
+            lleva = Math.min(lleva, stock / td);
+            if (lleva < 0.1) { fin.add(o.id); ev(`${ico} ${nom} no tiene qué cargar: ${nombreUnidad(base)} está sin existencias.`, pos(base), [col.bando]); break; }
+            ponT(base, { log: { ...gt(base).log, t: Math.round((stock - lleva * td) * 10) / 10 } });
+          }
+        }
+        const r = Array.isArray(o.ruta) ? o.ruta.map((q: any) => [Number(q[0]), Number(q[1])]).filter((q: number[]) => Number.isFinite(q[0]) && Number.isFinite(q[1])) : [];
+        const sirve = r.length >= 2 && haversineKm(r[0], pos(base)) <= 25 && haversineKm(r[r.length - 1], pos(D)) <= 40;
+        ponC(col, { base: String(base.designacion || ""), fase: "carga", resta: G.cargaH, dest: D.id, t: r2(lleva), km: 0, kmIda: null, ruta: sirve ? r.slice(0, 60) : null });
+      } else if (f === "carga") ponC(col, { fase: "ida", resta: 0, km: 0 });
+      else if (f === "ida") {
+        const D = k.dest != null ? U.get(k.dest) : null;
+        if (!D || !viva(D)) { ponC(col, { fase: "vuelta", km: 0, ruta: null }); ev(`${ico} ${nom}: su destino ya no combate; vuelve a su base.`, pos(col), [col.bando]); continue; }
+        const corta = Math.max(3, frente(D) * 0.5);   // entrega en los trenes de la GU, no en su primera línea
+        const r: number[][] | null = Array.isArray(k.ruta) && k.ruta.length >= 2 ? k.ruta : null;
+        if (r) {
+          const total = largo(r), ya = Number(k.km) || 0, resta = Math.max(0, total - corta - ya), puede = kmH * h;
+          if (puede < resta) { aqui(col, enLinea(r, ya + puede)); ponC(col, { km: r2(ya + puede) }); h = 0; break; }
+          h -= resta / kmH; aqui(col, enLinea(r, ya + resta));
+          if (haversineKm(pos(col), pos(D)) <= corta * 1.5 + 5) ponC(col, { fase: "descarga", resta: G.cargaH, km: 0, kmIda: r2(ya + resta) });
+          else ponC(col, { ruta: null, km: 0 });   // la GU se movió: sigue directo
+          continue;
+        }
+        const recta = haversineKm(pos(col), pos(D)), d = Math.max(0, recta - corta) * G.factorCamino, puede = kmH * h;
+        const hacia = (km: number) => { const fr = recta > 0 ? Math.min(1, km / recta) : 0, p = pos(col), q = pos(D); return [p[0] + (q[0] - p[0]) * fr, p[1] + (q[1] - p[1]) * fr]; };
+        if (puede < d) { aqui(col, hacia(puede / G.factorCamino)); h = 0; break; }
+        h -= d / kmH; aqui(col, hacia(Math.max(0, recta - corta)));
+        ponC(col, { fase: "descarga", resta: G.cargaH, km: 0, kmIda: null });
+      } else if (f === "descarga") {
+        const D = k.dest != null ? U.get(k.dest) : null;
+        let queda = t;
+        if (D && viva(D)) {
+          if (k.clase === "abast") {
+            const a = dos(D); ponDos(D, a + t); queda = Math.max(0, t - (dos(D) - a));
+            ev(`🚚 ${nom} ENTREGÓ ${dec(dos(D) - a)} día(s) de abastecimientos a ${nombreUnidad(D)}: reservas ${dec(dos(D))} d.`, pos(D), [col.bando]);
+          } else if (k.clase === "mun") {
+            const a = mun(D); ponMun(D, a + t); queda = Math.max(0, t - (mun(D) - a));
+            ev(`💣 ${nom} ENTREGÓ ${dec(mun(D) - a)} día(s) de munición a ${nombreUnidad(D)}: munición ${dec(mun(D))} d.`, pos(D), [col.bando]);
+          } else {
+            const pm = Number(D.poder_max) || 1, falta = Math.max(0, pm - Number(D.poder_actual)), yaEv = Number(gt(D).evD) || 0;
+            const w = Math.max(0, falta - yaEv) * (hayBR(col.bando) ? G.evacVuelveConBR : G.evacVuelve);
+            ponT(D, { evD: Math.round((falta - w) * 1000) / 1000 });
+            queda = Math.round(w * 1000) / 1000;
+            ev(w > 0.005 * pm ? `🚑 ${nom} CARGÓ los heridos de ${nombreUnidad(D)} (los recuperables valen ${dec((w / pm) * 100)} % de su poder) y vuelve a su base.`
+              : `🚑 ${nom} llegó a ${nombreUnidad(D)}: no hay bajas nuevas que evacuar. Vuelve a su base.`, pos(D), [col.bando]);
+          }
+        }
+        ponC(col, { fase: "vuelta", t: k.clase === "evac" ? queda : r2(queda), km: 0 });
+      } else if (f === "vuelta") {
+        if (!base) { base = baseG4Teatro(todas(), col.bando, pos(col)); if (!base) break; ponC(col, { base: String(base.designacion || ""), ruta: null }); }
+        const r0: number[][] | null = Array.isArray(k.ruta) && k.ruta.length >= 2 && k.kmIda != null && haversineKm(k.ruta[0], pos(base)) <= 25 ? k.ruta : null;
+        let llego = false;
+        if (r0) {
+          const r = [...r0].reverse(), total = largo(r), ya = Number(k.km) || (total - Number(k.kmIda)), resta = Math.max(0, total - ya), puede = kmH * h;
+          if (puede < resta) { aqui(col, enLinea(r, ya + puede)); ponC(col, { km: r2(ya + puede) }); h = 0; break; }
+          h -= resta / kmH; llego = true;
+        } else {
+          const recta = haversineKm(pos(col), pos(base)), d = recta * G.factorCamino, puede = kmH * h;
+          if (puede < d) { const fr = recta > 0 ? puede / d : 0, p = pos(col), q = pos(base); aqui(col, [p[0] + (q[0] - p[0]) * fr, p[1] + (q[1] - p[1]) * fr]); h = 0; break; }
+          h -= d / kmH; llego = true;
+        }
+        if (llego) {
+          aqui(col, pos(base));
+          const D = k.dest != null ? U.get(k.dest) : null;
+          if (k.clase === "evac") {
+            if (D && viva(D) && t > 0) {
+              const pm = Number(D.poder_max) || 1;
+              D.poder_actual = Math.min(pm, Number(D.poder_actual) + t);
+              ev(`🚑 ${nom} entregó los heridos ${lugar(pos(base)) || "en su base"}: los recuperados vuelven a ${nombreUnidad(D)} (+${dec((t / pm) * 100)} %, queda al ${Math.round((Number(D.poder_actual) / pm) * 100)} %). Lista para otra misión.`, pos(base), [col.bando]);
+            } else ev(`🚑 ${nom} de vuelta en su base: lista para otra misión.`, pos(base), [col.bando]);
+          } else {
+            if (t > 0.01 && esLogT(base) && D) ponT(base, { log: { ...gt(base).log, t: Math.round(((Number(gt(base).log.t) || 0) + t * tDia(D) * (k.clase === "mun" ? G.tMun : 1)) * 10) / 10 } });
+            ev(`${ico} ${nom} de vuelta en su base: lista para otra misión.`, pos(base), [col.bando]);
+          }
+          ponC(col, { fase: "base", t: 0, km: 0, kmIda: null, dest: null, ruta: null, resta: 0, viajes: (Number(k.viajes) || 0) + 1 });
+          if (o) fin.add(o.id);
+          break;
+        }
+      } else ponC(col, { fase: "base", km: 0 });
+    }
+  }
+}
+
 function resolverTeatro(estado: any) {
   // Sin reloj continuo (turno a turno): el día en 6 pasos de 4 h.
   if (!estado.tic) {
@@ -4348,6 +4551,11 @@ function resolverTeatro(estado: any) {
   const dos = (u: any) => { const c = u.carga && u.carga.teatro; return c && Number.isFinite(Number(c.dos)) ? Number(c.dos) : TEATRO.dosInicial; };
   const ponDos = (u: any, v: number) => {
     u.carga = { ...(u.carga || {}), teatro: { ...((u.carga && u.carga.teatro) || {}), dos: Math.max(0, Math.min(TEATRO.dosMax, Math.round(v * 1000) / 1000)) } };
+  };
+  // v2.9.489 — 💣 MUNICIÓN: días de fuego de la GU (los lleva la columna de munición del G-4).
+  const mun = (u: any) => { const c = u.carga && u.carga.teatro; return c && Number.isFinite(Number(c.mun)) ? Number(c.mun) : TEATRO.dosInicial; };
+  const ponMun = (u: any, v: number) => {
+    u.carga = { ...(u.carga || {}), teatro: { ...((u.carga && u.carga.teatro) || {}), mun: Math.max(0, Math.min(TEATRO.dosMax, Math.round(v * 1000) / 1000)) } };
   };
   const ev = (texto: string, p: number[] | null, visibles: string[]) =>
     eventos.push({ tipo: "teatro", descripcion: `🌎 ${ahora()} · ${texto}`, lat: p ? p[1] : null, lng: p ? p[0] : null, bandos_visibles: visibles });
@@ -4480,6 +4688,7 @@ function resolverTeatro(estado: any) {
       let p = Number(u.poder_actual) * (TEATRO.postura[atacando ? "atacar" : postura(u)] ?? 1);
       if (!atacando) p *= TEATRO.sueloDefensa[sueloTeatro(pos(u), terreno)] ?? 1;
       if (dos(u) <= 0) p *= 0.6;
+      if (mun(u) <= 0) p *= 0.7;   // v2.9.489: sin munición
       if (esPCTeatro(u)) p *= 0.3;
       return p;
     };
@@ -4572,19 +4781,33 @@ function resolverTeatro(estado: any) {
   // v2.9.486: el bando con instalaciones logísticas se abastece por su cadena (logisticaTeatro); el otro, como antes.
   const pcs = [...U.values()].filter((u: any) => viva(u) && esPCTeatro(u));
   const conLog = new Set<string>([...U.values()].filter((u: any) => viva(u) && esLogT(u)).map((u: any) => u.bando));
-  const dosAntes = new Map<any, number>();
+  const dosAntes = new Map<any, number>(), munAntes = new Map<any, number>(), dosSinCadena = new Map<any, number>();
   for (const u of U.values()) {
     if (!viva(u) || esPCTeatro(u) || esLogT(u) || esColT(u)) continue;
     const antes = dos(u);
     dosAntes.set(u.id, antes);
     let v = antes - (peleo.has(u.id) ? TEATRO.consumo.combate : movio.has(u.id) ? TEATRO.consumo.marcha : TEATRO.consumo.quieta) * dia;
-    if (!conLog.has(u.bando) && !peleo.has(u.id) && pcs.some((c: any) => c.bando === u.bando && haversineKm(pos(u), pos(c)) <= TEATRO.reaprovKm)) v += TEATRO.reaprovDia * dia;
+    const cercaPC = !conLog.has(u.bando) && !peleo.has(u.id) && pcs.some((c: any) => c.bando === u.bando && haversineKm(pos(u), pos(c)) <= TEATRO.reaprovKm);
+    if (cercaPC) v += TEATRO.reaprovDia * dia;
     ponDos(u, v);
+    // v2.9.489 — 💣 la munición sólo se gasta combatiendo; cerca del PC (sin cadena logística) se repone igual que lo demás.
+    const m0 = mun(u);
+    munAntes.set(u.id, m0);
+    ponMun(u, m0 - (peleo.has(u.id) ? TEATRO.consumoMun * dia : 0) + (cercaPC ? TEATRO.reaprovDia * dia : 0));
+    dosSinCadena.set(u.id, dos(u));
   }
   if (conLog.size) logisticaTeatro({ U, viva, pos, peleo, movio, dia, T, ev, lugar, frente, conLog, p0, orden, fin, memT, dos, ponDos });
+  // v2.9.489: lo que la cadena logística le entregó de abastecimientos trae también su munición.
+  for (const [id, base] of dosSinCadena) {
+    const u = U.get(id);
+    if (u && viva(u) && conLog.has(u.bando)) { const d = dos(u) - base; if (d > 0) ponMun(u, mun(u) + d); }
+  }
+  // v2.9.489 — 🚚💣🚑 las columnas a la orden del G-4.
+  columnasG4Teatro({ U, viva, pos, dia, T, ev, lugar, frente, orden, fin, dos, ponDos, mun, ponMun });
   for (const [id, antes] of dosAntes) {
     const u = U.get(id);
     if (u && viva(u) && antes > 0 && dos(u) <= 0) ev(`⛽ ${nombreUnidad(u)} SIN ABASTECIMIENTO: marcha y pelea a menos de la mitad.`, pos(u), [u.bando]);
+    if (u && viva(u) && (munAntes.get(id) || 0) > 0 && mun(u) <= 0) ev(`💣 ${nombreUnidad(u)} SIN MUNICIÓN: su poder de combate cae.`, pos(u), [u.bando]);
   }
   // ── 6 · LO QUE VE CADA BANDO ────────────────────────────────────────────────────
   const detecciones: any = { azul: [], rojo: [] };
@@ -6282,6 +6505,8 @@ async function manejar(req: Request): Promise<Response> {
     "colocar_instalacion", "quitar_instalacion", "mover_instalacion",
     // v2.9.335: el convoy lo forma el G-4, que muchas veces entra por enlace.
     "formar_convoy",
+    // v2.9.489: a escala teatro, las tres columnas a la orden del G-4.
+    "g4_columna",
     // v2.9.449: el JEM (por enlace) maneja el reloj y da el ALTO.
     "reloj", "alto",
     // v2.9.455: el que dio una orden por enlace también la puede anular.
@@ -6686,6 +6911,55 @@ async function manejar(req: Request): Promise<Response> {
   }
 
   // ============================================================
+  // v2.9.489 — 🚚💣🚑 EL G-4 MANDA UNA COLUMNA (escala teatro): abastecimientos, munición o evacuación a una GU.
+  // La ficha de la columna nace la primera vez; la orden es un `apoyar` común (entra al paso como cualquier otra,
+  // así no hay carrera con el reloj). Ver `columnasG4Teatro`.
+  // ============================================================
+  if (accion === "g4_columna") {
+    if (partida.estado !== "en_curso") return err("La partida no está en curso");
+    if (!arbitro && !miBando) return err("Clave de bando inválida", 403);
+    const frG4 = await relojDe(partida.id);
+    if (!esTeatro(frG4 && frG4.geojson)) return err("Las columnas del G-4 son de la escala teatro. En esta partida el G-4 forma sus convoyes desde una instalación (hoja 📦 LOGÍSTICA).");
+    const clase = String(body.clase || "");
+    const C = G4_TEATRO.clases[clase];
+    if (!C) return err("Clase de columna desconocida (abast | mun | evac)");
+    const { data: todasG4 } = await sb.from("wg_unidades")
+      .select("id, bando, designacion, escalon, arma, lng, lat, estado, poder_actual, poder_max, carga").eq("partida_id", partida.id).limit(2000);
+    const us: any[] = todasG4 || [];
+    const D = us.find((u: any) => String(u.id) === String(body.destino_id));
+    if (!D) return err("Unidad de destino no encontrada", 404);
+    if (!arbitro && D.bando !== miBando.bando) return err("Esa unidad no es de tu bando", 403);
+    if (D.estado === "fuera_combate") return err("Esa unidad está fuera de combate");
+    if (esLogT(D) || D.arma === CONVOY_ARMA) return err("La columna va a una Gran Unidad, no a una instalación ni a otra columna");
+    if (esPCTeatro(D)) return err("El puesto de comando no gasta reservas en el juego: mandá la columna a una Gran Unidad");
+    let col: any = us.find((u: any) => u.bando === D.bando && esColG4(u) && u.carga.teatro.col.clase === clase);
+    if (col && col.estado === "fuera_combate") return err(`${C.nom} fue destruida: se reconstituye a las ${G4_TEATRO.reconstH} h en su base.`, 409);
+    if (col && (col.carga.teatro.col.fase || "base") !== "base") {
+      const va = us.find((u: any) => String(u.id) === String(col.carga.teatro.col.dest));
+      return err(`${C.nom} todavía está en misión${va ? " (" + nombreUnidad(va) + ")" : ""}: tiene que volver a su base antes de salir de nuevo.`, 409);
+    }
+    const base = baseG4Teatro(us, D.bando, [Number(D.lng), Number(D.lat)], D.id);
+    if (!base) return err("Tu bando no tiene de dónde sacar la columna (ni instalación logística con existencias, ni puesto de comando, ni otra Gran Unidad).", 409);
+    if (!col) {
+      const fila: any = {
+        partida_id: partida.id, bando: D.bando, designacion: C.nom, escalon: "seccion", arma: CONVOY_ARMA, medio: "motor",
+        lat: Number(base.lat), lng: Number(base.lng), poder_max: 3, poder_actual: 3, obs_km: CONVOY_OBS_KM, estado: "activa", combustible_km: 0,
+        carga: { teatro: { col: { tipo: "g4", clase, base: String(base.designacion || ""), fase: "base", t: 0, km: 0 } } },
+      };
+      const { data: nueva, error: eN } = await sb.from("wg_unidades").insert(fila).select("id").limit(1);
+      if (eN || !nueva || !nueva[0]) return err(`No se pudo formar la columna: ${eN ? eN.message : "sin respuesta"}`, 500);
+      col = { ...fila, id: nueva[0].id };
+    }
+    const eO = await guardarOrden({ unidad_id: col.id, tipo: "apoyar", objetivo_id: D.id, ruta: Array.isArray(body.ruta) ? body.ruta : null });
+    if (eO) return eO;
+    const lleva = clase === "evac" ? "a evacuar sus heridos" : `con hasta ${G4_TEATRO.dias} días de ${C.que}`;
+    await sb.from("wg_eventos").insert({ partida_id: partida.id, turno: partida.turno_actual, tipo: "logistica",
+      descripcion: `${C.ico} G-4: ${C.nom} sale de ${nombreUnidad(base)} hacia ${nombreUnidad(D)} ${lleva}.`,
+      lat: Number(base.lat), lng: Number(base.lng), bandos_visibles: [D.bando] });
+    return ok({ id: col.id, designacion: C.nom, base: String(base.designacion || ""), destino: D.id });
+  }
+
+  // ============================================================
   // v2.9.463 · v2.9.465 — 🎯 ⏱ LANZAR: el gatillo de un arma, o la sincronización entera.
   // Sergio (06-11-2026): «arriba de esta tabla debe estar la que más tarda… y en base a ésa se
   // sincronizan los fuegos y los otros movimientos». Cada orden y cada tiro traen su `demora` (horas
@@ -6951,7 +7225,7 @@ async function manejar(req: Request): Promise<Response> {
       // descubre algo, cien pantallas no le piden el tablero al servidor al mismo tiempo.
       const vis: any = {}, aparecen: any = {};
       for (const b of ["azul", "rojo"]) {
-        vis[b] = [...new Set<any>([...(res.detecciones[b] || []), ...idsVisiblesEnVivo(b, res.unidades)])];
+        vis[b] = [...new Set<any>([...(res.detecciones[b] || []), ...idsVisiblesEnVivo(b, res.unidades, esTeatro(g) ? CW40_SENSOR_TEATRO_KM : CW40_SENSOR_KM)])];
         const ya = new Set<any>((m0.vis && m0.vis[b]) || []);
         aparecen[b] = res.unidades.filter((u: any) => u.bando !== b && vis[b].includes(u.id) && !ya.has(u.id))
           .map((u: any) => (u.carga && u.carga.ruta ? { ...u, carga: (() => { const { ruta: _r, ...k } = u.carga; return k; })() } : u));
@@ -7106,7 +7380,8 @@ async function manejar(req: Request): Promise<Response> {
       // podía descubrir nada por su cuenta — pasó exactamente eso con el ROJO.
       // Ahora se suma lo que el bando alcanza EN ESTE MOMENTO.
       // ============================================================
-      const vivo = idsVisiblesEnVivo(miBando.bando, unidades || []);
+      const vivo = idsVisiblesEnVivo(miBando.bando, unidades || [],
+        esTeatro((((rRel as any).data || [])[0] || {}).geojson) ? CW40_SENSOR_TEATRO_KM : CW40_SENSOR_KM);   // v2.9.489
       visibles = (unidades || []).filter((u: any) =>
         u.bando === miBando.bando || detectadas.has(u.id) || vivo.has(u.id));
     }
@@ -7235,6 +7510,7 @@ async function manejar(req: Request): Promise<Response> {
         } }).eq("id", uidV);
       }
     }
+    const _rel = await relojDe(partida.id);   // v2.9.449: la cuenta regresiva de todos (v2.9.489: y la escala, para el sensor)
     let vistos: any = null, instalVistas: any = null;
     if (!arbitro && miBando) {
       const [{ data: uds }, { data: ins }] = await Promise.all([
@@ -7244,7 +7520,7 @@ async function manejar(req: Request): Promise<Response> {
         // v2.9.453: las instalaciones enemigas que el bando alcanza AHORA (id y nivel).
         sb.from("wg_terreno").select("id, tipo, bando, geojson").eq("partida_id", partida.id).like("tipo", "log\\_%").limit(400),
       ]);
-      vistos = [...idsVisiblesEnVivo(miBando.bando, uds || [])];
+      vistos = [...idsVisiblesEnVivo(miBando.bando, uds || [], esTeatro(_rel && _rel.geojson) ? CW40_SENSOR_TEATRO_KM : CW40_SENSOR_KM)];
       instalVistas = [];
       for (const x of (ins || [])) {
         if (!x || !x.bando || x.bando === miBando.bando || !esInstalacionLog(x.tipo)) continue;
@@ -7253,7 +7529,6 @@ async function manejar(req: Request): Promise<Response> {
         if (n) instalVistas.push({ id: idIntelInstal(x.id), n });
       }
     }
-    const _rel = await relojDe(partida.id);   // v2.9.449: la cuenta regresiva de todos
     return ok({ turno_actual: partida.turno_actual, estado_partida: partida.estado, vistos,
       instal_vistas: instalVistas,   // v2.9.453
       reloj: relojPublico(_rel && _rel.geojson),
