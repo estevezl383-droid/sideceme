@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.488</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.489</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8463,6 +8463,29 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
 /* La grilla de órdenes */
 #wg-hud-grilla{padding:6px;display:flex;flex-direction:column;gap:5px;overflow-y:auto;scrollbar-width:thin}
 .wg-gr{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}
+/* v2.9.489 — 🚚💣🚑 los botones MOVER del G-4 (con su nombre escrito, no sólo el ícono). */
+.wg-g4h{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:5px}
+.wg-g4h button,.wg-g4m-b button{display:flex;align-items:center;justify-content:center;gap:5px;padding:5px 4px;border-radius:7px;cursor:pointer;min-width:0;
+  font:900 9px/1.15 system-ui;letter-spacing:.3px;color:#eef7ff;text-align:left;background:linear-gradient(#2a5d8c,#173a5c);border:1px solid rgba(140,210,255,.5)}
+.wg-g4h button:hover,.wg-g4m-b button:hover{filter:brightness(1.22)}
+.wg-g4h button i,.wg-g4m-b button i{font-style:normal;font-size:16px;line-height:1}
+.wg-g4h button.off,.wg-g4m-b button.off{opacity:.5}
+.wg-g4h button.on,.wg-g4m-b button.on{background:linear-gradient(#2f8a57,#1d5c3a);border-color:#8ef0b4}
+.wg-g4m{margin:0 0 10px;padding:9px;border-radius:10px;background:rgba(20,44,70,.55);border:1px solid rgba(140,210,255,.3)}
+.wg-g4m-t{font:900 10.5px/1 system-ui;letter-spacing:1.2px;color:#bfe0ff;margin-bottom:7px}
+.wg-g4m-b{display:grid;grid-template-columns:minmax(0,1fr);gap:5px}
+.wg-g4m-b button{justify-content:flex-start;gap:9px;padding:7px 10px;font-size:11.5px;letter-spacing:.5px}
+.wg-g4m-b button i{font-size:21px}
+.wg-g4m-b button span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.wg-g4m-b button small{font:600 9.5px/1.2 system-ui;color:#bcd6ee;letter-spacing:0}
+.wg-g4m-n{font:600 10.5px/1.35 system-ui;color:#9fb6cc;margin-top:7px}
+.wg-g4m-l{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.wg-g4m-f{display:flex;flex-wrap:wrap;align-items:center;gap:4px 9px;padding:5px 7px;border-radius:7px;background:rgba(255,255,255,.05);font:600 11px/1.2 system-ui;color:#e6f0fa}
+.wg-g4m-f b{flex:1 1 100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wg-g4m-f button{margin-left:auto}
+.wg-g4m-f span{white-space:nowrap;color:#bcd6ee;font-size:10.5px}
+.wg-g4m-f span.bajo{color:#ff9d8a;font-weight:800}
+.wg-g4m-f button{padding:4px 9px;border-radius:6px;cursor:pointer;font:900 10px/1 system-ui;background:#2e7d4f;border:1px solid #58c98a;color:#eafff2;white-space:nowrap}
 .wg-gr-f{padding-top:5px;border-top:1px solid rgba(255,255,255,.07)}
 .wg-gr-tit{font:900 9px/1 system-ui;letter-spacing:1.4px;color:#7f93a8;margin:1px 2px}
 .wg-gr-nota{display:flex;align-items:center;gap:6px;font:600 10.5px/1.3 system-ui;color:#8fa3b8;margin-top:4px}
@@ -8497,7 +8520,8 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
 .wg-arm{display:flex;flex-direction:column;gap:1px;min-width:0;container-type:inline-size}
 .wg-gat{height:13px;margin:0;padding:0 1px;width:100%;min-width:0;display:flex;align-items:center;justify-content:center;gap:2px;border-radius:4px;cursor:pointer;
   background:rgba(70,26,20,.88);border:1px solid rgba(255,130,100,.45);color:#ffc2ae;font:900 7.5px/1 system-ui;letter-spacing:.1px;white-space:nowrap;overflow:hidden}
-body.wg-teatro #wg-armas,body.wg-teatro #wg-drones,body.wg-teatro #wg-g4auto,
+/* v2.9.489 — 🛩️ la estación del dron del G-2 TAMBIÉN existe a escala teatro (antes se escondía acá y el G-2 quedaba ciego). */
+body.wg-teatro #wg-armas,body.wg-teatro #wg-g4auto,
 body.wg-teatro .wg-gat,body.wg-teatro [onclick*="wgFormarConvoy"],body.wg-teatro [onclick*="wgG4Auto"],
 body.wg-teatro [onclick*="wgObra"]{display:none!important}
 body.wg-teatro #screen-wargame.wg-full #wg-game.wg-hud-on #wg-ayuda{
@@ -29967,7 +29991,8 @@ function _wgTeatroRender(){
     // v2.9.486: una instalación logística muestra sus toneladas (o los hombres del BR) en vez de días.
     reservas.textContent=lg ? (lg.tipo==='BR' ? '👥 Reemplazos: '+Math.round(Number(lg.hombres)||0).toLocaleString('es-BO')
         : '📦 '+Math.round(Number(lg.t)||0).toLocaleString('es-BO')+' / '+Math.round(Number(lg.max)||0).toLocaleString('es-BO')+' t'+(lg.estado&&lg.estado!=='operando'?' · '+lg.estado:''))
-      : '🥫 Reservas: '+(Number.isFinite(dos)?dos:5).toFixed(1)+' d'; }
+      : (ct.col && ct.col.tipo==='g4') ? _wgG4ColTxt(seleccionada)
+      : '🥫 Reservas: '+(Number.isFinite(dos)?dos:5).toFixed(1)+' d · 💣 Munición: '+_wgMunTeatro(seleccionada).toFixed(1)+' d'; }
   if(!WG.teatro){ if(_wgTeatroAPI && mapa) _wgTeatroAPI.ocultar(mapa); return; }
   _wgTeatroModulo().then(m=>m.renderizar(mapa,L,_wgUnidadesVisibles(),()=>WG.map===mapa && WG.partidaId===pid && WG.teatro))
     .catch(e=>{ if(WG.map===mapa && WG.partidaId===pid && !WG._teatroCartaError){ WG._teatroCartaError=true; _wgAviso('La carta de teatro no se pudo cargar: '+_rgEsc(e.message||e),5000); } });
@@ -30002,7 +30027,7 @@ function _wgLogTeatroPanel(el, cual){
         await _wgEnviarOrdenesLote([u.id], btn, true);
         _wgAviso(o.mision==='emergencia'?'📨 Pedido de emergencia elevado a la Zona del Interior: lo verás en la bitácora.':'⭐ Prioridad ordenada: '+_rgEsc(u.designacion||''),4500);
         setTimeout(()=>{ try{ if(WG.hoja==='logistica') wgPanelLogistica(); if(WG.hoja==='personal') wgPanelPersonal(); }catch(_e){} },1500); } };
-    if(cual==='personal') m.panelPersonal(el,ctx); else m.panelLogistica(el,ctx);
+    if(cual==='personal') m.panelPersonal(el,ctx); else { m.panelLogistica(el,ctx); _wgG4BloquePoner(el); }
   }).catch(e=>{ el.innerHTML='<div class="rg-meta">No se pudo cargar la logística de teatro: '+_rgEsc(e.message||e)+'</div>'; });
 }
 async function wgTeatroEjecutar(uid,btn){
@@ -31347,6 +31372,10 @@ async function wgCivilQuitar(id){
 function wgPanelLogistica(){
   const el=document.getElementById('wg-logistica'); if(!el) return;
   if(WG.teatro) return _wgLogTeatroPanel(el,'logistica');   // v2.9.486
+  _wgPanelLogisticaComun(el);
+  _wgG4BloquePoner(el);   // v2.9.489: los botones MOVER del G-4, arriba de todo
+}
+function _wgPanelLogisticaComun(el){
   const uds=_wgMisUnidades();
   if(!uds.length){ el.innerHTML='<div class="rg-meta">Sin unidades en el tablero.</div>'; return; }
   const conTanque=uds.filter(u=>_wgCombustible(u));
@@ -32252,6 +32281,16 @@ function _wgPanelG1HTML(mias){
 function _wgPanelG4HTML(mias){
   const uds=(mias||[]).slice();
   if(!uds.length) return `<div class="rg-meta">Sin unidades.</div>`;
+  // v2.9.489 — 🩸 A ESCALA TEATRO este panel reventaba («reading 'pct'»: en teatro no hay munición por arma) y con él
+  // toda la entrada del puesto: el G-4 quedaba sin pantalla. En teatro se listan las reservas y la munición por GU.
+  if(WG.teatro){
+    const gus=uds.filter(u=>_wgG4EsDestino(u));
+    return `<div style="margin-bottom:4px">📦 Reservas y munición por Gran Unidad (${gus.length}):</div>`
+      + gus.map(u=>{ const dos=Number((((u.carga||{}).teatro||{}).dos)??5), mu=_wgMunTeatro(u), pct=u.poder_max?Math.round(100*u.poder_actual/u.poder_max):100;
+          return `<div class="wg-g4m-f" onclick="wgElegirUnidad(${JSON.stringify(u.id).replace(/"/g,'&quot;')})" style="cursor:pointer"><b>${_rgEsc(u.designacion||'Unidad')}</b>`
+            +`<span class="${dos<2?'bajo':''}">🥫 ${dos.toFixed(1)} d</span><span class="${mu<2?'bajo':''}">💣 ${mu.toFixed(1)} d</span><span class="${pct<70?'bajo':''}">🛡️ ${pct} %</span></div>`; }).join('')
+      + `<div class="rg-meta" style="margin-top:6px">Mandá tus columnas con los botones 🚚 MOVER ABASTECIMIENTOS · 💣 MUNICIÓN · 🚑 EVACUACIONES.</div>`;
+  }
   // v2.9.335: los convoyes NO entran en los cuadros ni en la lista por unidad —
   // tienen su propia sección. Si entraran, el convoy vacío contaría como «unidad
   // sin munición» y el porcentaje de la fuerza mediría lo que no es.
@@ -34094,7 +34133,7 @@ function _wgDronCinematica(u, ahora){
   // ventanas vean el aparato en el mismo punto.
   const kmh = d.kmh || WG_DRON_KMH;
   const pistaLargo = _wgPistaDron(d, u, 0).P;
-  const kmRecorridos = ((_wgAhora()-WG_EPOCA)/3600000)*kmh*WG_DRON_ACEL
+  const kmRecorridos = ((_wgAhora()-WG_EPOCA)/3600000)*kmh*WG_DRON_ACEL*(WG.teatro?5:1)
     + (d.fase||0)*pistaLargo + (String(u.id).length*3.1);
   const pil = _wgPilotoActivo(u.bando);
   let lng, lat, proa;
@@ -34734,7 +34773,7 @@ function _wgIntegrarVuelo(p, u, d, dt){
   // Las cifras del CW 40 no se tocan — lo que cambia es cuánto se comprime el
   // tiempo, que es una convención de la maqueta, no una capacidad del aparato.
   const empuje=(p.kmh-WG_DRON_VMIN)/Math.max(1,(WG_DRON_VMAX-WG_DRON_VMIN));
-  const km=(p.kmh*WG_DRON_ACEL_MAN*(0.7+0.9*empuje))*(dt/3600);
+  const km=(p.kmh*WG_DRON_ACEL_MAN*(WG.teatro?5:1)*(0.7+0.9*empuje))*(dt/3600);   // v2.9.489: teatro ×5
   const rad=p.proa*Math.PI/180;
   const dLat=((km*Math.cos(rad))/6371)*(180/Math.PI);
   const dLng=((km*Math.sin(rad))/6371)*(180/Math.PI)/Math.max(1e-6,Math.cos(p.lat*Math.PI/180));
@@ -44444,6 +44483,11 @@ function _wgDibujo(){
       D.push(_wgD.txt(t.lng,t.lat, alcanza
         ? `⚔️ ${arma?arma.nom:'combate'} · ${d.toFixed(1)} km · relación ${rel.toFixed(1)}:1 → ${txtRel}`
         : `🔥 TIRO CORTO · ${arma?arma.nom:'el sistema'} bate ${alcance.toFixed(1)} km y está a ${d.toFixed(1)} km. Dispara igual: gasta munición y delata su posición.`, uid));
+    }else if(o.tipo==='apoyar' && WG.teatro && u.arma==='convoy'){
+      // v2.9.489 — la columna del G-4: una línea hasta la Gran Unidad a la que va (el camino lo lleva el motor).
+      const t=o.objetivo_id?uById[o.objetivo_id]:null, kc=((u.carga||{}).teatro||{}).col||{};
+      if(t && kc.fase!=='vuelta'){ D.push(_wgD.lin([[u.lng,u.lat],[t.lng,t.lat]],'#2ecc71',2.5,'6 6',.9));
+        D.push(_wgD.txt(u.lng,u.lat,`${(WG_G4_MOVER[kc.clase]||WG_G4_MOVER.abast).ico} → ${t.designacion||''}`, uid)); }
     }else if(o.tipo==='apoyar' && WG.teatro && u.arma==='logistica'){
       // v2.9.486 — a escala teatro, «apoyar» de una instalación es PRIORIDAD (o el pedido de emergencia del BR): no es
       // un convoy que sale, así que no se le busca camino.
@@ -45663,7 +45707,11 @@ const WG_DRON={ seccion:{km:6,apertura:50,alt:400}, compania:{km:10,apertura:55,
 // 150 km como campo de visión haría que un solo aparato viera toda la partida y
 // se acabaría la niebla de guerra.
 // ============================================================
-const WG_CW40={ nom:'CW 40', enlaceKm:150, km:24, apertura:60, alt:3000,
+// v2.9.489 — 🛩️ A ESCALA TEATRO el aparato es el medio de reconocimiento del Teatro: mismo mando, enlace satelital
+// (800 km) y un sensor más ancho (40 km; gemelo de CW40_SENSOR_TEATRO_KM del motor), y en pantalla vuela ×5 más
+// rápido: las fichas son Cuerpos y Divisiones separados por cientos de kilómetros.
+const WG_CW40={ nom:'CW 40', get enlaceKm(){ return (typeof WG!=='undefined'&&WG.teatro)?800:150; },
+  get km(){ return (typeof WG!=='undefined'&&WG.teatro)?40:24; }, apertura:60, alt:3000,
   kmh:100, autonomiaH:9, vtol:true, viento:'13,9 - 17,1 m/s' };
 // Merodea a 100 km/h (crucero del CW 40). Se muestra acelerado ×8 — a velocidad
 // real una vuelta tomaría minutos y no se vería nada; así se lee el
@@ -47153,6 +47201,10 @@ function _wgEsFichaDelG4(u){
 function _wgPuedeOrdenarA(u){
   const r=_wgRol();
   // v2.9.487 — las columnas de transporte del teatro son AUTOMÁTICAS: no reciben órdenes.
+  if(u && u.arma==='convoy' && u.carga && u.carga.teatro && u.carga.teatro.col && u.carga.teatro.col.tipo==='g4'){
+    _wgAviso('🚚 <b>'+_rgEsc(u.designacion||'Esta columna')+'</b> la manda el G-4 con los botones <b>MOVER ABASTECIMIENTOS · MUNICIÓN · EVACUACIONES</b>: va, entrega y vuelve sola.',5500);
+    return false;
+  }
   if(u && u.arma==='convoy' && u.carga && u.carga.teatro && u.carga.teatro.col){
     _wgAviso('🚚 <b>'+_rgEsc(u.designacion||'Esta columna')+'</b> es automática: sale sola, carga, entrega y vuelve. Se la conduce desde 📦 LOGÍSTICA (prioridades) o desplazando su instalación.',5500);
     return false;
@@ -49433,7 +49485,7 @@ function _wgHudSimbolo(u){
 }
 function _wgHudTileTip(u){
   if(WG.teatro){ const dos=Number(((u.carga||{}).teatro||{}).dos??5);
-    return `${u.designacion||'Ficha'}|${Number(u.poder_actual||0).toFixed(1)} puntos de ${Number(u.poder_max||0)}|Reservas: ${dos.toFixed(1)} días de juego`; }
+    return `${u.designacion||'Ficha'}|${Number(u.poder_actual||0).toFixed(1)} puntos de ${Number(u.poder_max||0)}|Reservas: ${dos.toFixed(1)} días · munición: ${_wgMunTeatro(u).toFixed(1)} días`; }
   const d=_wgHudDatos(u);
   const p=(x)=>x==null?'—':x+' %';
   const est=u.estado==='fuera_combate'?'FUERA DE COMBATE':(u.estado==='desgastada'?'desgastada':'en condiciones');
@@ -49490,6 +49542,7 @@ function _wgHudFicha(){
       +`<div class="wg-fc-der"><div class="wg-fc-nom">${_rgEsc(u.designacion||'Ficha')}</div><div class="wg-fc-sub">FICHA DEL JUEGO</div>`
       +`<div class="wg-fila">🛡️ ${_wgHudBarra(pa/pm*100,12)}<b>${pa.toFixed(1)} / ${pm} pt</b></div>`
       +`<div class="wg-fila">🥫 ${_wgHudBarra(dos/5*100,12)}<b>${dos.toFixed(1)} d</b></div>`
+      +((((u.carga||{}).teatro||{}).col||((u.carga||{}).teatro||{}).log)?'':`<div class="wg-fila">💣 ${_wgHudBarra(_wgMunTeatro(u)/5*100,12)}<b>${_wgMunTeatro(u).toFixed(1)} d</b></div>`)
       +`<div class="wg-chips"><span class="${u.estado==='fuera_combate'?'r':'v'}">${u.estado==='fuera_combate'?'FUERA DEL JUEGO':'ACTIVA'}</span></div></div></div>`;
     if(el._f!==h){ el._f=h; el.innerHTML=h; } return;
   }
@@ -49569,17 +49622,209 @@ function _wgHudBoton(o){
     +(o.seco?`<span class="seco">${_wgSvg('cerrar',26)}</span>`:'')
     +`</button>`;
 }
+// ============================================================
+// v2.9.489 — 🚚💣🚑 LOS BOTONES «MOVER» DEL G-4 (16-11-2026).
+// Sergio: «el G-4 puede mover sus abastecimientos: debe tener un botón que diga mover abastecimientos, un botón que
+// diga mover evacuaciones, mover munición… para éste y todos los ejercicios». Tres botones con su nombre escrito, en
+// la consola y arriba de la hoja 📦 LOGÍSTICA. Se usan igual en todas las partidas: elegís la unidad (en la carta o en
+// la lista) y apretás el botón.
+//   · A escala TEATRO sale una de las tres columnas a la orden del G-4 (motor: `g4_columna`): va, entrega y vuelve sola.
+//   · En los ejercicios comunes se forma el convoy en la instalación propia más cercana que despache eso y se le da la
+//     orden de abastecer (o evacuar) a esa unidad, en un solo paso (antes eran tres: formar, elegir el convoy, apoyar).
+// ============================================================
+const WG_G4_MOVER={
+  abast:{ ico:'🚚', nom:'ABASTECIMIENTOS', corto:'ABASTEC.', que:'víveres, agua y combustible', falta:'un Puesto de abastecimiento o un Tren' },
+  mun:  { ico:'💣', nom:'MUNICIÓN', corto:'MUNICIÓN', que:'munición', falta:'un Punto de municionamiento o un Tren' },
+  evac: { ico:'🚑', nom:'EVACUACIONES', corto:'EVACUAC.', que:'evacuación de heridos', falta:'un Puesto de socorro' },
+};
+function _wgMunTeatro(u){ const m=Number((((u||{}).carga||{}).teatro||{}).mun); return Number.isFinite(m)?m:5; }
+function _wgG4Bando(){ return (WG.soy==='arbitro') ? _wgBandoLente() : WG.soy; }
+// Quién manda las columnas: el G-4 (es lo suyo), los que ordenan (Cmte., JEM, G-3) y el que juega sin puesto.
+function _wgG4Puede(){ if(_wgEsMaqueta()) return false; const r=_wgRol(); return !r || r==='g4' || !!WG_ROLES[r].ordena; }
+function _wgG4EsDestino(u){
+  if(!u || u.estado==='fuera_combate' || u.arma==='convoy') return false;
+  if(!(WG.soy==='arbitro' || u.bando===WG.soy)) return false;
+  if(WG.teatro) return u.arma!=='logistica' && u.escalon!=='ejercito' && !/^(PC|CG|P\.?C\.?)\b/i.test(String(u.designacion||''));
+  return !(typeof _wgEsFichaDelG4==='function' && _wgEsFichaDelG4(u));
+}
+function _wgG4Destinos(){
+  const b=_wgG4Bando();
+  return ((WG.estado&&WG.estado.unidades)||[]).filter(u=>(!b || u.bando===b) && _wgG4EsDestino(u));
+}
+// La columna de esa clase (escala teatro), si ya existe.
+function _wgG4Col(clase, bando){
+  return ((WG.estado&&WG.estado.unidades)||[]).find(u=>u.bando===bando && u.arma==='convoy'
+    && (((u.carga||{}).teatro||{}).col||{}).tipo==='g4' && u.carga.teatro.col.clase===clase) || null;
+}
+function _wgG4ColTxt(c){
+  if(!c) return 'lista para salir';
+  const k=((c.carga||{}).teatro||{}).col||{}, d=k.dest!=null?_wgUnidadPorId(k.dest):null, a=d?(d.designacion||'la unidad'):'la unidad';
+  if(c.estado==='fuera_combate') return '💥 destruida · se reconstituye a las 48 h';
+  if(k.fase==='carga') return '⏳ cargando para '+a;
+  if(k.fase==='ida') return '➡️ en camino a '+a;
+  if(k.fase==='descarga') return k.clase==='evac' ? '⏳ cargando heridos de '+a : '⏳ entregando a '+a;
+  if(k.fase==='vuelta') return '↩️ volviendo a su base';
+  return '✅ en su base ('+(k.base||'')+') · lista';
+}
+function _wgG4Ocupada(clase){
+  if(!WG.teatro) return false;
+  const b=_wgG4Bando(); if(!b) return false;
+  const c=_wgG4Col(clase,b); if(!c) return false;
+  return c.estado==='fuera_combate' || ((c.carga.teatro.col.fase||'base')!=='base');
+}
+// De dónde sale la columna (espejo de `baseG4Teatro` del motor): sirve para pedirle el camino a la red vial.
+function _wgG4BaseTeatro(d){
+  const mias=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u.bando===d.bando && u.estado!=='fuera_combate' && Number(u.poder_actual)>0
+    && String(u.id)!==String(d.id) && !(u.arma==='convoy' && ((u.carga||{}).teatro||{}).col));
+  const cerca=l=>l.slice().sort((a,b)=>_wgHav([a.lng,a.lat],[d.lng,d.lat])-_wgHav([b.lng,b.lat],[d.lng,d.lat]))[0]||null;
+  const lg=u=>((u.carga||{}).teatro||{}).log;
+  const inst=mias.filter(u=>u.arma==='logistica' && lg(u) && ['SA','SE','SB','BL'].includes(lg(u).tipo) && (lg(u).estado||'operando')==='operando' && Number(lg(u).t)>1);
+  if(inst.length) return cerca(inst);
+  const pcs=mias.filter(u=>!lg(u) && (u.escalon==='ejercito' || /^(PC|CG|P\.?C\.?)\b/i.test(String(u.designacion||''))));
+  return pcs.length ? cerca(pcs) : null;
+}
+// Los tres botones de la consola (los ve el G-4, el árbitro y el que juega sin puesto).
+function _wgG4HudHTML(){
+  const r=_wgRol();
+  if((r && r!=='g4') || _wgEsMaqueta() || !WG.estado) return '';
+  if(WG.soy!=='arbitro' && WG.soy!=='azul' && WG.soy!=='rojo') return '';
+  const u=_wgUnidadPorId(WG.sel), a=(u && _wgG4EsDestino(u)) ? ' a '+(u.designacion||'la unidad elegida') : '';
+  return '<div class="wg-g4h">'+Object.entries(WG_G4_MOVER).map(([k,M])=>
+    `<button class="${_wgG4Ocupada(k)?'off':''}" onclick="wgG4Mover('${k}')" data-tip="MOVER ${M.nom}|Manda ${_rgEsc(M.que)}${_rgEsc(a)}. `
+    +`${WG.teatro?'Sale la columna del G-4, entrega y vuelve sola.':'Se forma el convoy en tu instalación más cercana y sale por camino.'} `
+    +`${a?'':'Elegí antes la unidad en la carta, o elegila de la lista que se abre.'}"><i>${M.ico}</i><span>MOVER<br>${M.corto}</span></button>`).join('')+'</div>';
+}
+// El bloque de arriba de la hoja 📦 LOGÍSTICA.
+function _wgG4BloqueHTML(){
+  if(!WG.estado) return '';
+  const b=_wgG4Bando(), puede=_wgG4Puede(), cl=WG._g4Clase&&WG_G4_MOVER[WG._g4Clase]?WG._g4Clase:null;
+  const bot=Object.entries(WG_G4_MOVER).map(([k,M])=>{
+    const est=WG.teatro ? (b?_wgG4ColTxt(_wgG4Col(k,b)):'') : M.que;
+    return `<button class="${cl===k?'on':''}${_wgG4Ocupada(k)?' off':''}" onclick="wgG4Elegir('${k}')"><i>${M.ico}</i><span>MOVER ${M.nom}<small>${_rgEsc(est)}</small></span></button>`;
+  }).join('');
+  let lista='';
+  if(cl){
+    const M=WG_G4_MOVER[cl];
+    const filas=_wgG4Destinos().map(u=>{
+      const pct=u.poder_max?Math.round(100*u.poder_actual/u.poder_max):100;
+      let dat=`<span class="${pct<70?'bajo':''}">🛡️ ${pct} %</span>`;
+      if(WG.teatro){ const dos=Number((((u.carga||{}).teatro||{}).dos)??5), mu=_wgMunTeatro(u);
+        dat=`<span class="${dos<2?'bajo':''}">🥫 ${dos.toFixed(1)} d</span><span class="${mu<2?'bajo':''}">💣 ${mu.toFixed(1)} d</span>`+dat; }
+      return `<div class="wg-g4m-f"><b>${WG.soy==='arbitro'&&!b?(u.bando==='azul'?'🔵 ':'🔴 '):''}${_rgEsc(u.designacion||'Unidad')}</b>${dat}`
+        +`<button onclick="wgG4Mover('${cl}',${JSON.stringify(u.id).replace(/"/g,'&quot;')})">${M.ico} MANDAR ACÁ</button></div>`;
+    }).join('');
+    lista=`<div class="wg-g4m-n">${M.ico} <b>MOVER ${M.nom}</b> — ¿a qué unidad?</div><div class="wg-g4m-l">${filas||'<div class="wg-g4m-n">No hay unidades propias a las que mandarla.</div>'}</div>`;
+  }
+  return `<div class="wg-g4m"><div class="wg-g4m-t">🚚 MOVER — A LA ORDEN DEL G-4</div><div class="wg-g4m-b">${bot}</div>`
+    +(puede ? (lista || `<div class="wg-g4m-n">Apretá un botón y elegí a qué unidad va${WG.teatro?': la columna sale, entrega y vuelve sola a su base (240 km por día).':': el convoy se forma en tu instalación más cercana y sale por camino.'}</div>`)
+            : `<div class="wg-g4m-n">Desde tu puesto se asesora: estas columnas las manda el G-4 (o el Comandante, el JEM o el G-3).</div>`)
+    +`</div>`;
+}
+function _wgG4BloquePoner(el){
+  try{
+    el=el||document.getElementById('wg-logistica'); if(!el) return;
+    const v=el.querySelector('.wg-g4m'), h=_wgG4BloqueHTML();
+    if(v && el._g4f===h) return;          // igual que antes: no se rehace (sin destellos)
+    if(v) v.remove();
+    el._g4f=h; el.insertAdjacentHTML('afterbegin', h);
+  }catch(e){ console.warn('botones del G-4:', e); }
+}
+function wgG4Elegir(clase){
+  if(!_wgG4Puede()){ _wgAviso('Desde tu puesto se asesora: estas columnas las manda el <b>G-4</b> (o el Comandante, el JEM o el G-3).',4500); return; }
+  WG._g4Clase = (WG._g4Clase===clase) ? null : clase;
+  _wgG4BloquePoner();
+}
+async function wgG4Mover(clase, destId){
+  const M=WG_G4_MOVER[clase]; if(!M) return;
+  if(!_wgG4Puede()){ _wgAviso('Desde tu puesto se asesora: estas columnas las manda el <b>G-4</b> (o el Comandante, el JEM o el G-3).',4500); return; }
+  const p=(WG.estado&&WG.estado.partida)||{};
+  if(p.estado!=='en_curso'){ _wgAviso(p.estado==='finalizada'?'⏹️ La partida terminó (se dio el ALTO): ya no se mandan columnas.':'La partida todavía no está en curso.',4500); return; }
+  const d = destId!=null ? _wgUnidadPorId(destId) : _wgUnidadPorId(WG.sel);
+  if(!d || !_wgG4EsDestino(d)){
+    // Sin unidad elegida: se abre la lista para elegirla.
+    WG._g4Clase=clase;
+    if(WG.hoja!=='logistica') wgHoja('logistica'); else wgPanelLogistica();
+    setTimeout(()=>{ try{ _wgG4BloquePoner(); }catch(_e){} },60);
+    _wgAviso(`${M.ico} <b>MOVER ${M.nom}</b> — elegí en la lista a qué unidad va.`,3500);
+    return;
+  }
+  if(WG._g4Enviando) return;
+  WG._g4Enviando=true; WG._g4Clase=null;
+  try{ if(WG.teatro) await _wgG4MoverTeatro(clase,d); else await _wgG4MoverComun(clase,d); }
+  catch(e){ _wgAviso(`${M.ico} No se pudo mandar: `+_rgEsc(e.message||e),6000); }
+  finally{ WG._g4Enviando=false; }
+  try{ if(WG.hoja==='logistica') wgPanelLogistica(); _wgHudRender(); }catch(_e){}
+}
+async function _wgG4MoverTeatro(clase,d){
+  const M=WG_G4_MOVER[clase];
+  let ruta=null;
+  try{
+    const b=_wgG4BaseTeatro(d);
+    if(b){ const m=await _wgTeatroModulo(), r=await m.calcularRuta([b.lng,b.lat],[[d.lng,d.lat]]);
+      if(r && r.porRed && Array.isArray(r.ruta) && r.ruta.length>1) ruta=r.ruta.slice(0,60); }
+  }catch(_e){}
+  const r=await _wgInvoke('g4_columna',{ partida_id:WG.partidaId, clave_acceso:WG.clave, clase, destino_id:Number(d.id), ruta });
+  if(!r.ok){
+    _wgAviso(`${M.ico} <b>No salió la columna.</b> `+_rgEsc(r.error||'')
+      +(/no reconocida|desconocida|inv[aá]lida/i.test(r.error||'')?'<br><span style="opacity:.8">La Edge Function <b>wargame-ops</b> es anterior a la v2.9.489: falta desplegarla.</span>':''),8000);
+    return;
+  }
+  _wgAviso(`${M.ico} <b>${_rgEsc(r.designacion||'La columna')}</b> sale de <b>${_rgEsc(r.base||'su base')}</b> hacia <b>${_rgEsc(d.designacion||'la unidad')}</b>`
+    +`${ruta?' por la red vial':''}. ${clase==='evac'?'Carga los heridos':'Entrega'} y vuelve sola: seguila en la carta y en la bitácora.`,7000);
+  await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos();
+}
+async function _wgG4MoverComun(clase,d){
+  const M=WG_G4_MOVER[clase];
+  // Las instalaciones propias que despachan eso, de la más cercana a la más lejana.
+  const ops=[];
+  for(const x of (((WG.estado&&WG.estado.instalaciones)||[]).filter(i=>i.bando===d.bando))){
+    const desp=((WG_INSTAL[x.tipo]||{}).despacha)||[]; let cl=null;
+    if(clase==='abast') cl = (desp.includes('III') && ['III','V','I'].filter(k=>desp.includes(k)).length>=2) ? 'PAQUETE' : desp.includes('III') ? 'III' : desp.includes('I') ? 'I' : null;
+    else if(clase==='mun') cl = desp.includes('V') ? 'V' : null;
+    else cl = desp.includes('EVAC') ? 'EVAC' : null;
+    const pt=_wgPtInstal(x);
+    if(cl && pt) ops.push({ x, cl, km:_wgHav(pt,[d.lng,d.lat]) });
+  }
+  ops.sort((a,b)=>a.km-b.km);
+  if(!ops.length){
+    _wgAviso(`${M.ico} <b>No tenés de dónde sacar ${_rgEsc(M.que)}.</b> Ubicá primero ${M.falta} (hoja 📦 LOGÍSTICA → instalaciones) y volvé a apretar el botón.`,8000);
+    return;
+  }
+  let r=null, de=null, err='';
+  for(const o of ops.slice(0,4)){
+    r=await _wgInvoke('formar_convoy',{ partida_id:WG.partidaId, clave_acceso:WG.clave, instalacion_id:o.x.id, clase:o.cl, bando:d.bando });
+    if(r.ok){ de=o; break; }
+    err=r.error||err;
+  }
+  if(!r || !r.ok){ _wgAviso(`${M.ico} <b>No se pudo formar el convoy.</b> `+_rgEsc(err),8000); return; }
+  await wgEstado(true);
+  WG.ordenes[r.id]={ tipo:'apoyar', objetivo_id:d.id, _local:1 };
+  await _wgEnviarOrdenesLote([r.id], null, true);
+  _wgRender(); if(WG.map3d) _wg3dDatos();
+  _wgAviso(`${M.ico} <b>${_rgEsc(r.designacion||'Convoy')}</b> sale de <b>${_rgEsc((WG_INSTAL[de.x.tipo]||{}).nom||'tu instalación')}</b> `
+    +`(a ${de.km.toFixed(1)} km) hacia <b>${_rgEsc(d.designacion||'la unidad')}</b>: va por camino, ${clase==='evac'?'carga los heridos':'descarga'} y vuelve. `
+    +`Con el reloj en ▶ PLAY marcha solo.`,8000);
+}
 function _wgHudGrilla(){
   const el=document.getElementById('wg-hud-grilla'); if(!el) return;
   const u=_wgUnidadPorId(WG.sel);
   const B=_wgHudBoton;
   if(WG.teatro){
     const puede=_wgHudPuedeOrdenar(u);
-    const h=u?_wgHudAcciones(u,puede)+'<div class="wg-gr">'
+    // v2.9.489 — 🛩️ el dron del G-2 y 📦 la logística también a escala teatro (antes la consola sólo movía fichas).
+    const gT=document.getElementById('wg-game'), rT=_wgRol();
+    const ladoT=_wgHudLado() || (WG.soy==='arbitro'?null:WG.soy);
+    const hayDronT=(WG.soy==='arbitro' && !ladoT) ? !!(_wgDronBando('azul')||_wgDronBando('rojo')) : !!(ladoT && _wgDronBando(ladoT));
+    const herr=((!rT || rT==='g2') ? B({ k:'v', ico:_wgSvg('dron',20), on:!!(gT && gT.classList.contains('hud-dron-on')), off:!hayDronT, click:'wgHudDron()',
+        tip:`ESTACIÓN DEL DRON (${WG_CW40.nom})|La maneja el G-2: despegá, volá sobre el enemigo y SUBÍ a la carta cada posición que reconozcas; desde ese momento la ve todo tu bando. Sensor ${WG_CW40.km} km.|Atajo: V` }) : '')
+      +B({ ico:_wgSvg('logistica',20), click:"wgHoja('logistica')", tip:'LOGÍSTICA|Reservas y munición de cada Gran Unidad. Desde acá el G-4 manda sus columnas: abastecimientos, munición y evacuación.' })
+      +B({ ico:_wgSvg('personal',20), click:"wgHoja('personal')", tip:'PERSONAL|Bajas y reemplazos.' });
+    const h=(u?_wgHudAcciones(u,puede)+'<div class="wg-gr">'
       +B({ico:_wgSvg('mover',20),click:'wgHudMover()',off:!puede,tip:'MOVER FICHA|Marcá el destino en el tablero y lanzá el movimiento.'})
       +B({ico:_wgSvg('alto',20),click:'wgAlto()',off:!puede,tip:'DETENER|Cancela el movimiento de la ficha.'})
-      +B({ico:_wgSvg('replegar',20),click:'wgReplegar()',off:!puede,tip:'RETIRAR FICHA|Marcá un destino para retirarla del encuentro.'})+'</div>'
-      :'<div class="wg-gr-nota">Elegí una ficha del juego y marcá su destino.</div>';
+      +B({ico:_wgSvg('replegar',20),click:'wgReplegar()',off:!puede,tip:'RETIRAR FICHA|Marcá un destino para retirarla del encuentro.'})+herr+'</div>'
+      :'<div class="wg-gr">'+herr+'</div><div class="wg-gr-nota">Elegí una ficha del juego y marcá su destino.</div>')
+      +_wgG4HudHTML();
     if(el._f!==h){ el._f=h; el.innerHTML=h; } return;
   }
   let h='';
@@ -49597,7 +49842,8 @@ function _wgHudGrilla(){
       +B({ k:'s', ico:_wgSvg('matriz',20), click:"wgHoja('matriz')", bd:_wgSincCuenta()||null, tip:'SINCRONIZACIÓN|Arriba, la que más tarda; en base a ésa se sincronizan los fuegos y los otros movimientos.|Atajo: S' })
       +B({ ico:_wgSvg('calcos',20), click:"wgHoja('capas')", tip:'CALCOS|Qué se ve en la carta: caminos, elevaciones, agua, obstáculos…' })
       +B({ ico:_wgSvg('civil',20), click:"wgHoja('civil')", tip:'ASUNTOS CIVILES|Poblaciones del sector y áreas restringidas.' })
-      +`</div><div class="wg-gr-nota">${_wgSvg('mano',14)} Elegí una unidad para darle órdenes.</div>`;
+      +`</div><div class="wg-gr-nota">${_wgSvg('mano',14)} Elegí una unidad para darle órdenes.</div>`
+      +_wgG4HudHTML();   // v2.9.489
   }else{
     const puede=_wgHudPuedeOrdenar(u);
     const conv=_wgEsConvoy(u);
@@ -49657,6 +49903,8 @@ function _wgHudGrilla(){
       }
     }
   }
+  // v2.9.489: con la unidad elegida, los botones MOVER del G-4 van a ELLA — arriba de todo, que es lo suyo.
+  if(u && _wgRol()==='g4' && _wgG4EsDestino(u)) h=_wgG4HudHTML().replace('class="wg-g4h"','class="wg-g4h" style="margin:0 0 5px"')+h;
   if(el._f!==h){ el._f=h; el.innerHTML=h; }
   try{ _wgModoRender(); }catch(_e){}   // v2.9.477
 }
