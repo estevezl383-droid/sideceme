@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.489</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.490</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8695,6 +8695,14 @@ body.wg-teatro #screen-wargame.wg-full #wg-game.wg-hud-on #wg-hoja:not(.abierta)
     <div id="wg-lobby">
       <div id="wg-arbitro-crear" style="display:none">
         <div class="section-label">🎖️ Crear partida (árbitro)</div>
+        <!-- v2.9.490: el cursante también arma la suya, para practicar con su propio ejercicio. -->
+        <div id="wg-crear-alumno" style="display:none;margin:0 0 10px 0;padding:8px 10px;border-radius:8px;border:1px solid rgba(202,161,74,.5);background:rgba(202,161,74,.12);font-size:13px;line-height:1.5">
+          🎓 <b>Tu partida de práctica.</b> Creala vos y quedás de árbitro: después entrá a
+          <b>⚙️ Configurar → 🌄 Traer escenario del Generador de Calcos → 📂 Cargar escenario</b>
+          y elegí el <b>.json de tu ejercicio</b> (en la Mesa del Estado Mayor: pestaña
+          <b>🎲 AL JUEGO</b> → «⬇ Bajar mi ejercicio»). Sirve igual para Cuerpo de Ejército,
+          División y FF.TT.T.O.: el juego reconoce solo la escala.
+        </div>
         <div class="field" style="margin-bottom:8px"><label>Nombre de la partida</label><input type="text" id="wg-nom" placeholder="Ej: VENCER O MORIR - Juego 1" autocomplete="off"></div>
         <div class="field" style="margin-bottom:8px"><label>Jornada de cálculo (horas de operación)</label><input type="number" id="wg-dur" value="2" min="1" max="24" step="1"></div>
         <button class="btn-primary" onclick="wgCrearPartida(this)" style="margin-bottom:14px">➕ Crear partida</button>
@@ -30164,6 +30172,14 @@ async function _wgInvoke(accion, extra){
   finally{ if(espera!==null) clearTimeout(espera); }
 }
 function _wgEsInstructor(){ const ses=getSession(); return !!(ses && ses.tipo==='docente'); }
+// v2.9.490 — TODOS LOS ALUMNOS PUEDEN ARMAR SU PARTIDA DE PRÁCTICA (17-11-2026).
+// Sergio: «los alumnos tienen que poder descargar su ejercicio —CE, División y FF.TT.T.O.—
+// y cargarlo en el Juego de Guerra; eso lo deben poder hacer TODOS».
+// El cuadro «🎖️ Crear partida (árbitro)» estaba sólo para docentes, así que el cursante
+// llegaba al lobby y lo único que podía hacer era pedirle la clave a un instructor.
+// Ahora cualquiera con sesión de SIDECEME (cursante incluido) crea y arbitra LA SUYA;
+// el motor (wargame-ops) lo deja ser árbitro sólo de las partidas que él creó.
+function _wgPuedeArbitrar(){ const ses=getSession(); return !!(ses && (ses.tipo==='docente' || ses.tipo==='cursante')); }
 // ============================================================
 // v2.9.316 — LA ESTACIÓN DEL G-2.
 //
@@ -30827,8 +30843,10 @@ function goWargame(fromScreen){
   document.body.classList.remove('wg-jugando');
   document.getElementById('wg-lobby').style.display='';
   document.getElementById('wg-game').style.display='none';
-  document.getElementById('wg-arbitro-crear').style.display = _wgEsInstructor()?'':'none';
-  if(_wgEsInstructor()) wgCargarMisPartidas();
+  document.getElementById('wg-arbitro-crear').style.display = _wgPuedeArbitrar()?'':'none';
+  const _av=document.getElementById('wg-crear-alumno');
+  if(_av) _av.style.display = (_wgPuedeArbitrar() && !_wgEsInstructor())?'':'none';
+  if(_wgPuedeArbitrar()) wgCargarMisPartidas();
 }
 function wgVolver(){
   _wgSyncParar();   // v2.9.281: al salir se corta el sondeo
