@@ -17,7 +17,7 @@ import * as CA from './cap-azul.mjs?v=20261115'
 import * as LG from './logistica.mjs?v=20261115b'
 
 const VERSION_DATOS = '20261109'
-const VERSION_PANEL = '20261115c' // 15-11-2026 c: columnas de transporte automáticas (empuje y retiro) en el .json del juego. Antes (b): 15-11-2026 b: paso 6 LOGÍSTICA Y REEMPLAZOS (logistica.mjs): BL, SB, SE, SA por CE, BR, EPA, DMA, niveles, bajas, al juego y a la impresión. Antes: 15-11-2026: paso 5 con OPCIONES (CE sobre la frontera en sus AO, reservas que contraatacan desde la F-II, GG.UU. que pasan a reserva, arrancar desplegados) · 14-11-2026 c: paso 5 FASES AZUL (CAP por fases) y ⚔ enfrentamiento para el Juego de Guerra · b: verFase, para imprimir las FASES ROJO una hoja por fase · 14-11-2026: plantilla doctrinal, CAE por fases, prompt para la IA
+const VERSION_PANEL = '20261117' // 17-11-2026: 🗺️ «Carta base y calcos» en el panel (botón arriba): la carta base en papel normal y, encima, el calco de cada fase u opción (verFase acepta 'base' y 'capa:<clave>'; al imprimir no se tiñe lo de afuera del Área de Interés). Antes (15-11-2026 c): columnas de transporte automáticas (empuje y retiro) en el .json del juego. Antes (b): 15-11-2026 b: paso 6 LOGÍSTICA Y REEMPLAZOS (logistica.mjs): BL, SB, SE, SA por CE, BR, EPA, DMA, niveles, bajas, al juego y a la impresión. Antes: 15-11-2026: paso 5 con OPCIONES (CE sobre la frontera en sus AO, reservas que contraatacan desde la F-II, GG.UU. que pasan a reserva, arrancar desplegados) · 14-11-2026 c: paso 5 FASES AZUL (CAP por fases) y ⚔ enfrentamiento para el Juego de Guerra · b: verFase, para imprimir las FASES ROJO una hoja por fase · 14-11-2026: plantilla doctrinal, CAE por fases, prompt para la IA
 const DATOS = new URL(`./datos/teatro-base.json?v=${VERSION_DATOS}`, import.meta.url).href
 const LECTOR_KMZ = new URL('../../areas-operaciones/abrir-kmz.mjs?v=cae20261114', import.meta.url).href
 const CLAVE = 'picbTeatro'
@@ -226,7 +226,8 @@ function dibujar(forzar = false) {
   // máscara fuera del Área de Interés
   if (S.ver.mascara && S.ai?.anillo) {
     const g = grupo('mascara')
-    g.addLayer(L.polygon([[[-89, -179], [-89, 179], [89, 179], [89, -179]], ll(S.ai.anillo)], { renderer: rMasc, stroke: false, fillColor: '#0a1016', fillOpacity: 0.28, interactive: false }))
+    // 🖨️ 17-11-2026 · imprimiendo (S.capaFase) queda sólo el anillo: el tinte tapaba la carta base y gastaba tinta.
+    if (S.capaFase === null) g.addLayer(L.polygon([[[-89, -179], [-89, 179], [89, 179], [89, -179]], ll(S.ai.anillo)], { renderer: rMasc, stroke: false, fillColor: '#0a1016', fillOpacity: 0.28, interactive: false }))
     g.addLayer(L.polyline(ll(S.ai.anillo), { renderer: rMasc, color: '#e7c46a', weight: 2, dashArray: '10 6', opacity: 0.95, interactive: false }))
     g.addTo(m)
   }
@@ -235,7 +236,8 @@ function dibujar(forzar = false) {
   {
     const g = grupo('paises')
     for (const [nom, iso, partes] of C.paises || []) {
-      if (iso === enemigoPais && iso !== propioPais) g.addLayer(L.polygon(pol(partes), { renderer: rFondo, stroke: false, fillColor: '#d33a2c', fillOpacity: 0.07, interactive: false }))
+      // 🖨️ 17-11-2026 · imprimiendo no se tiñe el país del enemigo: el calco va en papel mantequilla, encima de la carta base.
+      if (iso === enemigoPais && iso !== propioPais && S.capaFase === null) g.addLayer(L.polygon(pol(partes), { renderer: rFondo, stroke: false, fillColor: '#d33a2c', fillOpacity: 0.07, interactive: false }))
       const caja = M.cajaDe(partes.map((p) => p[0]))
       const c = etiquetaPais(nom, caja)
       if (c) rotulo(g, c, esc(nom.toUpperCase()), `pais ${iso === enemigoPais && iso !== propioPais ? 'en' : ''}`, 5, 8)
@@ -370,7 +372,7 @@ function dibujar(forzar = false) {
   const fv = Number.isInteger(S.faseVista) && (imp || S.paso === 5 || S.paso === 6) ? S.faseVista : null
   const frente = S.capAzul?.frente || 'probable'
   const cv = imp ? (S.capaFase === 'rojo' ? S.caeVisto : frente) : S.paso >= 5 ? frente : S.caeVisto
-  if ((imp ? !['azul', 'logistica'].includes(S.capaFase) : (S.paso === 4 || S.paso === 5) && S.ver.fases) && S.vista?.caes) {
+  if ((imp ? ['rojo', 'ambos'].includes(S.capaFase) : (S.paso === 4 || S.paso === 5) && S.ver.fases) && S.vista?.caes) {
     const c = cv === 'peligroso' ? S.vista.caes.peligroso : S.vista.caes.probable
     if (c && c.fases?.length) {
       const g = grupo('fases')
@@ -390,7 +392,7 @@ function dibujar(forzar = false) {
     }
   }
   // 🔵 FASES AZUL (paso 5 o impresión): las GG.UU. propias al fin de cada fase; se arrastran para corregir el CAP.
-  if ((imp ? S.capaFase !== 'rojo' : (S.paso === 5 || S.paso === 6) && S.ver.azul) && S.capAzul?.fases?.length) {
+  if ((imp ? ['azul', 'ambos', 'logistica'].includes(S.capaFase) : (S.paso === 5 || S.paso === 6) && S.ver.azul) && S.capAzul?.fases?.length) {
     const g = grupo('azul')
     const porQuien = new Map()
     for (const [i, f] of S.capAzul.fases.entries()) if (fv === null || i <= fv) for (const a of f.acciones) {
@@ -576,6 +578,10 @@ function pintar() {
       <button type="button" data-a="min" title="${S.min ? 'Desplegar' : 'Plegar el panel (la carta sigue)'}">${S.min ? '▸' : '▾'}</button>
       <button type="button" data-a="cerrar" title="Cerrar (quita los calcos del teatro de la carta)">✕</button></div>
     <nav class="sidpt-pasos" style="grid-template-columns:repeat(${PASOS.length},1fr)">${PASOS.map(([n, c, t]) => `<button type="button" data-a="paso" data-n="${n}" class="${S.paso === n ? 'on' : ''}" title="${t}"><b>${n}</b>${c}</button>`).join('')}</nav>
+    <div class="sidpt-fila" style="gap:9px;align-items:center;padding:7px 10px;border-bottom:1px solid #22384a;background:#0d1b26">
+      <button type="button" class="sidpt-b ok" data-a="imprimir" title="Imprimir o descargar: la carta base en papel normal y, encima, el calco de cada fase u opción">🖨️ Carta base y calcos</button>
+      <small style="color:#9fb3c6;line-height:1.25">La <b>carta base</b> en papel normal y encima, en papel mantequilla, el <b>calco de cada fase u opción</b>.</small>
+    </div>
     <div class="sidpt-bd">${S.error ? `<div class="sidpt-error">${esc(S.error)}</div>` : ''}${!S.base && !S.error ? '<div class="sidpt-aviso">Cargando la carta del teatro (rutas, poblaciones, relieve)…</div>' : ''}${S.aviso ? `<div class="sidpt-aviso">${esc(S.aviso)}</div>` : ''}${[paso1, paso2, paso3, paso4, paso5, paso6][S.paso - 1]()}</div>
     <div class="sidpt-pie">Terreno: © OpenStreetMap (ODbL) · Natural Earth · Terrain Tiles AWS, generalizado a 1:1.000.000. Poder y ritmos: referencias a validar.</div>`
 }
@@ -880,6 +886,7 @@ function alClic(ev) {
   if (a === 'paso') { const antes = S.paso; S.paso = Number(b.dataset.n); pintar(); raiz.querySelector('.sidpt-bd')?.scrollTo(0, 0); if (antes !== S.paso && (antes >= 4 || S.paso >= 4)) dibujar(true); return }
   if (a === 'kmz') return input.click()
   if (a === 'borrarkmz') { if (window.confirm('¿Quitar las DEOP, los ejes y los orígenes cargados del KMZ? (Las fichas del ejercicio no se tocan.)')) { guardar({ teatro: { deop: [], ejes: [], origenes: [], areas: [] } }); recalcular(); pintar(); dibujar() } return }
+  if (a === 'imprimir') return abrirCalcosImpresion()
   if (a === 'verai') return encuadrar(S.ai?.anillo)
   if (a === 'area') { const x = S.areas.find((y) => String(y.id) === b.dataset.id); return x && encuadrar(x.anillo) }
   if (a === 'ir') return irA(Number(b.dataset.lng), Number(b.dataset.lat))
@@ -1065,19 +1072,54 @@ let antesDeImprimir = null
 function verFase(cae, fase) {
   if (cae == null) {
     if (antesDeImprimir === null) return true
-    S.caeVisto = antesDeImprimir.cae; S.faseVista = antesDeImprimir.fase; S.capaFase = null; antesDeImprimir = null
+    S.caeVisto = antesDeImprimir.cae; S.faseVista = antesDeImprimir.fase; S.capaFase = null
+    if (antesDeImprimir.ver) S.ver = antesDeImprimir.ver
+    antesDeImprimir = null
+    dibujar(true)
+    return true
+  }
+  // 🗺️ 17-11-2026 · 'base' = la CARTA BASE (relieve, caminos y poblaciones, sin fichas ni calcos de fase);
+  // 'capa:<clave>' = UN calco del teatro solo (comunicaciones, poblaciones, obstaculos, efectos, enemigo).
+  const unaCapa = /^capa:(.+)$/.exec(String(cae))
+  if (cae === 'base' || unaCapa) {
+    if (!S.nivel.teatro || !S.capas) return false
+    const k = unaCapa ? unaCapa[1] : null
+    if (k && !(k in S.ver)) return false
+    if (antesDeImprimir === null) antesDeImprimir = { cae: S.caeVisto, fase: S.faseVista, ver: { ...S.ver } }
+    S.capaFase = 'base'
+    S.faseVista = null
+    S.ver = { ...S.ver, comunicaciones: k ? k === 'comunicaciones' : true, poblaciones: k ? k === 'poblaciones' : true,
+      obstaculos: k ? k === 'obstaculos' : true, efectos: k ? k === 'efectos' : false, enemigo: k === 'enemigo',
+      mascara: !k, fases: false, azul: false, logistica: false }
     dibujar(true)
     return true
   }
   if (!S.nivel.teatro || !S.capas || !S.vista?.caes) return false
   if ((cae === 'azul' || cae === 'ambos') && !S.capAzul) return false
   if (cae === 'logistica' && !S.logPlan) return false
-  if (antesDeImprimir === null) antesDeImprimir = { cae: S.caeVisto, fase: S.faseVista }
+  if (antesDeImprimir === null) antesDeImprimir = { cae: S.caeVisto, fase: S.faseVista, ver: { ...S.ver } }
   S.capaFase = cae === 'azul' || cae === 'ambos' || cae === 'logistica' ? cae : 'rojo'
   if (S.capaFase === 'rojo') S.caeVisto = cae === 'peligroso' ? 'peligroso' : 'probable'
   S.faseVista = Number.isInteger(fase) ? fase : null
   dibujar(true)
   return true
+}
+
+// 🗺️ 17-11-2026 · «Carta base y calcos»: abre el diálogo de impresion-fases/v1 (el mismo de la Mesa) con la CARTA BASE
+// y los calcos del Teatro ya marcados. Usa la instancia que ya cargó la Mesa (window.SIDImpresionFases); si todavía no
+// está, la importa con la MISMA url que usa visibilidad/v1, para que sea el mismo módulo (con su contexto registrado).
+const IMPRESION = new URL('../../impresion-fases/v1/impresion.mjs?v=20261114', import.meta.url).href
+async function abrirCalcosImpresion() {
+  try {
+    let I = window.SIDImpresionFases
+    if (!I?.abrirCalcos) { await import(IMPRESION); I = window.SIDImpresionFases }
+    if (I?.abrirCalcos) return I.abrirCalcos()
+    if (I?.abrir) return I.abrir({ preset: 'teatro' })
+    S.aviso = 'No se pudo abrir «Carta base y calcos»: actualizá la página (Ctrl+Shift+R) y volvé a intentar.'
+  } catch (e) {
+    S.aviso = 'No se pudo abrir «Carta base y calcos»: ' + (e.message || e)
+  }
+  pintar()
 }
 
 // ── arranque ──

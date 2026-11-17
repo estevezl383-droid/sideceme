@@ -18,6 +18,12 @@
 // 🌎 14-11-2026 b · FASES ROJO del Teatro: con los CAE por fases del PICB del Teatro (picb-teatro/v1, paso 4) el diálogo
 // suma «🌎 FASES ROJO · CAE-1 / CAE-2»: una hoja por fase, sólo con las fichas rojas de ESA fase (SIDPicbTeatro.verFase).
 // 🔵 14-11-2026 c · con el paso 5 del Teatro, también «FASES AZUL» (el CAP) y «ENFRENTAMIENTO» (rojo y azul de la misma fase).
+// 🗺️ 17-11-2026 · CARTA BASE Y CALCOS (pedido de la Mesa del Teatro: «primero su carta base y después sus calcos»).
+// La hoja 1 puede ser la CARTA BASE —la carta con el relieve, los caminos y las poblaciones, para papel normal— y de
+// ahí en más cada calco sale TRANSPARENTE, con el mismo encuadre y las mismas cruces de registro: se superponen encima
+// en papel mantequilla. Se suman los CALCOS DEL TEATRO sueltos (comunicaciones, poblaciones, grandes obstáculos,
+// efectos del teatro y calco del enemigo), uno por hoja, y «💾 Descargar las hojas»: un .html con todas las hojas
+// adentro, que se abre e imprime después, sin conexión. Atajo desde el panel 🌎 PICB del Teatro: abrirCalcos().
 import { capsDe } from '../../cap-propios/v1/proponer.mjs'
 
 const ctx = {}
@@ -40,10 +46,18 @@ export const CAPAS = [
 ]
 const REFERENCIA = ['areaOps', 'areaInteres', 'areaInfluencia']
 const TODAS = [...new Set([...CAPAS.flatMap(c => c.claves), ...REFERENCIA])]
+// 🗺️ Los calcos del Teatro, uno por hoja (claves de los ojos del panel 🌎 PICB del Teatro, que los enciende de a uno).
+export const CAPAS_TEATRO = [
+  ['comunicaciones', '🛣️ Comunicaciones · rutas, ferrocarriles, aeródromos y pasos'],
+  ['poblaciones', '🏙️ Poblaciones'],
+  ['obstaculos', '⛰️ Grandes obstáculos · relieve, salares, lagos y ríos'],
+  ['efectos', '🎯 Efectos del teatro · corredores (DEOP) y nudos de comunicaciones'],
+  ['enemigo', '🟥 Calco del enemigo · itinerarios con D+n, ejes, orígenes y A.I.N.']
+]
 
 // ── Hojas a imprimir (función pura: la prueba la llama sin navegador) ─────────────────────────────────
 // cursos: [{ bando:'propio', n, idx, titulo } | { bando:'enemigo', idx, titulo }]
-export function planDeHojas({ cursos = [], capas = [], modo = 'juntas', referencia = true }) {
+export function planDeHojas({ cursos = [], capas = [], modo = 'juntas', referencia = true, base = false }) {
   const elegidas = CAPAS.filter(c => capas.includes(c.id))
   const deFase = elegidas.filter(c => c.fase), fijas = elegidas.filter(c => !c.fase)
   const ref = referencia ? REFERENCIA : []
@@ -59,6 +73,12 @@ export function planDeHojas({ cursos = [], capas = [], modo = 'juntas', referenc
   }
   if (modo !== 'juntas' || !cursos.length) {
     for (const c of fijas) hojas.push({ curso: null, capas: [c.id], claves: [...c.claves, ...ref], titulo: c.nom, sub: 'Capa sin fase' })
+  }
+  // 🗺️ 17-11-2026 · la CARTA BASE va primera y con la carta de fondo; los calcos, transparentes, para superponerlos.
+  if (base) {
+    for (const h of hojas) h.conCarta = false
+    hojas.unshift({ curso: { bando: 'teatro', cae: 'base', idx: null, titulo: 'CARTA BASE' }, capas: ['base', 'teatro'], claves: [...REFERENCIA], conCarta: true, base: true,
+      titulo: '🗺️ CARTA BASE', sub: 'La carta con el relieve, los caminos y las poblaciones · imprimila en papel normal: encima van los calcos' })
   }
   return hojas
 }
@@ -131,7 +151,11 @@ function restaurarOjos(orig) {
 
 async function irAFase(curso) {
   if (!curso) return true
-  if (curso.bando === 'teatro') { const ok = window.SIDPicbTeatro?.verFase?.(curso.cae, curso.idx); await cuadro(); return !!ok }
+  if (curso.bando === 'teatro') {
+    const T = window.SIDPicbTeatro
+    if (curso.cae === 'base' && typeof T?.verFase !== 'function') return true   // ejercicio sin Teatro: la carta base es la carta sola
+    const ok = T?.verFase?.(curso.cae, curso.idx); await cuadro(); return !!ok
+  }
   if (curso.bando === 'propio') {
     if (capActivo() === curso.n && ctx.activa?.bando === 'propio' && ctx.activa.idx === curso.idx) return true
     ctx.onFase(curso.n, curso.idx)
@@ -257,6 +281,9 @@ export function cursosTeatro(T = typeof window !== 'undefined' ? window.SIDPicbT
   if (typeof T?.verFase !== 'function') return []
   const caes = T.vista?.()?.caes || {}
   const lista = []
+  // 🗺️ 17-11-2026 · los CALCOS DEL TEATRO sueltos: uno por hoja, sin fase (van encima de la carta base).
+  if (T.estado?.()?.nivel?.teatro) lista.push({ id: 'teatro-capas', nombre: '🌎 CALCOS DEL TEATRO · uno por hoja', bando: 'teatro', sinMarcar: true,
+    fases: CAPAS_TEATRO.map(([k, nom]) => ({ bando: 'teatro', cae: `capa:${k}`, idx: null, corto: nom, titulo: `Calco del Teatro · ${nom}` })) })
   for (const [k, nom] of [['probable', 'más probable'], ['peligroso', 'más peligroso']]) {
     const c = caes[k], cid = c?.id || (k === 'peligroso' ? 'CAE-2' : 'CAE-1')
     const fases = (c?.fases || []).map((f, idx) => ({ f, idx })).filter(({ f }) => (f?.acciones || []).some(a => Number.isFinite(a?.lat) && Number.isFinite(a?.lng)))
@@ -285,25 +312,31 @@ export function cursosTeatro(T = typeof window !== 'undefined' ? window.SIDPicbT
   return lista
 }
 
-export function abrirImpresion() {
+// 🗺️ Atajo del panel 🌎 PICB del Teatro: el mismo diálogo, con la CARTA BASE y los calcos del Teatro ya marcados.
+export function abrirCalcos() { return abrirImpresion({ preset: 'teatro' }) }
+
+export function abrirImpresion({ preset = '' } = {}) {
   estilo()
   if (!ctx.onGrupo || !ctx.onFase) { alert('Abrí primero la MESA (la carta con el panel de capas a la izquierda) y volvé a intentar.'); return }
   const cursos = cursosDisponibles(), hayTeatro = cursos.some(c => c.bando === 'teatro')
+  const teatro = preset === 'teatro' && hayTeatro
+  const marcado = (c) => teatro ? (c.id === 'teatro-capas' ? 'checked' : '') : (c.otro || c.sinMarcar ? '' : 'checked')
   const fondo = document.createElement('div'); fondo.className = 'sidif-fondo'
   const caja = document.createElement('div'); caja.className = 'sidif'; caja.setAttribute('role', 'dialog'); caja.setAttribute('aria-label', 'Imprimir por fases y capas')
   caja.innerHTML = `
-<h3>🖨️ Imprimir cursos de acción por FASES y por CAPAS</h3>
-<small>Cada hoja sale con el mismo encuadre y las mismas cruces de registro: imprimí la carta en papel normal y las capas en papel mantequilla para superponerlas.</small>
+<h3>${teatro ? '🗺️ Carta base y calcos del Teatro' : '🖨️ Imprimir cursos de acción por FASES y por CAPAS'}</h3>
+<small>Primero la <b>carta base</b> en papel normal; después, con el mismo encuadre y las mismas cruces de registro, el <b>calco de cada fase u opción</b> en papel mantequilla, para superponerlos sobre ella.</small>
 <fieldset><legend>1 · Cursos y fases</legend><div class="cursos">${cursos.map(c => `
   <div class="curso"><b>${esc(c.nombre)}</b>${c.fases.length ? c.fases.map((f, i) => `
-    <label><input type="checkbox" data-curso="${c.id}" data-i="${i}" ${c.otro || c.sinMarcar ? '' : 'checked'}> ${esc(f.corto || f.titulo.replace(/^.*? · Fase/, 'Fase'))}</label>`).join('') : '<small>Sin fases guardadas.</small>'}
+    <label><input type="checkbox" data-curso="${c.id}" data-i="${i}" ${marcado(c)}> ${esc(f.corto || f.titulo.replace(/^.*? · Fase/, 'Fase'))}</label>`).join('') : '<small>Sin fases guardadas.</small>'}
     ${c.otro && c.fases.length ? '<small class="aviso">Para imprimirlo la Mesa pasa a este CAP y al final vuelve al que tenías.</small>' : ''}</div>`).join('')}
 </div>${!hayTeatro && window.SIDPicbTeatro?.estado?.()?.nivel?.teatro ? '<small class="aviso">🌎 Para imprimir las FASES ROJO del Teatro: abrí el PICB del Teatro en el paso 4 · CAE, con las DEOP cargadas, y volvé a abrir este diálogo.</small>' : ''}</fieldset>
 <fieldset><legend>2 · Capas</legend>${CAPAS.filter(c => !c.teatro || hayTeatro).map(c => `
-  <label><input type="checkbox" data-capa="${c.id}" ${c.def ? 'checked' : ''}> ${esc(c.nom)}${c.fase ? '' : ' <small>(no cambia con la fase)</small>'}</label>`).join('')}
+  <label><input type="checkbox" data-capa="${c.id}" ${(teatro ? c.id === 'teatro' : c.def) ? 'checked' : ''}> ${esc(c.nom)}${c.fase ? '' : ' <small>(no cambia con la fase)</small>'}</label>`).join('')}
   <label><input type="checkbox" data-ref checked> Área de Operaciones, Área de Interés y de Influencia en todas las hojas <small>(referencia para superponer)</small></label>
 </fieldset>
 <fieldset><legend>3 · Cómo salen las hojas</legend>
+  <label style="border:1px solid #2c4255;border-radius:6px;padding:5px 7px;background:#10303a"><input type="checkbox" data-base ${teatro ? 'checked' : ''}> <span><b>🗺️ Hoja 1: la CARTA BASE</b> (la carta sola, con el relieve, los caminos y las poblaciones) y <b>los calcos transparentes</b> encima <small>— así se imprime la carta base en papel normal y cada calco en papel mantequilla</small></span></label>
   <label><input type="radio" name="sidif-modo" value="juntas" checked> <span><b>Una hoja por fase</b>, con todas las capas elegidas juntas</span></label>
   <label><input type="radio" name="sidif-modo" value="separadas"> <span><b>Una hoja por capa y por fase</b> (calcos sueltos para superponer)</span></label>
   <div class="fila" style="margin-top:6px">
@@ -321,7 +354,7 @@ export function abrirImpresion() {
     <span style="margin-left:10px">Fichas:</span>
     <select data-fichas><option value="grandes">grandes</option><option value="normales" selected>normales</option><option value="chicas">chicas (más detalle)</option></select>
   </div>
-  <label><input type="checkbox" data-carta checked> Con la carta de fondo <small>(quitala para los calcos en papel mantequilla)</small></label>
+  <label><input type="checkbox" data-carta checked> Con la carta de fondo en los calcos <small>(no se usa si pedís la carta base: ahí los calcos salen transparentes)</small></label>
 </fieldset>
 <div class="acciones"><small data-cuenta style="margin-right:auto;align-self:center"></small><button data-cerrar>Cancelar</button><button class="si" data-ir>Preparar hojas</button></div>`
   fondo.append(caja); document.body.append(fondo)
@@ -336,6 +369,7 @@ export function abrirImpresion() {
       encuadre: caja.querySelector('input[name=sidif-enc]:checked').value,
       orientacion: caja.querySelector('input[name=sidif-ori]:checked').value,
       fichas: caja.querySelector('[data-fichas]').value,
+      base: caja.querySelector('[data-base]').checked,
       conCarta: caja.querySelector('[data-carta]').checked
     }
   }
@@ -398,7 +432,7 @@ export async function generar(op) {
       map.setView(vistaFija.c, vistaFija.z, { animate: false })   // pasar de CAP puede mover la carta
       await tilesListos(map); await cuadro(); await esperar(150)
       geo.escala = geo.escala || escalaDe(map, k)
-      salida.push({ ...h, html: foto(map, op, h.curso?.bando === 'teatro') })
+      salida.push({ ...h, html: foto(map, { conCarta: h.conCarta ?? op.conCarta }, h.curso?.bando === 'teatro' && !h.base) })
     }
   } catch (e) {
     avisos.push('Error al armar las hojas: ' + (e?.message || e))
@@ -429,9 +463,30 @@ function cruces(w, h) {
   return `<svg class="reg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${[[m, m], [w - m, m], [m, h - m], [w - m, h - m], [w / 2, m], [w / 2, h - m]].map(([x, y]) => cruz(x, y)).join('')}
   <g transform="translate(${w - 34} 34)"><path d="M0 -16 L7 8 L0 3 L-7 8Z" fill="#000"/><text y="22" text-anchor="middle" font-size="11" font-weight="700">N</text></g></svg>`
 }
+// 🗺️ 17-11-2026 · Si el navegador bloquea la ventana nueva (pasa seguido: las hojas se arman un rato después del clic,
+// y ahí Chrome ya no la considera pedida por el usuario), las hojas se muestran acá mismo, en un marco a pantalla
+// completa con los mismos botones: 🖨️ Imprimir imprime el marco y 💾 Descargar guarda el .html igual.
+function marcoDeHojas() {
+  try {
+    const fondo = document.createElement('div')
+    fondo.className = 'sidif-hojas'
+    fondo.style.cssText = 'position:fixed;inset:0;z-index:2147483600;background:#666'
+    const marco = document.createElement('iframe')
+    marco.title = 'Hojas para imprimir'
+    marco.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;background:#666'
+    const x = document.createElement('button')
+    x.textContent = '✕ Cerrar las hojas'
+    x.style.cssText = 'position:absolute;right:12px;top:7px;z-index:3;padding:6px 11px;border-radius:6px;border:1px solid #3c5268;background:#101f2c;color:#dbe9f2;font:13px system-ui,sans-serif;cursor:pointer'
+    x.onclick = () => fondo.remove()
+    fondo.append(marco, x)
+    document.body.append(fondo)
+    return marco.contentWindow
+  } catch (e) { return null }
+}
 function abrirVentana(hojas, geo, avisos, op) {
-  const w = window.open('', '_blank')
-  if (!w) { alert('El navegador bloqueó la ventana de impresión (ventanas emergentes). Permitila y volvé a intentar.'); return }
+  let w = window.open('', '_blank'), enMarco = false
+  if (!w) { w = marcoDeHojas(); enMarco = true }
+  if (!w) { alert('No se pudieron mostrar las hojas: permití las ventanas emergentes y volvé a intentar.'); return }
   const { papel, k, escala, ori } = geo
   // El CSS va COPIADO (Leaflet incluido): con sólo los <link> la hoja se dibuja antes de que carguen y los paneles
   // de la carta quedan apilados (hoja en blanco). Los <link> siguen después para las url() relativas.
@@ -443,8 +498,10 @@ function abrirVentana(hojas, geo, avisos, op) {
   const fecha = new Date().toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' })
   const km = escala.barraM >= 1000 ? `${+(escala.barraM / 1000).toFixed(2)} km` : `${Math.round(escala.barraM)} m`
   const total = hojas.length
+  const nomEj = (() => { try { return window.SIDPicbTeatro?.estado?.()?.nombre || window.SIDMesaEjercicio?.foto?.()?.nombre || '' } catch { return '' } })()
+  const archivo = `${op.base ? 'CARTA BASE Y CALCOS' : 'CALCOS'}${nomEj ? ' - ' + nomEj : ''} - ${new Date().toISOString().slice(0, 10)}.html`.replace(/[\\/:*?"<>|]/g, '-')
   const cuerpo = hojas.map((h, i) => `
-<section class="hoja">
+<section class="hoja${h.base ? ' base' : ''}">
   <header><b>${esc(h.titulo)}</b><span>${esc(h.sub)}</span></header>
   <div class="marco" style="width:${papel.w}px;height:${papel.h}px">
     <div class="esc" style="transform:scale(${1 / k})">${h.html}</div>
@@ -477,15 +534,21 @@ body{font:12px Arial,sans-serif;color:#000}
 @media print{html,body{background:#fff}.barra-imp{display:none}.hoja{margin:0}}
 </style></head><body>
 <div class="barra-imp"><button onclick="print()">🖨️ Imprimir ${total} hoja${total === 1 ? '' : 's'}</button>
-<span>En el diálogo: tamaño <b>Carta</b>, ${ori === 'landscape' ? '<b>horizontal</b>' : '<b>vertical</b>'}, escala <b>100 %</b> (no «ajustar»), gráficos de fondo activados. Para PDF elegí «Guardar como PDF».</span>
+<button onclick="sidGuardar()" title="Guarda estas mismas hojas en un archivo .html: se abre y se imprime después, sin conexión">💾 Descargar las hojas (.html)</button>
+<span>En el diálogo: tamaño <b>Carta</b>, ${ori === 'landscape' ? '<b>horizontal</b>' : '<b>vertical</b>'}, escala <b>100 %</b> (no «ajustar»), gráficos de fondo activados. Para PDF elegí «Guardar como PDF».${op.base ? ' La <b>carta base</b> va en papel normal y los calcos en papel mantequilla, encima.' : ''}</span>
+${enMarco ? '<span style="color:#ffb37a">Las hojas se abrieron acá porque el navegador bloqueó la ventana nueva: se imprimen y se descargan igual (✕ arriba a la derecha para cerrarlas).</span>' : ''}
 ${avisos.length ? `<span style="color:#ffb37a">⚠ ${esc(avisos.join(' · '))}</span>` : ''}</div>
 ${cuerpo}
 </body></html>`)
   w.document.close()
+  // 💾 Descargar: el mismo documento (las hojas ya están adentro: la carta y los calcos son imágenes y SVG) en un .html.
+  const sc = w.document.createElement('script')
+  sc.textContent = `function sidGuardar(){try{const d=document.documentElement.cloneNode(true);const b=d.querySelector('.barra-imp');if(b)b.remove();const f=new Blob(['<!doctype html>\\n'+d.outerHTML],{type:'text/html;charset=utf-8'});const u=URL.createObjectURL(f);const a=document.createElement('a');a.href=u;a.download=${JSON.stringify(archivo)};document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),8000)}catch(e){alert('No se pudo descargar: '+((e&&e.message)||e))}}`
+  w.document.body.appendChild(sc)
 }
 
 if (typeof window !== 'undefined') {
-  window.SIDImpresionFases = { registrar, abrir: abrirImpresion, generar, planDeHojas, ctx }
+  window.SIDImpresionFases = { registrar, abrir: abrirImpresion, abrirCalcos, generar, planDeHojas, ctx }
   // Un acceso dentro del «🖨️ IMPRIMIR POR CAPAS» que ya abre el botón IMPRIMIR de la Mesa.
   const inyectar = () => {
     const modal = document.querySelector('.modal-impresion')
@@ -493,7 +556,7 @@ if (typeof window !== 'undefined') {
     const d = document.createElement('div')
     d.setAttribute('data-sidif', '')
     d.style.cssText = 'margin:8px 0;padding:8px 10px;border:1px solid #5ce1ff;border-radius:7px;background:#10303a'
-    d.innerHTML = '<b>🎬 Cursos de acción por FASES y CAPAS</b><br><small>CAP 1 y 2, CAE más probable y más peligroso, plantilla doctrinal, fuegos y barreras: fase por fase, encuadrado al A.O. y al Área de Interés.</small><br>'
+    d.innerHTML = '<b>🎬 Carta base y calcos por FASES y CAPAS</b><br><small>La carta base en papel normal y encima, transparente, el calco de cada fase u opción: CAP 1 y 2, CAE más probable y más peligroso, plantilla doctrinal, fuegos, barreras y los calcos del Teatro. Todo encuadrado al A.O. y al Área de Interés.</small><br>'
     const b = document.createElement('button')
     b.className = 'btn-generar'; b.style.marginTop = '6px'; b.textContent = '🖨️ Elegir fases y capas…'
     b.onclick = () => { modal.closest('.modal-fondo')?.click(); abrirImpresion() }
