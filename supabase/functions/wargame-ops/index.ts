@@ -1,9 +1,10 @@
 // ============================================================
-// EDGE FUNCTION: wargame-ops — Juego de Guerra (PMTD) de SIDECEME.  ·  v2.9.457
+// EDGE FUNCTION: wargame-ops — Juego de Guerra (PMTD) de SIDECEME.  ·  v2.9.490
 // Wargame multijugador POR TURNOS, combate DETERMINISTA, con NIEBLA DE GUERRA.
 //
 // Roles:
-//   • ÁRBITRO (profesor que crea/arbitra): crea la partida, define bandos,
+//   • ÁRBITRO (quien crea la partida — instructor o, desde v2.9.490, el propio
+//     cursante en su partida de práctica): define bandos,
 //     coloca unidades y terreno, inicia y RESUELVE cada turno. Ve TODO.
 //   • EM (Estado Mayor): entra a su bando con una CLAVE, envía órdenes de sus
 //     unidades y consulta el estado CON NIEBLA (solo sus unidades + enemigos
@@ -6203,8 +6204,25 @@ async function getPartida(id: any) {
   const { data } = await sb.from("wg_partidas").select("*").eq("id", id).limit(1);
   return data && data[0] ? data[0] : null;
 }
+// v2.9.490 — EL ALUMNO ARBITRA SU PROPIA PARTIDA DE PRÁCTICA (17-11-2026).
+//
+// Sergio: «necesito que los alumnos tengan acceso a poder descargar su ejercicio
+// tanto en los Cuerpos de Ejército como en las Divisiones y también en las
+// FF.TT.T.O., y que lo puedan llevar y cargar en el Juego de Guerra. Eso lo
+// deben poder hacer TODOS los alumnos».
+//
+// Hasta acá el árbitro tenía que ser profesor, así que un cursante no podía ni
+// crear una partida ni importar su escenario: sólo entrar por el enlace de un
+// bando a una partida que le armara el instructor. Con 225 cursantes y las
+// FF.TT.T.O. esperando para practicar, eso era el tapón.
+//
+// Ahora el cursante también arbitra, pero SÓLO las partidas que él creó
+// (arbitro_id / creada_por con SU id). No toca las del instructor: los id están
+// separados por tabla — los cursantes son «C###» y los profesores «P###», sin
+// un solo id repetido —, así que nadie se vuelve árbitro de la partida de otro.
+const ARBITRAN_TABLA = ["profesores", "cursantes"];
 function esArbitro(partida: any, ses: Sesion) {
-  return ses.tabla === "profesores" && (partida.arbitro_id === ses.id || partida.creada_por === ses.id);
+  return ARBITRAN_TABLA.includes(ses.tabla) && (partida.arbitro_id === ses.id || partida.creada_por === ses.id);
 }
 // v2.9.280 — busca un bando POR SU NOMBRE (rojo|azul), para poder reusar su
 // clave en vez de rotarla en cada llamada a `agregar_bando`.
@@ -6536,7 +6554,11 @@ async function manejar(req: Request): Promise<Response> {
 
   // ---------- crear_partida (profesor que arbitra) ----------
   if (accion === "crear_partida") {
-    if (ses.tabla !== "profesores" || !ARBITRAN.includes(ses.rol)) return err("Solo un instructor puede crear partidas", 403);
+    // v2.9.490: el instructor que arbitra, y CUALQUIER cursante con sesión de
+    // SIDECEME — la partida que crea es suya y la arbitra él (ver `esArbitro`).
+    const puedeCrear = ses.tabla === "cursantes"
+      || (ses.tabla === "profesores" && ARBITRAN.includes(ses.rol));
+    if (!puedeCrear) return err("Para crear partidas hay que entrar a SIDECEME con tu cuenta", 403);
     const nombre = (body.nombre || "").trim();
     if (!nombre) return err("Falta el nombre de la partida");
     const { data, error } = await sb.from("wg_partidas").insert({
