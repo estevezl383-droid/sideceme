@@ -5,7 +5,7 @@ import {abrirHistorial} from './historial.mjs?v=38';
 import {CONDICIONES,puedeRegistrar} from './organizacion.mjs?v=29';
 import {notaConformidad,marcaRegistro,fechaHora} from './conformidad.mjs?v=36';
 import {panelConformidades} from './seguimiento.mjs?v=22';
-import {abrirOrganizacion,abrirCondicion} from './planificador.mjs?v=33';
+import {abrirOrganizacion,abrirCondicion} from './planificador.mjs?v=40';
 import {fechaEditable,leerFechaEditable,validarNacimiento,fechaPerfil} from './perfil.mjs?v=22';
 import {calificar,edad,calificarExcelencia,esExcelencia} from './baremos.mjs?v=22';
 import {resumen,PRUEBAS,marca,ultima} from './informes.mjs?v=36';
@@ -284,6 +284,7 @@ export async function abrir({invoke:invokeBase,onClose,owner,vistaInicial='estac
  const livePoll=setInterval(sincronizar,1000);window.addEventListener('focus',sincronizar);document.addEventListener('visibilitychange',sincronizar);
  await load();
 }
+
 
 
 
