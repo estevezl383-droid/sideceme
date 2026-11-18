@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.490</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.491</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8309,6 +8309,15 @@ body.wg-maqueta #wg-hud,body.wg-maqueta #wg-tabs,body.wg-maqueta #wg-hud-marco{d
    justo encima de la consola (arriba lo tapaban los avisos), y el cursor es una mira. «✖ SOLTAR» (o tocar otra vez
    el arma, o M, o Esc) vuelve a MOVER. */
 #wg-modo{display:none}
+/* v2.9.491 — 🚀 LANZAR, al pie del mapa (encima de la pastilla del modo del clic). */
+#wg-lanzar{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:70px;z-index:1036;pointer-events:auto}
+#wg-lanzar.on{display:block}
+#screen-wargame.wg-full #wg-game.wg-hud-on #wg-lanzar{bottom:calc(var(--hud-total) + 58px)}
+#wg-lanzar button{display:flex;align-items:center;gap:10px;padding:9px 22px;border-radius:999px;cursor:pointer;border:2px solid #ffd27a;
+  background:linear-gradient(180deg,#e0571f,#a8300c);color:#fff;font:900 16px/1.1 system-ui,-apple-system,sans-serif;letter-spacing:.6px;
+  box-shadow:0 0 0 4px rgba(255,160,60,.22),0 8px 24px rgba(0,0,0,.5);white-space:nowrap}
+#wg-lanzar button:disabled{opacity:.6;cursor:wait}
+#wg-lanzar button small{font:700 11px/1.2 system-ui,sans-serif;opacity:.9;letter-spacing:0;text-align:left}
 #screen-wargame.wg-full #wg-game.wg-hud-on.wg-modo-clic #wg-modo{display:flex;position:absolute;left:50%;transform:translateX(-50%);
   bottom:calc(var(--hud-total) + 14px);z-index:1035;align-items:center;gap:10px;padding:5px 6px 5px 14px;border-radius:999px;
   background:rgba(96,12,6,.93);border:1px solid #ff6b4a;box-shadow:0 0 0 3px rgba(255,90,50,.18),0 6px 22px rgba(0,0,0,.45);
@@ -8521,8 +8530,8 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
 .wg-gat{height:13px;margin:0;padding:0 1px;width:100%;min-width:0;display:flex;align-items:center;justify-content:center;gap:2px;border-radius:4px;cursor:pointer;
   background:rgba(70,26,20,.88);border:1px solid rgba(255,130,100,.45);color:#ffc2ae;font:900 7.5px/1 system-ui;letter-spacing:.1px;white-space:nowrap;overflow:hidden}
 /* v2.9.489 — 🛩️ la estación del dron del G-2 TAMBIÉN existe a escala teatro (antes se escondía acá y el G-2 quedaba ciego). */
-body.wg-teatro #wg-armas,body.wg-teatro #wg-g4auto,
-body.wg-teatro .wg-gat,body.wg-teatro [onclick*="wgFormarConvoy"],body.wg-teatro [onclick*="wgG4Auto"],
+body.wg-teatro #wg-armas,
+body.wg-teatro .wg-gat,body.wg-teatro [onclick*="wgFormarConvoy"],
 body.wg-teatro [onclick*="wgObra"]{display:none!important}
 body.wg-teatro #screen-wargame.wg-full #wg-game.wg-hud-on #wg-ayuda{
   bottom:auto;height:auto;max-height:25vh;overflow:auto;width:min(560px,calc(100% - 32px))}
@@ -8781,6 +8790,8 @@ body.wg-teatro #screen-wargame.wg-full #wg-game.wg-hud-on #wg-hoja:not(.abierta)
       <div id="wg-hud-marco"></div>
       <!-- v2.9.477 — 🎯 en qué modo está el clic (arma, romper contacto, apoyar) y cómo se sale -->
       <div id="wg-modo"></div>
+      <!-- v2.9.491 — 🚀 LANZAR: todo lo marcado (movimientos y fuegos) sale de una, junto. Después sólo ▶ PLAY. -->
+      <div id="wg-lanzar"></div>
       <div id="wg-hud-tip"></div>
       <div id="wg-hud-splash"></div>
       <div id="wg-hud-pop"></div>
@@ -8990,7 +9001,7 @@ body.wg-teatro #screen-wargame.wg-full #wg-game.wg-hud-on #wg-hoja:not(.abierta)
 <div style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-bottom:6px">
   El <b>G-3</b> juega el azul · el <b>G-2</b> el rojo (como su G-3) · el <b>G-5</b> vuela el dron del rojo (como su
   G-2) · el <b>G-4</b> la logística y las ambulancias · el <b>G-1</b> los reemplazos · el <b>JEM</b> conduce: ⏱️ reloj
-  y ⏹️ ALTO, que cierra el juego y muestra los resultados a todos. La logística del rojo la mueve el 🤖 G-4 automático.
+  y ⏹️ ALTO, que cierra el juego y muestra los resultados a todos. La logística de los dos bandos la mueve sola el 🤖 G-4 automático (abastecimientos, munición y evacuaciones, de forma constante); acá se apaga por bando.
 </div>
 <div id="wg-kit-em" style="font-size:11px;line-height:1.4;margin-bottom:6px"></div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
@@ -35322,7 +35333,7 @@ function _wgCintaRotulos(lista){
       +(f.x?`;pointer-events:auto" oncontextmenu="${an}"`:'"')+'>'
       +'<span style="flex:1">'+_rgEsc(f.t)+'</span>'
       +(f.x&&f.g&&f.l?`<button class="wg-x-orden wg-gat-orden" style="pointer-events:auto" title="DISPARAR ahora" onclick="wgGatillo('${f.x}','${f.g}',event)">🎯</button>`:'')
-      +(f.x&&f.p?`<button class="wg-x-orden wg-play-orden" style="pointer-events:auto" title="▶ PLAY de esta unidad: sale ahora, sola" onclick="wgPlayUnidad('${f.x}',event)">▶</button>`:'')
+      +(f.x&&f.p?`<button class="wg-x-orden wg-play-orden" style="pointer-events:auto" title="🚀 LANZAR esta unidad: sale ahora, sola" onclick="wgPlayUnidad('${f.x}',event)">🚀</button>`:'')
       +(f.x&&f.u?`<button class="wg-x-orden wg-marca-undo" style="pointer-events:auto" title="Quitar el último punto (también: tecla ⌫)" onclick="wgQuitarMarca('${f.x}',event)">↶</button>`:'')
       +(f.x?`<button class="wg-x-orden" style="pointer-events:auto" title="Anular" onclick="${an}">✖</button>`:'')
       +'</div>'; }).join('');
@@ -39561,8 +39572,8 @@ function _wg3dRotulos(map){
         g.appendChild(bg);
       }
       if(r.s.plan){   // v2.9.464
-        const bp=document.createElement('button'); bp.className='wg-x-orden wg-play-orden'; bp.textContent='▶';
-        bp.title='▶ PLAY de esta unidad: sale ahora, sola';
+        const bp=document.createElement('button'); bp.className='wg-x-orden wg-play-orden'; bp.textContent='🚀';
+        bp.title='🚀 LANZAR esta unidad: sale ahora, sola';
         bp.addEventListener('mousedown',(ev)=>ev.stopPropagation());
         bp.addEventListener('click',(ev)=>wgPlayUnidad(id, ev));
         g.appendChild(bp);
@@ -44387,7 +44398,7 @@ function _wgDibujo(){
         if(_oPrev._cola){ const hq=Number(_oPrev._cola.h)||0, rc=_wgRecarga(_uidPrev,_oPrev._arma);
           s.txt=(hq>_wgHoraJuego()+0.01?`⏳ tira ${_wgHoraTxt(hq)} · `:(rc>0?`⏳ recarga, sale en ${_wgHMin(rc)} · `:'🔥 sale ya · '))+s.txt; }
         else if(_oPrev._arma) s.txt='🎯 apuntado, falta FUEGO · '+s.txt;
-        else if(_oPrev._plan) s.txt='⏸ falta ▶ · '+s.txt;
+        else if(_oPrev._plan) s.txt='⏸ falta 🚀 LANZAR · '+s.txt;
         else { const sq=_wgOrdenSale(_oPrev); if(sq!=null && sq>_wgHoraJuego()+0.01) s.txt=`⏳ sale ${_wgHoraTxt(sq)} · `+s.txt; }
       }
     }
@@ -46122,7 +46133,7 @@ function _wgTxtConX(txt, uid, und, s){
   const anular=ti?`wgAnularTiro('${id}','${ti}',event)`:`wgAnularOrden('${id}',event)`;
   return `<span oncontextmenu="${anular}">${txt}</span>`
     +(ti&&s.lleno?`<button class="wg-x-orden wg-gat-orden" title="DISPARAR ahora" onmousedown="event.stopPropagation()" onclick="wgGatillo('${id}','${ti}',event)">🎯</button>`:'')
-    +(s&&s.plan?`<button class="wg-x-orden wg-play-orden" title="▶ PLAY de esta unidad: sale ahora, sola" onmousedown="event.stopPropagation()" onclick="wgPlayUnidad('${id}',event)">▶</button>`:'')
+    +(s&&s.plan?`<button class="wg-x-orden wg-play-orden" title="🚀 LANZAR esta unidad: sale ahora, sola" onmousedown="event.stopPropagation()" onclick="wgPlayUnidad('${id}',event)">🚀</button>`:'')
     +(und?`<button class="wg-x-orden wg-marca-undo" title="Quitar el último punto (también: tecla ⌫)" onmousedown="event.stopPropagation()" onclick="wgQuitarMarca('${id}',event)">↶</button>`:'')
     +`<button class="wg-x-orden" title="Anular (también: clic derecho encima)" `
     +`onmousedown="event.stopPropagation()" onclick="${anular}">✖</button>`;
@@ -46920,16 +46931,17 @@ function wgPlayUnidad(uid, ev){
 function _wgHudAcciones(u,puede){
   if(WG.teatro){
     const plan=!!(WG.ordenes[u.id]||{})._plan;
-    return `<div class="wg-acc"><button class="pl ${plan&&puede?'si':'no'}" ${plan&&puede?`onclick="wgTeatroEjecutar('${u.id}',this)"`:''}>▶ LANZAR</button>`
+    return `<div class="wg-acc"><button class="pl ${plan&&puede?'si':'no'}" ${plan&&puede?`onclick="wgTeatroEjecutar('${u.id}',this)"`:''}>🚀 LANZAR</button>`
       +`<button onclick="wgHoja('matriz')">MOVIMIENTOS</button></div>`;
   }
   const o=WG.ordenes[u.id], plan=!!(o&&o._plan), sale=_wgOrdenSale(o), ahora=_wgHoraJuego();
   const espera=!plan && sale!=null && sale>ahora+0.01, n=_wgSincCuenta();
   const cls=plan&&puede?'pl si':(espera?'pl esp':'pl no');
-  const txt=espera?`⏳ SALE EN ${_wgHMin(sale-ahora)}`:'▶ PLAY';
-  const tip=plan?`▶ PLAY DE ${(u.designacion||'ESTA UNIDAD').toUpperCase()}|Sale ahora, sola, sin esperar a las demás. Si querés que salga junto con otras, dejala en la sincronización.|Atajo: P`
+  const txt=espera?`⏳ SALE EN ${_wgHMin(sale-ahora)}`:'🚀 LANZAR';
+  // v2.9.491: «PLAY» es sólo el reloj. Lo que sale de una unidad (o de varias, con el 🚀 del mapa) es LANZAR.
+  const tip=plan?`🚀 LANZAR ${(u.designacion||'ESTA UNIDAD').toUpperCase()}|Sale ahora, sola. Para mandar varias juntas: marcalas todas y apretá 🚀 LANZAR abajo en el mapa.|Atajo: P`
     : espera?'YA ESTÁ LANZADA|Arranca a la hora que le dio la sincronización.'
-    : 'PLAY DE LA UNIDAD|Primero marcá qué hace: tocá en la carta a dónde va. Después, ▶.|Atajo: P';
+    : 'LANZAR LA UNIDAD|Primero marcá qué hace: tocá en la carta a dónde va. Después, 🚀 LANZAR.|Atajo: P';
   return `<div class="wg-acc">`
     +`<button class="${cls}" data-k="p" ${plan&&puede?`onclick="wgPlayUnidad('${u.id}',event)"`:''} data-tip="${_rgEsc(tip)}"><span class="k">P</span>${_rgEsc(txt)}</button>`
     +`<button data-k="s" onclick="wgHoja('matriz')" data-tip="${_rgEsc('SINCRONIZACIÓN|Arriba, la que más tarda en llegar. En base a ésa se sincronizan los fuegos y los otros movimientos.|Atajo: S')}"><span class="k">S</span>⏱ SINCRONIZAR${n?`<span class="n">${n}</span>`:''}</button>`
@@ -47012,14 +47024,14 @@ function _wgMatrizHTML(){
       +(pausa&&lanzadas?'<div class="wg-s2nota"><b>⏸ RELOJ EN PAUSA.</b> Los movimientos enviados esperan a que se pulse PLAY.</div>'
         +(_wgManejaReloj() && !_wgEsMaqueta() && !WG.mon && WG.estado.partida.estado==='en_curso'?'<button class="wg-sy-go" onclick="wgReloj(true)">▶ PLAY · INICIAR MOVIMIENTOS</button>':''): '')
       +filas.map(f=>`<div class="wg-s2nota">${f.nom} · ${_rgEsc(f.tarea)} · ${f.plan?'preparado':pausa?'esperando PLAY':'lanzado'}</div>`).join('')
-      +(planes.length?`<button class="wg-sy-go" onclick="wgTeatroEjecutar(null,this)">▶ LANZAR ${planes.length} MOVIMIENTO(S)</button>`:!filas.length?'<div class="wg-s2nota">Seleccioná una ficha y marcá su destino.</div>':'');
+      +(planes.length?`<button class="wg-sy-go" onclick="wgTeatroEjecutar(null,this)">🚀 LANZAR ${planes.length} MOVIMIENTO(S)</button>`:!filas.length?'<div class="wg-s2nota">Seleccioná una ficha y marcá su destino.</div>':'');
   }
   const filas=_wgMatrizFilas();
   const { H, manda }=_wgSincCalculo(filas);
   if(!filas.length) return `<div class="wg-s2vacio"><b>Todavía no hay nada planificado.</b>`
     +`<ol><li>Tocá una unidad y marcá en la carta <b>a dónde va</b>. Repetí con las demás.</li>`
     +`<li>Para un fuego: elegí el <b>arma</b> y tocá el <b>blanco</b>.</li>`
-    +`<li>Volvé acá y apretá <b>▶ EJECUTAR</b>.</li></ol>`
+    +`<li>Apretá <b>🚀 LANZAR</b> (abajo en el mapa: salen todas juntas, ya) o, si querés que lleguen juntas, <b>⏱ LANZAR EN H</b> acá.</li></ol>`
     +`La tabla se arma sola: la que <b>más tarda</b> marca la hora <b>H</b> y todo llega junto a esa hora.</div>`;
   const planes=filas.filter(f=>f.plan), lanzadas=filas.filter(f=>!f.plan);
   // Arriba la que más tarda; después los movimientos de la más lenta a la más rápida; al final los fuegos.
@@ -47028,7 +47040,7 @@ function _wgMatrizHTML(){
   const celdaX=(f)=>f.tiro?`wgAnularTiro('${f.uid}','${f.arma}',event)`:`wgAnularOrden('${f.uid}',event)`;
   const solo=(f)=>f.tiro
     ? `<button class="wg-s2b tiro" onclick="wgGatillo('${f.uid}','${f.arma}',event)" data-tip="${_rgEsc('FUEGO YA|Tira ahora, sola, sin esperar a las demás.')}">🔥</button>`
-    : `<button class="wg-s2b play" onclick="wgPlayUnidad('${f.uid}',event)" data-tip="${_rgEsc('SALE YA|Sale ahora, sola, sin esperar a las demás.')}">▶</button>`;
+    : `<button class="wg-s2b play" onclick="wgPlayUnidad('${f.uid}',event)" data-tip="${_rgEsc('SALE YA|Sale ahora, sola, sin esperar a las demás.')}">🚀</button>`;
   const aviso=(f)=>(f.imposible?`<div class="av">🛑 ${_rgEsc(f.motivo||'no llega')}</div>`:'')
     + (f.tiro&&f.alcanza===false?`<div class="av">🔥 fuera de alcance: va a tirar corto</div>`:'')
     + (f.mov&&f.tarde?`<div class="av">⏱ no llega a esa hora: sale ya y llega ${_wgHMin(f.llega)} después de lanzar</div>`:'');
@@ -47073,7 +47085,7 @@ function _wgMatrizHTML(){
       +`</div>`;
     h+=`<div class="wg-s2eje"><span class="o">▶ lanzar</span><span class="hx" style="left:${pH.toFixed(1)}%">H</span></div>`;
     h+=planes.map(fila).join('');
-    h+=`<div class="wg-s2pie"><button class="wg-sy-go" onclick="wgSincEjecutar(this)">▶ EJECUTAR · ${planes.length===1?'1 tarea':planes.length+' tareas'}${manda?' · todo en H':''}</button></div>`
+    h+=`<div class="wg-s2pie"><button class="wg-sy-go" onclick="wgSincEjecutar(this)">⏱ LANZAR EN H · ${planes.length===1?'1 tarea':planes.length+' tareas'}</button></div>`
       +`<div class="wg-s2nota">Sale todo junto: cada una a su hora para llegar a H. El reloj lo lleva el servidor aunque cierres esta pantalla.`
       +(_wgCorre()?'':' <b>El tiempo está en pausa:</b> la cuenta arranca con ▶ PLAY de arriba.')+`</div>`;
   }
@@ -47093,10 +47105,11 @@ function wgSincPaso(k, dir){
   (WG.sinc||(WG.sinc={ rel:{} })).rel[k]=Math.abs(r)<1e-9?0:r;
   wgPanelMatriz();
 }
-async function wgSincEjecutar(btn){
+async function wgSincEjecutar(btn, ya){
   if(WG.teatro) return wgTeatroEjecutar(null,btn);
   const filas=_wgMatrizFilas(); _wgSincCalculo(filas);
   const lista=filas.filter(f=>f.plan);
+  if(ya) for(const f of lista) f.arranca=0;   // v2.9.491: 🚀 LANZAR = todo sale YA, junto
   if(!lista.length) return;   // (la tabla ya trae sólo lo que este puesto puede mandar)
   if(btn) btn.disabled=true;
   const ordenes=[], tiros=[];
@@ -47129,7 +47142,8 @@ async function wgSincEjecutar(btn){
   _wgCanalOrden(lanzadas,[],r.tiros||[]);
   _wgActualizarContadorOrdenes(); _wgPlanTocado(); _wgRender(); if(WG.map3d) _wg3dDatos();
   _wgAviso(malos.size?`⚠️ Se lanzaron ${lista.length-malos.size} de ${lista.length}.<br><span style="opacity:.85">${_rgEsc((r.fallos||[]).join(' · '))}</span>`
-    :`▶ <b>Lanzado.</b> ${lanzadas.length} movimiento(s) y ${(r.tiros||[]).length} fuego(s), cada uno a su hora.`, 4200);
+    :`🚀 <b>Lanzado.</b> ${lanzadas.length} movimiento(s) y ${(r.tiros||[]).length} fuego(s)${ya?', todos ya':', cada uno a su hora'}.`
+      +(_wgCorre()?'':' <b>⏸ El reloj está en pausa:</b> se mueven con ▶ PLAY.'), 4200);
 }
 function _wgOrdenDesdeRuta(id){
   const r=(WG.rutas&&WG.rutas[id])||[];
@@ -48665,7 +48679,42 @@ function _wgRelojTic(){
     if(WG.teatro && WG.hoja==='matriz') wgPanelMatriz();
   }
   chip.style.display='none';   // v2.9.461: ya no hay cuenta regresiva de turno
+  _wgLanzarRender();
 }
+// ============================================================
+// v2.9.491 — 🚀 LANZAR. Sergio (18-11-2026): «se está haciendo complicado enviar algo, mover o disparar,
+// mucho tarda; sólo que se llame LANZAR cuando muevo 4 unidades a la vez y luego que sólo sea PLAY para
+// mover». Se marcan las rutas y se apuntan las armas; un solo botón, al pie del mapa, manda TODO junto y ya
+// (sin la cuenta de la hora H: quien quiera que lleguen juntas usa ⏱ LANZAR EN H de la tabla). ▶ PLAY
+// queda sólo para el reloj: con el reloj en pausa lo lanzado espera, y con ▶ PLAY se mueve.
+// ============================================================
+function _wgLanzarRender(){
+  const el=document.getElementById('wg-lanzar'); if(!el) return;
+  const p=(WG.estado&&WG.estado.partida)||{};
+  const n=(p.estado==='en_curso' && !_wgEsMaqueta() && !WG.mon && _wgPuedeOrdenar()) ? _wgSincCuenta() : 0;
+  const corre=_wgCorre(), firma=n+'|'+corre;
+  if(el._firma===firma) return;
+  el._firma=firma;
+  el.classList.toggle('on', n>0);
+  el.innerHTML=n>0?`<button onclick="wgLanzarTodo(this)" title="Manda juntas todas las órdenes y fuegos que marcaste (Atajo: L)">🚀 LANZAR · ${n}`
+    +`<small>${n===1?'1 orden':n+' órdenes'}<br>${corre?'salen ya':'⏸ se mueven con ▶ PLAY'}</small></button>`:'';
+}
+async function wgLanzarTodo(btn){
+  if(!_wgPuedeOrdenar() || !_wgSincCuenta()) return;
+  if(btn) btn.disabled=true;
+  try{
+    if(WG.teatro) await wgTeatroEjecutar(null,null);
+    else await wgSincEjecutar(null,true);
+  }finally{ if(btn) btn.disabled=false; const el=document.getElementById('wg-lanzar'); if(el) el._firma=null; _wgLanzarRender(); }
+}
+document.addEventListener('keydown',(e)=>{
+  try{
+    if(!WG.partidaId || e.metaKey || e.ctrlKey || e.altKey || (e.key||'').toLowerCase()!=='l') return;
+    const t=e.target; if(t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    const el=document.getElementById('wg-lanzar'); if(!el || !el.classList.contains('on')) return;
+    e.preventDefault(); wgLanzarTodo(el.querySelector('button'));
+  }catch(_e){}
+});
 setInterval(()=>{ try{ if(WG.partidaId) _wgRelojTic(); }catch(_e){} }, 1000);
 // v2.9.461 — ▶ / ⏸. Le avisa a todas las pantallas por el canal, sin esperar el sondeo.
 async function wgReloj(activo){
@@ -48796,11 +48845,10 @@ async function wgKitEM(btn){
 }
 // v2.9.451 — 🤖 EL G-4 AUTOMÁTICO: por defecto el del rojo; el árbitro lo cambia.
 // Vive en la fila del reloj (`reloj.g4auto`), así llega con el estado y el pulso.
-function _wgG4Auto(){ const a=((WG.relojJuego||{}).g4auto)||{}; return { rojo:a.rojo!==false, azul:a.azul===true }; }
+function _wgG4Auto(){ const a=((WG.relojJuego||{}).g4auto)||{}; return { rojo:a.rojo!==false, azul:a.azul!==false }; }   // v2.9.491: los dos, por defecto
 function _wgG4AutoRender(){
   const el=document.getElementById('wg-g4auto'); if(!el) return;
-  if(WG.teatro){ el.textContent='🌎 Teatro: reservas abstractas del juego por ficha.'; return; }
-  const a=_wgG4Auto(), arb=WG.soy==='arbitro';
+  const a=_wgG4Auto(), arb=WG.soy==='arbitro';   // v2.9.491: en teatro también (mueve las columnas 🚚 💣 🚑 solas)
   el.innerHTML=['rojo','azul'].map(b=>`<button class="wg-pill"${arb?'':' disabled'} onclick="wgG4Auto('${b}')" `
     +`title="${arb?'Tocá para cambiar':'Lo decide el árbitro'}" style="font-size:11px;border-color:${WG_BIT_COL[b]}">`
     +`${b==='rojo'?'🔴 Rojo':'🔵 Azul'}: ${a[b]?'🤖 automática':'👤 la juega su G-4'}</button>`).join('');
@@ -48810,7 +48858,7 @@ async function wgG4Auto(b){
   const r=await _wgInvoke('g4auto',{ partida_id:WG.partidaId, bando:b, activo:!a[b] });
   if(!r || !r.ok){ _wgAviso('No se pudo: '+_rgEsc((r&&r.error)||''), 4500); return; }
   WG.relojJuego=r.reloj; _wgG4AutoRender();
-  _wgAviso(`${b==='rojo'?'🔴':'🔵'} Logística ${r.reloj.g4auto[b]?'🤖 <b>automática</b>: el G-4 automático manda sus convoyes.':'👤 a cargo de su G-4.'}`, 3500);
+  _wgAviso(`${b==='rojo'?'🔴':'🔵'} Logística ${r.reloj.g4auto[b]?'🤖 <b>automática</b>: abastecimientos, munición y evacuaciones salen solos, de forma constante.':'👤 a cargo de su G-4.'}`, 3500);
 }
 // ============================================================
 // v2.9.445 — LA BITÁCORA DE ABAJO, EN DOS CUADROS: 🔴 ROJO | 🔵 AZUL.
@@ -49580,7 +49628,7 @@ function _wgHudFicha(){
     // v2.9.457: con su ✖. v2.9.464: lo que espera su ▶ se distingue de lo que ya salió.
     const _oF=WG.ordenes[u.id];
     if(_oF){ const _sF=_wgOrdenSale(_oF);
-      est.push([(_oF._plan?'▶ PLAN ':(_sF!=null&&_sF>_wgHoraJuego()+0.01?'⏳ SALE '+_wgHoraTxt(_sF)+' · ':'ORDEN '))+String(_oF.tipo||'').toUpperCase(),'o','x']); }
+      est.push([(_oF._plan?'⏸ PLAN ':(_sF!=null&&_sF>_wgHoraJuego()+0.01?'⏳ SALE '+_wgHoraTxt(_sF)+' · ':'ORDEN '))+String(_oF.tipo||'').toUpperCase(),'o','x']); }
     const _nT=Object.keys(_wgTirosDe(u.id)).length;
     if(_nT) est.push([`🎯 ${_nT} ${_nT>1?'ARMAS APUNTADAS':'ARMA APUNTADA'}`,'o']);
     if(_wgEsConvoy(u) && u.carga && u.carga.fase) est.push([({ida:'🚚 VA',descarga:'⏳ DESCARGA',vuelta:'↩️ VUELVE'}[u.carga.fase]||'EN MARCHA'),'o']);
