@@ -5,12 +5,13 @@ import {resumen} from './informes.mjs?v=22';
 import {gradoArma} from './ui.mjs?v=22';
 const dia=f=>f.split('-').reverse().join('/');
 const opciones=(values,current,label)=>`<option value="">${label}</option>${[...new Set(values)].sort().map(v=>`<option value="${esc(v)}" ${v===current?'selected':''}>${esc(v)}</option>`).join('')}`;
-export function abrirHistorial({invoke,host,authorized=()=>true,permitirBorrado=true}){
+export function abrirHistorial({invoke,host,authorized=()=>true,permitirBorrado=true,onClose=()=>{}}){
  const dialog=document.createElement('dialog');dialog.className='efmc-history-dialog';dialog.setAttribute('aria-labelledby','efmc-history-title');host.append(dialog);
+ let changed=false;
  let alive=true,busy=false,error='',evaluaciones=[],detalle=null,actual=null,ciclo='',curso='',tanda='',request=0,borrados=[],vistaBorrados=false,borrando=false,success='';
  const participantes=e=>e.participantes.filter(c=>(!curso||c.curso===curso)&&(!tanda||c.tanda===tanda));
  const visibles=()=>evaluaciones.filter(e=>(!ciclo||e.ciclo===ciclo)&&participantes(e).length);
- const close=()=>{if(!alive)return;alive=false;request++;clearInterval(poll);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);dialog.close();dialog.remove();};
+ const close=()=>{if(!alive)return;alive=false;request++;clearInterval(poll);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);dialog.close();dialog.remove();onClose(changed);};
  dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
  const vigenteOrden=(a,b)=>Number(b.revision??0)-Number(a.revision??0)||String(b.creado_en||'').localeCompare(String(a.creado_en||''));
  function tabla(){
@@ -38,7 +39,7 @@ export function abrirHistorial({invoke,host,authorized=()=>true,permitirBorrado=
   dialog.querySelector('[data-history-removed]').onclick=()=>{request++;busy=false;vistaBorrados=!vistaBorrados;actual=null;detalle=null;error='';success='';load();};
   dialog.querySelectorAll('[data-history-delete]').forEach(button=>button.onclick=()=>{
    const sesion=evaluaciones.find(e=>e.id===button.dataset.historyDelete);if(borrando||!sesion||!['PRUEBA','PILOTO'].includes(sesion.modo))return;borrando=true;
-   abrirBorrado({host:dialog,invoke,sesion,authorized,onClose:()=>{borrando=false;},onDeleted:async b=>{actual=null;detalle=null;vistaBorrados=false;await load();success='SESIÓN DE PRUEBA BORRADA POR '+b.actor_nombre+' · '+fechaHora(b.confirmado_en);render();}});
+   abrirBorrado({host:dialog,invoke,sesion,authorized,onClose:()=>{borrando=false;},onDeleted:async b=>{changed=true;actual=null;detalle=null;vistaBorrados=false;await load();success='SESIÓN DE PRUEBA BORRADA POR '+b.actor_nombre+' · '+fechaHora(b.confirmado_en);render();}});
   });
   dialog.querySelector('[data-history-refresh]').onclick=()=>load(actual);
   dialog.querySelector('[data-history-back]')?.addEventListener('click',()=>{request++;busy=false;actual=null;detalle=null;error='';render();});
@@ -62,3 +63,4 @@ export function abrirHistorial({invoke,host,authorized=()=>true,permitirBorrado=
  const poll=setInterval(refresh,5000);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);
  render();dialog.showModal();load();
 }
+

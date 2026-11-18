@@ -1,7 +1,7 @@
 import {abrirVistaPostulante} from './vista-postulante.mjs?v=35';
 import {tandasAerobicas} from './tandas.mjs?v=30';
 import {FotosNomina} from '../postulantes/nomina.mjs?v=2';
-import {abrirHistorial} from './historial.mjs?v=29';
+import {abrirHistorial} from './historial.mjs?v=38';
 import {CONDICIONES,puedeRegistrar} from './organizacion.mjs?v=29';
 import {notaConformidad,marcaRegistro,fechaHora} from './conformidad.mjs?v=36';
 import {panelConformidades} from './seguimiento.mjs?v=22';
@@ -31,6 +31,7 @@ export async function abrir({invoke:invokeBase,onClose,owner,vistaInicial='estac
  const POST='POSTULANTES 2027',esPostulante=()=>ciclo===POST;
  const realOwner=owner;let simActor='';
  const invoke=body=>invokeBase({ciclo,...body,...(simActor?{simular_actor_id:simActor}:{})});
+ let historyOpen=false;
  let soloConsulta=false,puedeOrganizar=true,photoObserver=null;
  const fotos=new FotosNomina((accion,datos)=>invokeBase({accion:'foto',ciclo:POST,cursante_id:datos.postulante_id}));
  const cargarFoto=c=>fotos.get(c);
@@ -64,7 +65,7 @@ export async function abrir({invoke:invokeBase,onClose,owner,vistaInicial='estac
  function seguimiento(){if(esPostulante())return `<div id="efmc-monitor-live">${detalleMarcas(monitorData)}</div>`;if(jefe)return `<div id="efmc-monitor-live">${panelConformidades(monitorData)}</div>`;const list=courseList();return `<section class="efmc-sheet"><h2>Seguimiento de conformidades</h2><p>Rojo: registro pendiente. Verde: conformidad del alumno. Sin registro: la prueba aún no fue guardada.</p><div class="efmc-table-wrap"><table><thead><tr><th>Alumno</th>${stationNames().filter(([p])=>p!=='barras').map(([,n])=>`<th>${n}</th>`).join('')}</tr></thead><tbody>${list.map(c=>`<tr><th>${esc(c.nombre_completo)}</th>${stationNames().filter(([p])=>p!=='barras').map(([p])=>`<td>${vivo(c.id,p)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;}
  function pintarSincronizacion(){root.querySelectorAll('[data-live-mark]').forEach(e=>e.textContent=marcaRegistro(latest(e.dataset.liveMark,e.dataset.livePrueba)));root.querySelectorAll('[data-live-note]').forEach(e=>e.innerHTML=notaConformidad(latest(e.dataset.liveNote,e.dataset.livePrueba)));const host=root.querySelector('[data-sync-status]');if(host)host.textContent=syncError||(syncEn?'Sincronización automática · '+fechaHora(syncEn):'Sincronización automática cada segundo');root.querySelectorAll('[data-live-student]').forEach(e=>{e.innerHTML=marcaYNota(latest(e.dataset.liveStudent,e.dataset.livePrueba));});}
  async function sincronizar(){
-  if(!alive||!authorized()||busy||syncing||document.hidden)return;
+  if(!alive||!authorized()||busy||syncing||historyOpen||document.hidden)return;
   if(jefe&&tab==='seguimiento')return cargarConformidades();
   if(!organizacionId)return;
   syncing=true;const id=organizacionId;
@@ -227,7 +228,7 @@ export async function abrir({invoke:invokeBase,onClose,owner,vistaInicial='estac
     d.innerHTML='<h3>'+ (a==='simulate-teacher'?'Probar como evaluador':'Ver como postulante')+'</h3><p>Simulación identificada a nombre de Morales. Las conformidades oficiales solo las registra el postulante.</p><select>'+options.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.nombre_completo)+'</option>').join('')+'</select><button data-enter>Abrir</button><button data-cancel>Cancelar</button>';d.showModal();d.querySelector('[data-cancel]').onclick=()=>d.remove();d.querySelector('[data-enter]').onclick=async()=>{const id=d.querySelector('select').value;d.remove();if(!id)return;if(a==='simulate-student'){await abrirVistaPostulante({invoke:invokeBase,simularId:id});return;}simActor=id;owner=id;limpiarSeleccion();await load(organizacionId);};return;
    }
    if(a==='end-simulation'){if(!puedeCambiarOrganizacion())return;simActor='';owner=realOwner;limpiarSeleccion();await load(organizacionId);return;}
-   if(a==='history'){if(jefe&&puedeCambiarOrganizacion())abrirHistorial({invoke,host:root,permitirBorrado:!esPostulante(),authorized:()=>alive&&authorized()});return;}
+   if(a==='history'){if(jefe&&puedeCambiarOrganizacion()){historyOpen=true;abrirHistorial({invoke,host:root,permitirBorrado:puedeOrganizar,authorized:()=>alive&&authorized(),onClose:changed=>{historyOpen=false;if(changed)load('');}});}return;}
    if(a==='seguimiento'){if(timer.running||run.running||pending){error='PAUSÁ Y GUARDÁ LA PRUEBA ACTUAL.';render();return;}tab='seguimiento';render();if(jefe)await cargarConformidades();return;}
    if(['organize','new-plan'].includes(a)){if(!puedeOrganizar||busy||pending||timer.running||run.running)return;if(run.laps.some(l=>!l.saved)){error='GUARDÁ LAS LLEGADAS ANTES DE ORGANIZAR.';render();return;}abrirOrganizacion({invoke,roster,personal,plan:a==='new-plan'?null:organizacion,fecha,ciclo,poblaciones:postulantes?['1ER CICLO','2DO CICLO',POST]:['1ER CICLO','2DO CICLO'],cargarFoto,onSaved:async p=>{selected=null;grupo='';await load(p.id,p.ciclo);}});return;}
    if(a==='novedades'){if(jefe&&!busy&&!pending&&!timer.running&&!run.running){tab='novedades';selected=null;render();}return;}
@@ -282,4 +283,5 @@ export async function abrir({invoke:invokeBase,onClose,owner,vistaInicial='estac
  const livePoll=setInterval(sincronizar,1000);window.addEventListener('focus',sincronizar);document.addEventListener('visibilitychange',sincronizar);
  await load();
 }
+
 

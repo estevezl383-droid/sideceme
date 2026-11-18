@@ -1,3 +1,4 @@
+import {sha256} from './hoja-modelo.mjs';
 import {esExcelencia,calificar,calificarExcelencia} from './baremos.mjs';
 import {JEFES,ESTACIONES,CONDICIONES,validarPlan,asignaciones,puedeRegistrar} from './organizacion.mjs';
 import {validarNacimiento} from './perfil.mjs';
@@ -22,9 +23,21 @@ export async function operarPostulantes({sb,b,actor,reply}){
  if(b.organizacion_id){
   if(!uuid(b.organizacion_id))return fail('ORGANIZACIÓN NO VÁLIDA');
   plan=await checked(sb.from('post_ef_organizaciones').select('*').eq('id',b.organizacion_id).maybeSingle());
-  if(!plan||(!consulta&&!asignaciones(plan,id).length))return fail('ORGANIZACIÓN DE POSTULANTES NO HABILITADA PARA SU CUENTA',403);
+  if(!plan||plan.borrada_en||(!consulta&&!asignaciones(plan,id).length))return fail('ORGANIZACIÓN DE POSTULANTES NO HABILITADA PARA SU CUENTA',403);
   if(b.accion==='cargar')b.fecha=plan.fecha;
   if(b.fecha&&b.fecha!==plan.fecha)return fail('LA FECHA NO CORRESPONDE A LA ORGANIZACIÓN');
+ }
+ if(['preparar_borrado','confirmar_borrado','historial_borrados'].includes(b.accion)){
+  if(!jefe)return fail('SOLO LOS ORGANIZADORES PUEDEN BORRAR PRÁCTICAS',403);
+  if(b.accion==='historial_borrados'){
+   const rows=await leerPaginas(()=>sb.from('post_ef_borrados').select('id,organizacion_id,actor_id,actor_nombre,fecha,ciclo,motivo,resumen,confirmado_en').not('confirmado_en','is',null).order('confirmado_en',{ascending:false}));
+   return reply(200,{ok:true,borrados:rows,servidor_en:new Date().toISOString()});
+  }
+  if(!uuid(b.id))return fail('SOLICITUD NO VÁLIDA');
+  if(b.accion==='preparar_borrado'&&(!plan||plan.modo!=='PILOTO'||b.primera_confirmacion!==true||typeof b.motivo!=='string'||b.motivo.trim().length<10||b.motivo.trim().length>600))return fail('SELECCIONE UNA PRÁCTICA E INDIQUE UN MOTIVO DE 10 A 600 CARACTERES');
+  if(b.accion==='confirmar_borrado'&&b.confirmacion!=='BORRAR')return fail('ESCRIBA BORRAR PARA CONFIRMAR');
+  const r=await sb.rpc('post_ef_borrar_practica',{p_accion:b.accion,p_id:b.id,p_actor:id,p_sesion_hash:await sha256(b.token),p_organizacion:plan?.id||null,p_motivo:b.motivo?.trim()||null,p_confirmacion:b.confirmacion||null});
+  if(r.error)return fail(r.error.message,409);return reply(200,r.data);
  }
  const accionesJefe=['organizar','condicion','reiniciar_practica'];
  if(accionesJefe.includes(b.accion)&&!jefe)return fail('SOLO LOS ORGANIZADORES PUEDEN MODIFICAR LOS GRUPOS',403);
@@ -55,6 +68,7 @@ export async function operarPostulantes({sb,b,actor,reply}){
   const issue=validarPlan(input,roster,personal);if(issue)return fail(issue);
   if(input.practica_hasta!=null&&(!fecha(input.practica_hasta)||input.practica_hasta<input.fecha))return fail('FECHA DE FIN DE PRÁCTICA NO VÁLIDA');
   const prev=await checked(sb.from('post_ef_organizaciones').select('*').eq('id',input.id).maybeSingle());
+  if(prev?.borrada_en)return fail('PRÁCTICA BORRADA. CREE UNA NUEVA ORGANIZACIÓN.',409);
   if(prev&&(prev.fecha!==input.fecha||prev.ciclo!==input.ciclo))return fail('CREE OTRA ORGANIZACIÓN PARA CAMBIAR FECHA O POBLACIÓN');
   if(prev){
    if(prev.modo!==input.modo)return fail('CREE OTRA ORGANIZACIÓN PARA SEPARAR PRÁCTICA Y EVALUACIÓN');
@@ -77,9 +91,11 @@ export async function operarPostulantes({sb,b,actor,reply}){
   }
   if(jefe){
    ps=await checked(sb.from('post_ef_organizaciones').select('*').order('actualizado_en',{ascending:false}));
-   if(!plan){const hoy=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/La_Paz'}).format(new Date());plan=ps.find(p=>p.habilitado&&p.modo==='PILOTO'&&p.fecha<=hoy&&p.practica_hasta>=hoy)||ps.find(p=>p.habilitado)||ps[0]||null;}
+   if(!plan){const hoy=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/La_Paz'}).format(new Date());plan=ps.filter(p=>!p.borrada_en).find(p=>p.habilitado&&p.modo==='PILOTO'&&p.fecha<=hoy&&p.practica_hasta>=hoy)||ps.find(p=>p.habilitado)||ps.find(p=>!p.borrada_en)||null;}
    if(plan)b.fecha=plan.fecha;
   }
+  ps=ps.filter(p=>!p.borrada_en);
+  if(plan?.borrada_en)plan=null;
   if(actor.supervisor_id)ps=ps.filter(p=>p.habilitado&&p.modo==='PILOTO');
   const disponibles=consulta?ps:ps.filter(p=>asignaciones(p,id).length);
   if(!plan&&!consulta)plan=disponibles[0]||null;
@@ -129,12 +145,13 @@ export async function operarPostulantes({sb,b,actor,reply}){
  if(b.accion==='historial'||b.accion==='historial_detalle'||b.accion==='conformidades'){
   if(!consulta)return fail('CONSULTA GENERAL NO HABILITADA',403);
   const ps=await checked(sb.from('post_ef_organizaciones').select('*').order('fecha',{ascending:false}));const cs=await getNomina();
-  if(b.accion==='historial'){const rs=await leerPaginas(()=>sb.from('post_ef_registros').select('*').order('revision'));return reply(200,{ok:true,evaluaciones:indiceHistorial(ps,rs.map(serialize),cs),servidor_en:new Date().toISOString()});}
+  const active=new Set(ps.filter(p=>!p.borrada_en).map(p=>p.id));
+  if(b.accion==='historial'){const rs=await leerPaginas(()=>sb.from('post_ef_registros').select('*').order('revision'));return reply(200,{ok:true,evaluaciones:indiceHistorial(ps.filter(p=>active.has(p.id)),rs.filter(r=>active.has(r.organizacion_id)).map(serialize),cs),servidor_en:new Date().toISOString()});}
   if(b.accion==='historial_detalle'&&!plan)return fail('SELECCIONE UNA ORGANIZACIÓN');
-  const plans=plan?[plan]:ps.filter(p=>p.fecha===b.fecha),ids=plans.map(p=>p.id),rs=ids.length?(await Promise.all(plans.map(getRecords))).flat():[];
+  const plans=plan?[plan]:ps.filter(p=>!p.borrada_en&&p.fecha===b.fecha),ids=plans.map(p=>p.id),rs=ids.length?(await Promise.all(plans.map(getRecords))).flat():[];
   return reply(200,{ok:true,fecha:plan?.fecha||b.fecha,ciclo:POST,organizacion:plan,organizaciones:plans,cursantes:cs.filter(c=>plans.some(p=>p.grupos.some(g=>g.alumnos.includes(c.id)))),registros:rs.map(serialize),condiciones:plan?(await getConditions(plan)).map(serialize):[],servidor_en:new Date().toISOString()});
  }
- if(b.accion==='historial_borrados')return reply(200,{ok:true,borrados:[]});
  return fail('ACCIÓN NO DISPONIBLE PARA POSTULANTES. SUS MARCAS PERMANECEN EN EL ARCHIVO.');
 }
+
 
