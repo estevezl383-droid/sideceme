@@ -1,7 +1,9 @@
 // Las tandas son vistas de la nómina del grupo, nunca grupos duplicados.
 export function tandasAerobicas(plan){
- return (plan?.grupos||[]).flatMap(g=>Array.from({length:Math.ceil(g.alumnos.length/10)},(_,i)=>({id:`${g.id}:${i+1}`,grupo:g.id,color:g.color,numero:i+1,alumnos:g.alumnos.slice(i*10,i*10+10)})));
+ return (plan?.grupos||[]).flatMap(g=>{const n=tamanoTanda(g);return Array.from({length:Math.ceil(g.alumnos.length/n)},(_,i)=>({id:`${g.id}:${i+1}`,grupo:g.id,color:g.color,nombre:g.nombre,numero:i+1,alumnos:g.alumnos.slice(i*n,i*n+n)}));});
 }
+export const tamanoTanda=g=>Number.isInteger(g?.tamano_tanda)&&g.tamano_tanda>=1&&g.tamano_tanda<=50?g.tamano_tanda:10;
+export const limiteTanda=(plan,grupo)=>Math.max(10,...(plan?.grupos||[]).filter(g=>!grupo||g.id===grupo).map(tamanoTanda));
 export function trasladarExcelencia(plan,ids){
  if(!Array.isArray(ids)||!ids.length||new Set(ids).size!==ids.length)throw Error('Seleccione una lista sin duplicados.');
  const next=structuredClone(plan),todos=new Set(next.grupos.flatMap(g=>g.alumnos));
@@ -16,3 +18,4 @@ export function trasladarExcelencia(plan,ids){
  next.grupos=next.grupos.filter(g=>g.alumnos.length);
  return next;
 }
+
