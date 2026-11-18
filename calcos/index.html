@@ -118,7 +118,23 @@
          Antes del compilado: pide las sesiones de Google mientras carga la página (window.SIDGoogle). -->
     <script src="./google-mapas/v1/google-mapas.js?v=20261029-barreras" defer></script>
     <script type="module" src="./paquetes/v1/paquetes.mjs?v=20261028-vista"></script>
-    <script type="module" crossorigin src="./assets/index-motorizadas-20261111.js?v=20261111-mot"></script>
+    <!-- ⏱ 17-11-2026: la Línea Inicial de Tiempo aceptaba «D» a secas (sin hora) y se caía
+         entera —lámina, cuadro, 📄 Word e 🖨 imprimir— con «Falta … el inicio de la operación».
+         Ver pruebas/reemplazos-2026-11-17-linea-tiempo.js -->
+    <!-- 🔗 17-11-2026 (tarde): LOS 5 ENLACES. El pase del cursante vive en el
+         sessionStorage de SU pestaña, así que un enlace abierto desde un mensaje
+         caía en el candado; y el enlace llevaba el puesto pero no la BASE. Ahora
+         la BASE viaja comprimida detrás del `#`, el puesto y la BASE se guardan
+         antes del candado, y el candado explica los dos pasos.
+         Ver pruebas/reemplazos-2026-11-17-enlaces.js — incluye el arreglo de la
+         Línea Inicial de Tiempo (este compilado se armó encima de aquél). -->
+    <!-- 🗺️ 17-11-2026 (noche): ACOSTAR. El botón de la plantilla quedaba apagado y mudo sin
+         avenidas, y los avisos rojos sólo se veían en el panel izquierdo: el alumno apretaba y
+         «no pasaba nada». Ahora la plantilla se acuesta aunque no haya avenidas (ejes doctrinales
+         contra el frente del A.O.), el aviso rojo sale arriba de la carta y el verde dura lo que
+         tarda en leerse. Ver pruebas/reemplazos-2026-11-17-acostar.js — incluye los enlaces y la
+         Línea Inicial de Tiempo (este compilado se armó encima de aquéllos). -->
+    <script type="module" crossorigin src="./assets/index-acostar-20261117.js?v=20261117-acostar"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-lHYAlTjN.css">
     <!-- 💾 Sello del autoguardado: es un botón (tocarlo guarda todo ya) y dice si hay algo sin guardar
          o si falló. La lógica está en guardado/v1/autoguardado.mjs (la importa el compilado). -->
