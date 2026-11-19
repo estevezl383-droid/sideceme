@@ -4367,6 +4367,7 @@ const G4_TEATRO: any = {
   dias: 3, kmDia: 240, cargaH: 1, factorCamino: 1.3, peligroKm: 2, reconstH: 48,
   evacVuelve: 0.25, evacVuelveConBR: 0.1, tMun: 0.5,
   autoDias: 3, autoEvac: 0.05,   // v2.9.491: el 🤖 manda la columna si a la GU le quedan menos de 3 días o le falta ≥5 % de poder
+  baseMaxKm: 350, baseAtrasKm: 20,   // v2.9.494: sin instalación ni PC, sale de la GU propia a retaguardia más cercana (no de la otra punta del teatro)
 };
 function esColG4(u: any) { return esColT(u) && u.carga.teatro.col.tipo === "g4"; }
 // De dónde sale una columna del G-4 hacia `hacia`: instalación con existencias → puesto de comando → la GU más a retaguardia.
@@ -4383,12 +4384,21 @@ function baseG4Teatro(unidades: any[], bando: string, hacia: number[], menos: an
   const enem = (unidades || []).filter((u: any) => u.bando !== bando && viva(u) && !esColT(u) && !esLogT(u));
   const gus = mias.filter((u: any) => !esLogT(u));
   if (!gus.length) return null;
-  const lejos = (u: any) => enem.reduce((m: number, e: any) => Math.min(m, haversineKm(p(u), p(e))), Infinity);
-  return gus.slice().sort((a: any, b: any) => lejos(b) - lejos(a))[0];
+  const lejosP = (q: number[]) => enem.reduce((m: number, e: any) => Math.min(m, haversineKm(q, p(e))), Infinity);
+  const lejos = (u: any) => lejosP(p(u));
+  // v2.9.494 — antes salía de la GU MÁS LEJOS del enemigo de todo el teatro (partida 55: la BRIG. BAVE, a 1.500 km del
+  // frente; las columnas rojas tardaban 7 días y no se veían en la carta). Ahora: la GU propia a retaguardia de `hacia`
+  // más cercana; si no hay, la más a retaguardia dentro de baseMaxKm; recién después, la más cercana.
+  const G = G4_TEATRO, dH = (u: any) => haversineKm(p(u), hacia), lH = lejosP(hacia);
+  const radio = gus.filter((u: any) => dH(u) <= G.baseMaxKm);
+  const atras = radio.filter((u: any) => lejos(u) >= Math.max(lH + G.baseAtrasKm, G.baseAtrasKm + G.peligroKm));
+  if (atras.length) return atras.slice().sort((a: any, b: any) => dH(a) - dH(b))[0];
+  if (radio.length) return radio.slice().sort((a: any, b: any) => lejos(b) - lejos(a))[0];
+  return gus.slice().sort((a: any, b: any) => dH(a) - dH(b))[0];
 }
 function columnasG4Teatro(c: any) {
   const { U, viva, pos, dia, T, ev, lugar, frente, orden, fin, dos, ponDos, mun, ponMun } = c;
-  const auto: any = c.auto || {};
+  const auto: any = c.auto || {}, peleo: Set<any> = c.peleo || new Set();
   const cols = [...U.values()].filter(esColG4);
   if (!cols.length) return;
   const G = G4_TEATRO, horas = dia * 24, hasta = (Number(T.hora) || 0) + horas, kmH = G.kmDia / 24;
@@ -4410,9 +4420,13 @@ function columnasG4Teatro(c: any) {
   const hayBR = (b: string) => todas().some((u: any) => u.bando === b && viva(u) && esLogT(u) && gt(u).log.tipo === "BR");
   const baseDe = (col: any) => todas().find((u: any) => u.bando === col.bando && !esColT(u) && viva(u) && String(u.designacion || "") === String(kc(col).base || "")) || null;
   // v2.9.491 — 🤖 la columna en su base, sin orden del G-4, sale sola a la Gran Unidad que más la necesita.
+  // v2.9.494 — primero la GU EN CONTACTO (las que pelean consumen y son las que importan), después la que menos tiene,
+  // y a igual necesidad la más cercana; y no a una GU que ya tiene en camino otra columna de la misma clase.
+  // (Antes, con todas en 0 días, elegía la primera de la lista: las reservas de la costa.)
+  const yaVa = (cl: string, D: any) => cols.some((x: any) => x.bando === D.bando && (kc(x).clase || "abast") === cl && String(kc(x).dest) === String(D.id) && ["carga", "ida", "descarga"].includes(kc(x).fase));
   const elegirAuto = (col: any) => {
     const cl = kc(col).clase || "abast";
-    let mejor: any = null, peor = Infinity;
+    let mejor: any = null, peor = Infinity, mejK: number[] | null = null;
     for (const D of U.values()) {
       if (D.bando !== col.bando || !viva(D) || esLogT(D) || esColT(D) || esPCTeatro(D)) continue;
       let v: number;
@@ -4424,9 +4438,28 @@ function columnasG4Teatro(c: any) {
         v = cl === "mun" ? mun(D) : dos(D);
         if (v >= G.autoDias) continue;
       }
-      if (v < peor) { peor = v; mejor = D; }
+      if (yaVa(cl, D)) continue;
+      const kk = [peleo.has(D.id) ? 0 : 1, Math.round(v * 100) / 100, haversineKm(pos(col), pos(D))];
+      if (!mejK || kk[0] < mejK[0] || (kk[0] === mejK[0] && (kk[1] < mejK[1] || (kk[1] === mejK[1] && kk[2] < mejK[2])))) { mejK = kk; mejor = D; peor = v; }
     }
     return mejor;
+  };
+  // v2.9.494 — ⏱ horas estimadas (llegada y regreso) y km que faltan, para el panel 📦 LOGÍSTICA.
+  const estima = (col: any, ahora: number) => {
+    const k = kc(col), f = k.fase || "base";
+    if (col.estado === "fuera_combate" || f === "base" || f === "destruida") { if (k.eta) ponC(col, { eta: null }); return; }
+    const D = k.dest != null ? U.get(k.dest) : null, B = baseDe(col);
+    if (!D || !B) return;
+    const corta = Math.max(3, frente(D) * 0.5), r: number[][] | null = Array.isArray(k.ruta) && k.ruta.length >= 2 ? k.ruta : null;
+    const vueltaKm = r && k.kmIda != null ? Number(k.kmIda) : haversineKm(pos(D), pos(B)) * G.factorCamino;
+    let h = ahora, lleg: number | null = null, faltaKm = 0;
+    if (f === "carga" || f === "ida") {
+      if (f === "carga") h += Number(k.resta) || 0;
+      faltaKm = r ? Math.max(0, largo(r) - corta - (f === "ida" ? Number(k.km) || 0 : 0)) : Math.max(0, haversineKm(pos(col), pos(D)) - corta) * G.factorCamino;
+      h += faltaKm / kmH; lleg = h; h += G.cargaH + vueltaKm / kmH;
+    } else if (f === "descarga") { h += (Number(k.resta) || 0) + vueltaKm / kmH; faltaKm = vueltaKm; }
+    else if (f === "vuelta") { faltaKm = r && k.kmIda != null ? Math.max(0, largo(r) - (Number(k.km) || 0)) : haversineKm(pos(col), pos(B)) * G.factorCamino; h += faltaKm / kmH; }
+    ponC(col, { eta: { lleg: lleg == null ? null : r2(lleg), vuelve: r2(h), faltaKm: Math.round(faltaKm) } });
   };
   for (const col of cols) {
     const C = G.clases[kc(col).clase] || G.clases.abast, ico = C.ico, nom = nombreUnidad(col);
@@ -4488,13 +4521,15 @@ function columnasG4Teatro(c: any) {
           if (esLogT(base)) {
             const stock = Number(gt(base).log.t) || 0, td = tDia(D) * (k.clase === "mun" ? G.tMun : 1);
             lleva = Math.min(lleva, stock / td);
-            if (lleva < 0.1) { cierra(); ev(`${ico} ${nom} no tiene qué cargar: ${nombreUnidad(base)} está sin existencias.`, pos(base), [col.bando]); break; }
-            ponT(base, { log: { ...gt(base).log, t: Math.round((stock - lleva * td) * 10) / 10 } });
+            if (lleva < 0.1) { cierra(); if (gt(base).log.hAgotado == null) ponT(base, { log: { ...gt(base).log, hAgotado: r2(hasta - h) } }); ev(`${ico} ${nom} no tiene qué cargar: ${nombreUnidad(base)} está sin existencias.`, pos(base), [col.bando]); break; }
+            const queda = Math.round((stock - lleva * td) * 10) / 10;
+            ponT(base, { log: { ...gt(base).log, t: queda, ...(queda <= 1 && gt(base).log.hAgotado == null ? { hAgotado: r2(hasta - h) } : {}) } });
           }
         }
         const r = Array.isArray(oa.ruta) ? oa.ruta.map((q: any) => [Number(q[0]), Number(q[1])]).filter((q: number[]) => Number.isFinite(q[0]) && Number.isFinite(q[1])) : [];
         const sirve = r.length >= 2 && haversineKm(r[0], pos(base)) <= 25 && haversineKm(r[r.length - 1], pos(D)) <= 40;
-        ponC(col, { base: String(base.designacion || ""), fase: "carga", resta: G.cargaH, dest: D.id, t: r2(lleva), km: 0, kmIda: null, ruta: sirve ? r.slice(0, 60) : null });
+        ponC(col, { base: String(base.designacion || ""), fase: "carga", resta: G.cargaH, dest: D.id, t: r2(lleva), km: 0, kmIda: null, ruta: sirve ? r.slice(0, 60) : null,
+          salidas: (Number(k.salidas) || 0) + 1, hSale: r2(hasta - h), auto: oa.id == null });
       } else if (f === "carga") ponC(col, { fase: "ida", resta: 0, km: 0 });
       else if (f === "ida") {
         const D = k.dest != null ? U.get(k.dest) : null;
@@ -4572,6 +4607,7 @@ function columnasG4Teatro(c: any) {
         }
       } else ponC(col, { fase: "base", km: 0 });
     }
+    estima(col, hasta - h);
   }
 }
 
@@ -4960,7 +4996,7 @@ function resolverTeatro(estado: any) {
     if (u && viva(u) && conLog.has(u.bando)) { const d = dos(u) - base; if (d > 0) ponMun(u, mun(u) + d); }
   }
   // v2.9.489 — 🚚💣🚑 las columnas a la orden del G-4.
-  columnasG4Teatro({ U, viva, pos, dia, T, ev, lugar, frente, orden, fin, dos, ponDos, mun, ponMun, auto: estado.g4auto || null });
+  columnasG4Teatro({ U, viva, pos, dia, T, ev, lugar, frente, orden, fin, dos, ponDos, mun, ponMun, peleo, auto: estado.g4auto || null });
   // v2.9.492 — 📒 lo que le llegó por la cadena logística y por las columnas del G-4.
   for (const [id, base] of dosSinCadena) {
     const u = U.get(id); if (!u) continue;
