@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.491</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.492</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -46530,6 +46530,8 @@ function _wgUnidadClick(u){
   // Regla nueva: si ya hay una unidad seleccionada y la que tocás es de OTRO
   // bando, es un BLANCO — sin importar el rol.
   const selU=_wgUnidadPorId(WG.sel);
+  // v2.9.492 — en el TEATRO el clic sobre una GU enemiga es ATACAR (o 🔥 FUEGOS con el modo armado).
+  if(WG.teatro && selU && String(selU.id)!==String(u.id) && selU.bando!==u.bando){ if(_wgPuedeOrdenar()) _wgTeatroBlanco(selU,u); return; }
   if(selU && String(selU.id)!==String(u.id) && selU.bando!==u.bando){
     if(!_wgPuedeOrdenar()) return;
     // v2.9.477 — 🎯 EL CONTACTO SIN IDENTIFICAR TAMBIÉN SE BATE. Sergio (07-11-2026): «no sé por qué no
@@ -46543,7 +46545,7 @@ function _wgUnidadClick(u){
   }
   const mio = (WG.soy==='arbitro')||(u.bando===WG.soy);
   if(mio){ const antes=WG.sel; WG.sel=(String(WG.sel)===String(u.id))?null:u.id;
-    if(String(antes)!==String(WG.sel)) WG.armaSel=null; // v2.9.214
+    if(String(antes)!==String(WG.sel)){ WG.armaSel=null; WG.modoFuegoT=false; } // v2.9.214 · v2.9.492
     _wgRender();
     // v2.9.261 — ELEGIR UNA UNIDAD YA NO TE MUEVE LA VISTA. Antes cada clic
     // reencuadraba y te arrancaba el terreno de las manos justo cuando estabas
@@ -46572,6 +46574,13 @@ function _wgMapClick(ev){
   if(WG.replayando){ _wgAvisoPelicula(); return; }   // v2.9.455: las fichas todavía van llegando
   if(!_wgPuedeOrdenarA(_wgUnidadPorId(WG.sel))) return;   // v2.9.345
   const p=[ev.latlng.lng, ev.latlng.lat];
+  // v2.9.492 — 🔥 con el modo de fuegos armado, el clic cerca de una GU enemiga la elige como blanco.
+  if(WG.teatro && WG.modoFuegoT){
+    const sU=_wgUnidadPorId(WG.sel); let bl=null, dm=15;
+    for(const e of (_wgUnidadesVisibles()||[])){ if(!e||!sU||e.bando===sU.bando||_wgEsConvoy(e)) continue; const d=_wgHav(p,[e.lng,e.lat]); if(d<dm){ dm=d; bl=e; } }
+    if(bl) _wgTeatroBlanco(sU,bl); else _wgAviso('🔥 Tocá <b>sobre una GU enemiga</b> (o a menos de 15 km de ella).',3500);
+    return;
+  }
   // v2.9.225 — REPLEGARSE: el clic marca hacia dónde romper contacto. La unidad
   // se retira sin empeñar; si tenía un enemigo encima al empezar el turno,
   // aguanta el fuego de la persecución pero no devuelve golpes.
@@ -48672,8 +48681,10 @@ function _wgRelojTic(){
         +`<select id="wg-reloj-vel" class="wg-chip" style="padding:2px 4px" onchange="wgRelojVelocidad(this.value)" title="A qué velocidad corre el tiempo del ejercicio">`
         +velocidades.map(([v,nom])=>`<option value="${v}"${vel===v?' selected':''}>${nom}</option>`).join('')+`</select>`
         +`<button class="wg-pill" style="border-color:#e23b3b;color:#ffb4b4" onclick="wgAltoJuego()" title="Termina el juego y muestra los resultados">⏹️ ALTO</button>`
+        +`<button class="wg-pill" onclick="wgBitDetalle()" title="Todo lo que pasó, completo: quién atacó, con cuánto poder, la relación, las bajas, lo que llegó">📜 Bitácora</button>`
+        +(WG.teatro?`<button class="wg-pill" onclick="wgResultados()" title="El libro de cada GU hasta ahora: bajas, evacuados, abastecimientos, fuegos">📊 Cuentas</button>`:'')
       : (p.estado==='finalizada'
-        ? `<button class="wg-pill wg-fuerte" onclick="wgResultados()">📊 Resultados</button>`
+        ? `<button class="wg-pill wg-fuerte" onclick="wgResultados()">📊 Resultados</button><button class="wg-pill" onclick="wgBitDetalle()">📜 Bitácora</button>`
           +(WG.soy==='arbitro'?`<button class="wg-pill" onclick="wgReanudar()" title="Vuelve a abrir la partida">▶️ Reanudar</button>`:'')
         : '');
     if(WG.teatro && WG.hoja==='matriz') wgPanelMatriz();
@@ -48744,8 +48755,197 @@ async function wgReanudar(){
   if(!r || !r.ok){ _wgAviso('No se pudo reanudar: '+_rgEsc((r&&r.error)||''), 5000); return; }
   await wgEstado(true); _wgRender();
 }
+// ============================================================
+// v2.9.492 — 🔥 FUEGOS, 📒 RESULTADOS QUE CUENTAN Y 📜 BITÁCORA DETALLADA (19-11-2026). Sergio, al ALTO de una partida
+// de teatro: «debería haber una tarea de atacar con fuegos, sólo hay movimientos… sale 0 bajas, sale 0 abastecimientos,
+// si se mandó abastecimiento, si se mandó ambulancias… debe contabilizar bien todo… en el modo árbitro debe haber un
+// lugar donde se pueda leer con más detalle el resultado de la bitácora… quién atacó, con cuánta potencia relativa,
+// con cuántos heridos». La tabla leía las cuentas del juego táctico; las GG.UU. del teatro no las tienen. Ahora el
+// motor lleva un LIBRO por GU (`carga.teatro.cta`) y los resultados lo leen; el parte de combate sale cada 6 h con
+// quién ataca, su poder antes y después, la relación y las bajas en hombres.
+// ============================================================
+const WG_ALC_FUEGO_T={ batallon:12, regimiento:20, brigada:30, division:40, cuerpo:60, ejercito:70 };
+function _wgAlcFuegoT(u){ return WG_ALC_FUEGO_T[(u&&u.escalon)||'']||30; }
+function wgModoFuegoT(){
+  const u=_wgUnidadPorId(WG.sel); if(!u || !WG.teatro) return;
+  WG.modoFuegoT=!WG.modoFuegoT;
+  if(WG.modoFuegoT){ WG.modoReplegar=false; WG.modoApoyar=false; WG.armaSel=null;
+    _wgAviso(`🔥 <b>${_rgEsc(u.designacion||'')}</b>: tocá la GU <b>enemiga</b> que va a batir con fuegos (alcance ${_wgAlcFuegoT(u)} km).`,5000); }
+  _wgRender();
+}
+function _wgTeatroBlanco(selU,u){
+  if(!selU || !u || !_wgPuedeOrdenarA(selU)) return;
+  const fuego=!!WG.modoFuegoT; WG.modoFuegoT=false;
+  if(WG.rutas) delete WG.rutas[selU.id];
+  WG.ordenes[selU.id]={ tipo:fuego?'fuego':'atacar', objetivo_id:u.id, _local:1, _plan:1 };
+  const d=_wgHav([selU.lng,selU.lat],[u.lng,u.lat]), alc=_wgAlcFuegoT(selU);
+  _wgAviso(fuego
+    ? `🔥 <b>${_rgEsc(selU.designacion||'')}</b> va a <b>BATIR CON FUEGOS</b> a <b>${_rgEsc(u.designacion||'')}</b>: está a ${Math.round(d)} km, su alcance es ${alc} km${d>alc?' — primero se acerca':''}. Apretá <b>🚀 LANZAR</b>.`
+    : `⚔️ <b>${_rgEsc(selU.designacion||'')}</b> va a <b>ATACAR</b> a <b>${_rgEsc(u.designacion||'')}</b> (a ${Math.round(d)} km): marcha hasta el contacto y lo empeña. Para batirlo sin empeñarse elegí 🔥 FUEGOS (tecla G) y tocalo. Apretá <b>🚀 LANZAR</b>.`, 7000);
+  try{ _wgActualizarContadorOrdenes(); }catch(_e){}
+  _wgRender(); if(WG.map3d) _wg3dDatos();
+}
+// 📒 Los resultados del TEATRO: del libro de cada GU.
+function _wgCtaT(u){ return (((u||{}).carga||{}).teatro||{}).cta||null; }
+function _wgEfT(u){ const t=(((u||{}).carga||{}).teatro||{}); return Number(t.ef)||({ batallon:800, regimiento:1200, brigada:3500, division:9000, cuerpo:20000, ejercito:1500 })[u.escalon]||9000; }
+function _wgResultadosTeatroHTML(){
+  const e=WG.estado||{}, p=e.partida||{}, R=WG.relojJuego||{}, A=R.alto||{}, I=R.inicio||null;
+  const n=x=>Number(x)||0, f0=x=>Math.round(n(x)).toLocaleString('es-BO'), f1=x=>(Math.round(n(x)*10)/10).toLocaleString('es-BO');
+  const esCombate=u=>u && !_wgEsConvoy(u) && !(((u.carga||{}).teatro||{}).log) && !(((u.carga||{}).teatro||{}).col);
+  const uds=(e.unidades||[]).filter(esCombate);
+  let estimadas=false;
+  const fila=u=>{
+    const c=_wgCtaT(u)||{}, pm=n(u.poder_max)||1, pa=n(u.poder_actual), ef=_wgEfT(u);
+    let muer=n(c.muer), her=n(c.her), desap=n(c.desap), est=false;
+    if(!_wgCtaT(u) && pa<pm-0.01){ const h=(pm-pa)/pm*ef; muer=h*0.2; her=h*0.65; desap=h*0.15; est=true; estimadas=true; }
+    const t=((u.carga||{}).teatro||{});
+    return { u, c, pm, pa, muer, her, desap, est, baj:muer+her+desap, evH:n(c.evH), sinEv:Math.max(0,her-n(c.evH)), recH:n(c.recH),
+      dosR:n(c.dosR), munR:n(c.munR), abN:n(c.abN), munN:n(c.munN), evN:n(c.evN), atqH:n(c.atqH), defH:n(c.defH),
+      inf:n(c.inf), fueH:n(c.fueH), fueP:n(c.fueP), fueHom:n(c.fueHom), perdF:n(c.perdF),
+      dos:Number.isFinite(Number(t.dos))?Number(t.dos):5, mun:Number.isFinite(Number(t.mun))?Number(t.mun):5 };
+  };
+  const filas=uds.map(fila);
+  const lado=b=>{ const xs=filas.filter(x=>x.u.bando===b), S=k=>xs.reduce((a,x)=>a+n(x[k]),0);
+    return { xs, poder:S('pa'), max:S('pm'), muer:S('muer'), her:S('her'), desap:S('desap'), baj:S('baj'), evH:S('evH'), sinEv:S('sinEv'), recH:S('recH'),
+      dosR:S('dosR'), munR:S('munR'), abN:S('abN'), munN:S('munN'), evN:S('evN'), inf:S('inf'), fueP:S('fueP'), fueHom:S('fueHom'), fueH:S('fueH'),
+      fuera:xs.filter(x=>x.u.estado==='fuera_combate').length }; };
+  const az=lado('azul'), ro=lado('rojo');
+  const rel=(a,r)=> (a>0&&r>0) ? (a>=r?`<b style="color:#6fb2ff">${(a/r).toFixed(1)} : 1</b> para el 🔵`:`<b style="color:#ff7a7a">${(r/a).toFixed(1)} : 1</b> para el 🔴`) : '—';
+  const tarjeta=(b,L)=>`<div style="flex:1;min-width:260px;border:1px solid ${b==='rojo'?'#e23b3b':'#1f6dff'};border-radius:10px;padding:9px 11px">`
+    +`<b style="font-size:13px">${b==='rojo'?'🔴 ROJO':'🔵 AZUL'}</b><div style="font-size:12px;line-height:1.65;margin-top:4px">`
+    +`💪 poder <b>${f1(L.poder)}</b> de ${f1(L.max)} (${L.max?Math.round(100*L.poder/L.max):0} %)${L.fuera?` · ⛔ ${L.fuera} fuera de combate`:''}<br>`
+    +`🩸 <b>${f0(L.baj)} bajas</b>: ☠️ ${f0(L.muer)} muertos · 🤕 ${f0(L.her)} heridos · ❓ ${f0(L.desap)} desaparecidos<br>`
+    +`🚑 ${f0(L.evN)} evacuaciones: <b>${f0(L.evH)} heridos evacuados</b> · ${f0(L.recH)} volvieron al servicio · <b style="color:${L.sinEv>=1?'#ffb15c':'inherit'}">${f0(L.sinEv)} sin evacuar</b><br>`
+    +`🚚 ${f0(L.abN)} columnas de abastecimiento · <b>${f1(L.dosR)} días</b> recibidos en total<br>`
+    +`💣 ${f0(L.munN)} columnas de munición · <b>${f1(L.munR)} días</b> de munición recibidos<br>`
+    +`🔥 ${f1(L.fueH)} h de fuegos: le quitó al enemigo ${f1(L.fueP)} de poder (≈ ${f0(L.fueHom)} bajas)<br>`
+    +`⚔️ en combate le causó al enemigo ${f1(L.inf)} de poder</div></div>`;
+  const tds=x=>{ const u=x.u, pc=Math.round(100*x.pa/x.pm);
+    return `<tr><td>${u.bando==='rojo'?'🔴':'🔵'} ${_rgEsc(u.designacion||'?')}</td>`
+      +`<td><b>${pc} %</b><br><span style="opacity:.6">${f1(x.pa)}/${f1(x.pm)}</span></td>`
+      +`<td>${x.baj>=0.5?`<b>${f0(x.baj)}</b>${x.est?'*':''}<br><span style="opacity:.7">☠️${f0(x.muer)} 🤕${f0(x.her)} ❓${f0(x.desap)}</span>`:'—'}</td>`
+      +`<td>${x.evN||x.evH?`${f0(x.evH)} <span style="opacity:.6">(${f0(x.evN)} viajes)</span>`:'—'}${x.sinEv>=1?`<br><span style="color:#ffb15c">${f0(x.sinEv)} sin evacuar</span>`:''}</td>`
+      +`<td>${x.recH>=1?f0(x.recH):'—'}</td>`
+      +`<td>${x.dosR>0.05?f1(x.dosR)+' d':'—'}${x.abN?` <span style="opacity:.6">(${f0(x.abN)} col.)</span>`:''}<br><span style="opacity:.6">quedan ${f1(x.dos)} d</span></td>`
+      +`<td>${x.munR>0.05?f1(x.munR)+' d':'—'}${x.munN?` <span style="opacity:.6">(${f0(x.munN)} col.)</span>`:''}<br><span style="opacity:.6">quedan ${f1(x.mun)} d</span></td>`
+      +`<td>${x.atqH||x.defH?`${x.atqH?'⚔️ '+f0(x.atqH)+' h':''}${x.atqH&&x.defH?'<br>':''}${x.defH?'🛡️ '+f0(x.defH)+' h':''}`:'—'}</td>`
+      +`<td>${x.fueH?`${f0(x.fueH)} h · −${f1(x.fueP)}`:'—'}${x.perdF>0.05?`<br><span style="opacity:.7">recibió −${f1(x.perdF)}</span>`:''}</td>`
+      +`<td>${x.inf>0.05?f1(x.inf):'—'}</td><td>${_rgEsc(u.estado==='fuera_combate'?'⛔ fuera de combate':(u.estado||''))}</td></tr>`; };
+  const horas=Math.max(0,((A.turno||p.turno_actual||1)-1))*(Number(p.duracion_turno_horas)||24);
+  return `<div style="font-size:16px;font-weight:800">📊 RESULTADOS DEL JUEGO DE GUERRA — TEATRO</div>`
+    +`<div style="font-size:12px;opacity:.8;margin:2px 0 10px">${_rgEsc(p.nombre||'')} · ⏹️ ${A.quien||A.turno?'ALTO':'situación'} a la hora ${_wgHoraTxt(_wgHoraJuego())} (${horas} h)${A.quien?' · lo dio '+_rgEsc(A.quien):''}</div>`
+    +`<div style="font-size:13px;line-height:1.7;padding:8px 11px;border-radius:10px;background:rgba(255,255,255,.05);margin-bottom:10px">`
+    +`⚖️ <b>Potencia relativa de combate</b>: al empezar ${I?rel(n(I.azul),n(I.rojo)):'—'} → ahora ${rel(az.poder,ro.poder)}</div>`
+    +`<div style="display:flex;gap:10px;flex-wrap:wrap">${tarjeta('azul',az)}${tarjeta('rojo',ro)}</div>`
+    +`<div style="overflow-x:auto"><table class="wg-res-tabla" style="width:100%;border-collapse:collapse;margin-top:12px;font-size:11.5px">`
+    +`<tr><th>Gran Unidad</th><th>Poder</th><th>🩸 Bajas</th><th>🚑 Evacuados</th><th>↩️ Volvieron</th><th>🚚 Abastec. recibido</th><th>💣 Munición recibida</th><th>Combate</th><th>🔥 Fuegos (le quitó)</th><th>⚔️ Le causó</th><th>Estado</th></tr>`
+    +filas.map(tds).join('')+`</table></div>`
+    +`<div style="font-size:11px;opacity:.65;margin-top:8px">Bajas = efectivos de la GU × poder perdido (20 % muertos, 65 % heridos, 15 % desaparecidos). `
+    +(estimadas?'<b>*</b> Partida jugada antes de v2.9.492: esas GG.UU. no tienen libro de cuentas; sus bajas se estiman del poder perdido y no hay registro de lo recibido. ':'')
+    +`El detalle de cada combate está en <a href="#" onclick="wgBitDetalle();return false" style="color:#8cd2ff">📜 la bitácora detallada</a>.</div>`;
+}
+// 📜 LA BITÁCORA DETALLADA: todo lo que pasó, completo, filtrable, y se actualiza sola mientras está abierta.
+const WG_BITD_FILTROS=[
+  ['todo','Todo',null],
+  ['combate','⚔️ Combate',/PARTE DE COMBATE|CONTACTO|ATACA|FUERA DE COMBATE|CAPTURADA|DESTRUIDA/],
+  ['fuego','🔥 Fuegos',/🔥|FUEGO/],
+  ['logistica','🚚 Abastec. y munición',/🚚|💣|📦|ABASTEC|MUNICI|G-4/],
+  ['sanidad','🚑 Heridos y personal',/🚑|👥|herid|REEMPLAZ|PERSONAL/i],
+  ['alertas','⚠️ Alertas',/SIN ABASTECIMIENTO|SIN MUNICI|NO PUEDE|DETENIDA|CORTADO|AMENAZADA|FUERA DE COMBATE|💥/],
+];
+async function wgBitDetalle(bando){
+  if(!WG.partidaId) return;
+  const prev=WG._bitD||{};
+  WG._bitD={ filtro:prev.filtro||'todo', bando:bando||prev.bando||'todos', q:prev.q||'' };
+  let d=document.getElementById('wg-bitd');
+  if(!d){
+    d=document.createElement('div'); d.id='wg-bitd';
+    d.style.cssText='position:fixed;inset:0;z-index:7100;background:rgba(0,0,0,.6);display:flex;align-items:stretch;justify-content:center;padding:18px 12px';
+    d.innerHTML=`<style>
+#wg-bitd .bx{width:min(1100px,100%);display:flex;flex-direction:column;background:#0b1118;color:#e6eef6;border:1px solid rgba(140,210,255,.35);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.6);min-height:0}
+#wg-bitd .cab{padding:12px 16px 8px;border-bottom:1px solid rgba(255,255,255,.1)}
+#wg-bitd .ch{display:inline-block;margin:3px 4px 0 0;padding:4px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.05);color:#e6eef6;font:700 12px system-ui,sans-serif;cursor:pointer}
+#wg-bitd .ch.on{background:#1f6dff;border-color:#8cb8ff}
+#wg-bitd .lst{flex:1;min-height:0;overflow:auto;padding:10px 16px}
+#wg-bitd .ev{border-left:4px solid #888;background:rgba(255,255,255,.04);border-radius:8px;padding:8px 11px;margin-bottom:7px;font-size:13.5px;line-height:1.55;white-space:pre-line;cursor:pointer}
+#wg-bitd .ev:hover{background:rgba(255,255,255,.08)}
+#wg-bitd .ev.parte{background:rgba(255,212,0,.07)}
+#wg-bitd .ev .h{font-size:11px;opacity:.6;margin-bottom:2px;white-space:normal}
+#wg-bitd input{background:#111a24;color:#e6eef6;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 9px;font-size:13px;min-width:220px}
+</style><div class="bx"><div class="cab"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<b style="font-size:16px">📜 BITÁCORA DETALLADA</b><span id="wg-bitd-n" style="font-size:12px;opacity:.7"></span>
+<span style="margin-left:auto;display:flex;gap:6px;align-items:center"><input id="wg-bitd-q" placeholder="Buscar unidad o palabra…" oninput="WG._bitD.q=this.value;_wgBitDPintar()">
+<button class="wg-pill" onclick="_wgBitDCargar(true)" title="Traer lo último ya">⟳</button>
+<button class="wg-pill" onclick="wgBitDImprimir()">🖨️ Imprimir</button>
+<button class="wg-pill" onclick="wgBitDCerrar()">✕ Cerrar</button></span></div>
+<div id="wg-bitd-f"></div></div><div class="lst" id="wg-bitd-l"><div class="rg-meta">Cargando…</div></div></div>`;
+    d.addEventListener('click',ev=>{ if(ev.target===d) wgBitDCerrar(); });
+    document.body.appendChild(d);
+  }
+  const q=document.getElementById('wg-bitd-q'); if(q) q.value=WG._bitD.q||'';
+  _wgBitDPintar();
+  await _wgBitDCargar(true);
+  clearInterval(WG._bitDTimer); WG._bitDTimer=setInterval(()=>{ if(!document.getElementById('wg-bitd')){ clearInterval(WG._bitDTimer); return; } _wgBitDCargar(false); }, 5000);
+}
+function wgBitDCerrar(){ clearInterval(WG._bitDTimer); const d=document.getElementById('wg-bitd'); if(d) d.remove(); }
+async function _wgBitDCargar(forzar){
+  if(WG._bitDCargando && !forzar) return;
+  WG._bitDCargando=true;
+  try{
+    const r=await _wgInvoke('historial',{ partida_id:WG.partidaId, clave_acceso:WG.clave, limite:3000 });
+    if(r && r.ok){ const firma=(r.eventos||[]).length+'|'+(((r.eventos||[])[0])||{}).id; if(forzar || firma!==WG._bitDFirma){ WG._bitDFirma=firma; WG._bitDEv=r.eventos||[]; _wgBitDPintar(); } }
+  }catch(_e){} finally{ WG._bitDCargando=false; }
+}
+function _wgBitDLista(){
+  const F=WG._bitD||{}, fil=(WG_BITD_FILTROS.find(x=>x[0]===F.filtro)||WG_BITD_FILTROS[0])[2], q=String(F.q||'').toLowerCase().trim();
+  return (WG._bitDEv||[]).filter(e=>{
+    const t=String(e.descripcion||'');
+    if(fil && !fil.test(t)) return false;
+    if(F.bando==='azul'||F.bando==='rojo'){ if(!_wgBitBandosDe(e).includes(F.bando)) return false; }
+    if(q && !t.toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((x,y)=>((Number(y.turno)||0)-(Number(x.turno)||0))||((Number(y.id)||0)-(Number(x.id)||0)));
+}
+function _wgBitDPintar(){
+  const fEl=document.getElementById('wg-bitd-f'), lEl=document.getElementById('wg-bitd-l'), nEl=document.getElementById('wg-bitd-n');
+  if(!fEl||!lEl) return;
+  const F=WG._bitD||{};
+  const lados=(WG.soy==='arbitro'||!(WG.soy==='azul'||WG.soy==='rojo'))?[['todos','Los dos'],['azul','🔵 Azul'],['rojo','🔴 Rojo']]:[];
+  fEl.innerHTML=WG_BITD_FILTROS.map(([k,nom])=>`<button class="ch${F.filtro===k?' on':''}" onclick="WG._bitD.filtro='${k}';_wgBitDPintar()">${nom}</button>`).join('')
+    +(lados.length?'<span style="display:inline-block;width:14px"></span>'+lados.map(([k,nom])=>`<button class="ch${F.bando===k?' on':''}" onclick="WG._bitD.bando='${k}';_wgBitDPintar()">${nom}</button>`).join(''):'');
+  const xs=_wgBitDLista();
+  if(nEl) nEl.textContent=`${xs.length} de ${(WG._bitDEv||[]).length} renglones · se actualiza sola cada 5 s · lo último arriba`;
+  WG._bitDIdx=xs;
+  const sc=lEl.scrollTop;
+  lEl.innerHTML=xs.length?xs.slice(0,1500).map((e,i)=>{
+    const t=String(e.descripcion||''), bs=_wgBitBandosDe(e), col=bs.length===1?(bs[0]==='rojo'?'#e23b3b':'#1f6dff'):'#ffd400';
+    const m=t.match(/^🌎\s*(D(?:\+\d+)?\s+\d\d:\d\d)\s*·\s*/), hora=m?m[1]:'', cuerpo=m?t.slice(m[0].length):t;
+    const parte=/PARTE DE (COMBATE|FUEGOS)|PARTE DEL DÍA|PARTE LOGÍSTICO|PARTE DE PERSONAL/.test(t);
+    return `<div class="ev${parte?' parte':''}" style="border-left-color:${col}" onclick="_wgBitDTocar(${i})" title="Tocá para ver en la carta de quién habla">`
+      +`<div class="h">${hora?'🕐 '+_rgEsc(hora)+' · ':''}${_rgEsc(e.tipo||'')}${bs.length===1?' · '+(bs[0]==='rojo'?'🔴 lo ve el rojo':'🔵 lo ve el azul'):' · lo ven los dos'}</div>`
+      +_rgEsc(cuerpo.replace(/^🌎\s*/,'')).replace(/(^|[^A-Za-zÁÉÍÓÚÑáéíóúñ])(ATACA|DEFIENDE|BATE|batió|FUERA DE COMBATE|SIN MUNICIÓN|SIN ABASTECIMIENTO|ENTREGÓ|CARGÓ|CONTACTO|GANA|CONTIENE|≈ [\d.]+ bajas)(?![A-Za-zÁÉÍÓÚÑáéíóúñ])/g,'$1<b>$2</b>')+`</div>`;
+  }).join(''):'<div class="rg-meta">Nada con este filtro.</div>';
+  lEl.scrollTop=sc;
+}
+function _wgBitDTocar(i){
+  const e=(WG._bitDIdx||[])[i]; if(!e) return;
+  const u=_wgUnidadDeTexto(String(e.descripcion||''), e.lat, e.lng);
+  wgBitDCerrar();
+  if(u) wgIluminarUnidad(u.id);
+  else if(e.lat!=null && e.lng!=null && Number.isFinite(Number(e.lat))) _wgIluminarPunto(Number(e.lng), Number(e.lat));
+}
+function wgBitDImprimir(){
+  const w=window.open('','_blank'); if(!w) return;
+  const p=((WG.estado||{}).partida)||{};
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Bitácora del juego de guerra</title><style>body{font-family:system-ui,sans-serif;margin:24px;color:#111}
+.ev{border-left:4px solid #888;padding:6px 10px;margin-bottom:6px;white-space:pre-line;font-size:12px;page-break-inside:avoid}</style></head><body>`
+    +`<h2>📜 Bitácora — ${_rgEsc(p.nombre||'')}</h2>`+_wgBitDLista().map(e=>`<div class="ev">${_rgEsc(String(e.descripcion||''))}</div>`).join('')
+    +`<scr`+`ipt>window.onload=function(){setTimeout(function(){window.print();},300);};</scr`+`ipt></body></html>`);
+  w.document.close();
+}
 // 📊 Los resultados: la PRC al empezar y al ALTO, cómo quedó cada bando y cada unidad.
 function _wgResultadosHTML(){
+  if(WG.teatro) return _wgResultadosTeatroHTML();   // v2.9.492
   const e=WG.estado||{}, p=e.partida||{}, R=WG.relojJuego||{}, A=R.alto||{}, I=R.inicio||null;
   const uds=(e.unidades||[]).filter(u=>u && !_wgEsConvoy(u));
   const n=(x)=>Number(x)||0;
@@ -48802,6 +49002,7 @@ function wgResultados(){
     +`<style>#wg-resultados .wg-res-tabla th,#wg-resultados .wg-res-tabla td{border-bottom:1px solid rgba(255,255,255,.1);padding:4px 6px;text-align:left}</style>`
     +_wgResultadosHTML()
     +`<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">`
+    +`<button class="wg-pill" onclick="wgBitDetalle()">📜 Bitácora detallada</button>`
     +`<button class="wg-pill" onclick="wgResultadosImprimir()">🖨️ Imprimir / PDF</button>`
     +`<button class="wg-pill" onclick="document.getElementById('wg-resultados').remove()">✕ Cerrar</button></div></div>`;
   d.addEventListener('click',(ev)=>{ if(ev.target===d) d.remove(); });
@@ -49079,6 +49280,7 @@ function _wgBitRender(ev){
     const abierto=WG._bitPedAbierto===b && ped.length;
     return `<div class="wg-bit-caja" style="--c:${col}">`
       +`<div class="wg-bit-cab" style="background:${col}40">${b==='rojo'?'🔴 ROJO':'🔵 AZUL'}`
+      +`<button class="wg-bit-pedbtn" style="margin-left:8px" onclick="event.stopPropagation();wgBitDetalle('${b}')" title="Abrir la bitácora completa, con los partes enteros">📜 detalle</button>`
       +(ped.length
         ? `<button class="wg-bit-pedbtn${abierto?' on':''}" onclick="wgBitPedidos('${b}',event)" title="Lo que piden las unidades (combustible, munición, raciones, heridos, reemplazos). Tocá un pedido para ver la unidad.">📻 ${ped.length} pedido${ped.length>1?'s':''} ${abierto?'▴':'▾'}</button>`
         : `<span style="margin-left:auto;font-weight:700;opacity:.9">sin pedidos</span>`)+`</div>`
@@ -49925,6 +50127,8 @@ function _wgHudGrilla(){
           tip:tipNo('ALTO|Se queda donde está. Corta la marcha que venía haciendo.|Atajo: X') })
       +(conv ? '' : B({ k:'r', ico:_wgSvg('replegar',20), on:!!WG.modoReplegar, off:!puede, click:'wgReplegar()',
           tip:tipNo('ROMPER CONTACTO|Se retira SIN empeñarse: tocá en el mapa hacia dónde. Si tenía el enemigo encima, aguanta la persecución sin devolver golpes.|Atajo: R') }))
+      +((WG.teatro && !conv && !(((u.carga||{}).teatro||{}).log)) ? B({ k:'g', ico:'<span style="font-size:19px;line-height:1">🔥</span>', on:!!WG.modoFuegoT, off:!puede, click:'wgModoFuegoT()',
+          tip:tipNo('ATACAR CON FUEGOS|Tocá después la GU ENEMIGA: la bate con su artillería, cohetes y aviación SIN empeñarse. Si está lejos se acerca hasta tenerla en alcance ('+_wgAlcFuegoT(u)+' km). Gasta munición; cada 6 h sale el PARTE DE FUEGOS con las bajas.|Atajo: G') }) : '')
       +(conv ? B({ k:'b', ico:_wgSvg('apoyar',20), on:!!WG.modoApoyar, off:!puede, click:'wgModoApoyar()',
           tip:tipNo((_wgCargaDe(u,'EVAC')>0?'EVACUAR':(_wgCargaDe(u,'REEMP')>0?'REEMPLAZAR':'ABASTECER'))
             +'|Tocá después la unidad propia que tiene que recibirlo. El convoy va por camino y puede ser batido en ruta.|Atajo: B') }) : '')
