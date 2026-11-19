@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.493</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.494</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -49932,10 +49932,73 @@ function _wgG4ColTxt(c){
   const k=((c.carga||{}).teatro||{}).col||{}, d=k.dest!=null?_wgUnidadPorId(k.dest):null, a=d?(d.designacion||'la unidad'):'la unidad';
   if(c.estado==='fuera_combate') return '💥 destruida · se reconstituye a las 48 h';
   if(k.fase==='carga') return '⏳ cargando para '+a;
-  if(k.fase==='ida') return '➡️ en camino a '+a;
+  if(k.fase==='ida') return '➡️ en camino a '+a+(k.eta&&k.eta.lleg!=null?' · llega ≈ '+_wgG4Hora(k.eta.lleg):'');
   if(k.fase==='descarga') return k.clase==='evac' ? '⏳ cargando heridos de '+a : '⏳ entregando a '+a;
-  if(k.fase==='vuelta') return '↩️ volviendo a su base';
+  if(k.fase==='vuelta') return '↩️ volviendo a su base'+(k.eta&&k.eta.vuelve!=null?' · ≈ '+_wgG4Hora(k.eta.vuelve):'');
   return '✅ en su base ('+(k.base||'')+') · lista';
+}
+// v2.9.494 — la hora del juego en el formato de la bitácora (D+1 14:00), como `horaTeatro` del motor.
+function _wgG4Hora(h){ const t=Math.max(0,Math.floor(Number(h)*60+1e-6)), d=Math.floor(t/1440), hh=Math.floor(t/60)%24, mm=t%60;
+  return 'D'+(d?'+'+d:'')+' '+String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0'); }
+// v2.9.494 — 📦 EL TABLERO DEL G-4 A ESCALA TEATRO (19-11-2026). Sergio: «quiero ver cuántos convoyes se mandaron,
+// cuánto se puede mandar y cuándo se acabó». Debajo de los tres MOVER: cada columna (estado, destino, carga, km que
+// faltan, hora de llegada y de regreso, salidas y viajes), lo que se puede mandar (3 días por viaje; depósito
+// ilimitado sin instalaciones, o el stock de la que despacha y la hora en que SE ACABÓ), los totales del libro
+// `carga.teatro.cta` y quién necesita (días, munición, heridos sin evacuar y si ya tiene una columna en camino).
+function _wgG4Sec(id,tit,cuerpo,abierta){
+  const A=WG._g4Abre=WG._g4Abre||{}, o=(id in A)?A[id]:!!abierta;
+  return `<details style="margin-top:6px;border-top:1px solid #1f3442;padding-top:4px" ${o?'open':''} ontoggle="(WG._g4Abre=WG._g4Abre||{})['${id}']=this.open">`
+    +`<summary style="cursor:pointer;font-weight:700;color:#cfe3ee;font-size:12px">${tit}</summary><div style="font-size:11px;line-height:1.45;color:#dbe9f2">${cuerpo}</div></details>`;
+}
+function _wgG4TeatroHTML(b){
+  const us=(WG.estado&&WG.estado.unidades)||[], ban=b?[b]:['azul','rojo'], tt=u=>((u.carga||{}).teatro)||{};
+  const n1=x=>(Math.round((Number(x)||0)*10)/10).toLocaleString('es-BO'), n0=x=>Math.round(Number(x)||0).toLocaleString('es-BO');
+  const viva=u=>u && u.estado!=='fuera_combate' && Number(u.poder_actual)>0;
+  const ic=x=>x==='rojo'?'🔴':'🔵', FASE={carga:'⏳ cargando',ida:'➡️ ida',descarga:'⏳ en destino',vuelta:'↩️ vuelta',base:'✅ en base'};
+  let h='';
+  for(const bb of ban){
+    const pre=ban.length>1?ic(bb)+' ':'';
+    const cols=us.filter(u=>u.bando===bb && u.arma==='convoy' && (tt(u).col||{}).tipo==='g4');
+    const gus=us.filter(u=>u.bando===bb && viva(u) && _wgG4EsDestino(u));
+    // ── las columnas ──
+    const fc=Object.entries(WG_G4_MOVER).map(([cl,M])=>{
+      const c=cols.find(x=>(tt(x).col||{}).clase===cl);
+      if(!c) return `<div>${M.ico} <b>${M.corto}</b> · <span style="color:#8ea3b3">sin columna (sale con el primer MOVER)</span></div>`;
+      const k=tt(c).col, d=k.dest!=null?_wgUnidadPorId(k.dest):null, f=c.estado==='fuera_combate'?'destruida':(k.fase||'base'), e=k.eta||null;
+      const lleva=f==='base'||f==='destruida'?'':(cl==='evac'?(f==='vuelta'?` · lleva heridos (${n1(Number(k.t)/Math.max(1,Number((d||{}).poder_max)||1)*100)} % de poder)`:''):` · lleva ${n1(k.t)} d`);
+      const cuando=f==='destruida'?(k.reconst!=null?` · se reconstituye ≈ ${_wgG4Hora(k.reconst)}`:''):(e&&f!=='base'?`${e.lleg!=null?` · llega ≈ <b>${_wgG4Hora(e.lleg)}</b>`:''} · vuelve ≈ <b>${_wgG4Hora(e.vuelve)}</b> · faltan ${n0(e.faltaKm)} km`:'');
+      return `<div style="padding:2px 0">${M.ico} <b>${M.corto}</b> · ${f==='destruida'?'<b style="color:#ff6b6b">💥 DESTRUIDA</b>':(FASE[f]||f)}${d?' → '+_rgEsc(d.designacion||''):''}${lleva}${cuando}`
+        +`<br><small style="color:#8ea3b3">base ${_rgEsc(k.base||'—')} · ${n0(k.salidas)} salida(s) · ${n0(k.viajes)} viaje(s) completos${k.auto&&f!=='base'?' · 🤖 la mandó el G-4 automático':''}</small></div>`;
+    }).join('');
+    // ── cuánto se puede mandar ──
+    const inst=us.filter(u=>u.bando===bb && u.arma==='logistica' && tt(u).log && ['SA','SE','SB','BL'].includes(tt(u).log.tipo));
+    const tienePC=us.some(u=>u.bando===bb && viva(u) && (u.escalon==='ejercito' || /^(PC|CG|P\.?C\.?)\b/i.test(String(u.designacion||''))));
+    let cap='Cada viaje lleva hasta <b>3 días</b> de abastecimientos o de munición para una GU (las evacuaciones: los heridos que tenga), a <b>240 km por día</b> (10 km/h), con 1 h para cargar y 1 h para descargar. Si la columna pasa a 2 km del enemigo la destruyen y se reconstituye en 48 h.';
+    if(!inst.length) cap+='<br>🏭 <b>Sin instalaciones logísticas: el depósito es ILIMITADO</b> — nunca se acaba; lo único que limita es el tiempo de viaje y que haya una sola columna de cada clase.'
+      +(tienePC?' Además, las GU que no pelean se reabastecen solas a menos de 80 km de su PC.':' <b style="color:#ffd166">Este bando no tiene puesto de comando: solo se reabastece con estas columnas.</b>');
+    else cap+='<br>'+inst.map(x=>{ const l=tt(x).log, t=Number(l.t)||0, mx=Math.max(1,Number(l.max)||1);
+      return `🏭 <b>${_rgEsc(x.designacion||'')}</b>: ${n0(t)} / ${n0(mx)} t (${Math.round(100*t/mx)} %)`+(t<=1?` · <b style="color:#ff6b6b">SE ACABÓ${l.hAgotado!=null?' a las '+_wgG4Hora(l.hAgotado):''}</b>`:''); }).join('<br>');
+    // ── totales (libro de cuentas) ──
+    const S={abN:0,munN:0,evN:0,dosR:0,munR:0,evH:0,recH:0,her:0};
+    for(const u of us.filter(u=>u.bando===bb)){ const c=tt(u).cta||{}; for(const q in S) S[q]+=Number(c[q])||0; }
+    const sal=cols.reduce((s,c)=>s+(Number(tt(c).col.salidas)||0),0), via=cols.reduce((s,c)=>s+(Number(tt(c).col.viajes)||0),0);
+    const tot=`🚚 <b>${n0(sal)}</b> columnas mandadas · ${n0(via)} viajes completos (ida y vuelta)`
+      +`<br>Entregas: 🚚 ${n0(S.abN)} de abastecimientos · 💣 ${n0(S.munN)} de munición · 🚑 ${n0(S.evN)} evacuaciones`
+      +`<br>Días recibidos (columnas y PC): 🥫 ${n1(S.dosR)} d · 💣 ${n1(S.munR)} d`
+      +`<br>Heridos: ${n0(S.her)} · evacuados ${n0(S.evH)} · vueltos al servicio ${n0(S.recH)}`;
+    // ── quién necesita ──
+    const va=(u,cl)=>cols.some(c=>{ const k=tt(c).col; return c.estado!=='fuera_combate' && k.clase===cl && String(k.dest)===String(u.id) && ['carga','ida','descarga'].includes(k.fase); });
+    const fil=gus.map(u=>{ const t=tt(u), dd=Number.isFinite(Number(t.dos))?Number(t.dos):5, mu=_wgMunTeatro(u), c=t.cta||{}, her=Math.max(0,(Number(c.her)||0)-(Number(c.evH)||0));
+      return { u, dd, mu, her, k:Math.min(dd,mu) }; }).sort((a,b)=>a.k-b.k);
+    const rojo=x=>x<1?'#ff6b6b':x<3?'#ffd166':'#dbe9f2';
+    const nec=fil.length?`<table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="color:#8ea3b3;text-align:left"><th>GU</th><th>🥫</th><th>💣</th><th>🩹 sin evac.</th><th>en camino</th></tr>`
+      +fil.map(x=>`<tr style="border-top:1px solid #1f3442"><td>${_rgEsc(x.u.designacion||'')}</td><td style="color:${rojo(x.dd)}">${n1(x.dd)} d</td><td style="color:${rojo(x.mu)}">${n1(x.mu)} d</td>`
+        +`<td>${x.her>=1?n0(x.her):'—'}</td><td>${['abast','mun','evac'].filter(cl=>va(x.u,cl)).map(cl=>WG_G4_MOVER[cl].ico).join(' ')||'—'}</td></tr>`).join('')+'</table>'
+      :'<span style="color:#8ea3b3">No hay GU propias a las que mandar.</span>';
+    h+=_wgG4Sec('col'+bb,pre+'🚚 LAS COLUMNAS',fc,true)+_wgG4Sec('nec'+bb,pre+'📋 QUIÉN NECESITA',nec,true)
+      +_wgG4Sec('tot'+bb,pre+'📒 TOTALES DEL BANDO',tot,false)+_wgG4Sec('cap'+bb,pre+'📦 CUÁNTO SE PUEDE MANDAR',cap,false);
+  }
+  return h;
 }
 function _wgG4Ocupada(clase){
   if(!WG.teatro) return false;
@@ -49989,6 +50052,7 @@ function _wgG4BloqueHTML(){
   return `<div class="wg-g4m"><div class="wg-g4m-t">🚚 MOVER — A LA ORDEN DEL G-4</div><div class="wg-g4m-b">${bot}</div>`
     +(puede ? (lista || `<div class="wg-g4m-n">Apretá un botón y elegí a qué unidad va${WG.teatro?': la columna sale, entrega y vuelve sola a su base (240 km por día).':': el convoy se forma en tu instalación más cercana y sale por camino.'}</div>`)
             : `<div class="wg-g4m-n">Desde tu puesto se asesora: estas columnas las manda el G-4 (o el Comandante, el JEM o el G-3).</div>`)
+    +(WG.teatro ? _wgG4TeatroHTML(b) : '')
     +`</div>`;
 }
 function _wgG4BloquePoner(el){
