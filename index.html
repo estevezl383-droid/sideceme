@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.492</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.493</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -38816,6 +38816,9 @@ function _wgBatallaEfectos(ctx,fs,c,edad,duracion,envolvente){
     ctx.restore();
   }
 }
+// v2.9.493 — Sergio (19-11-2026): «las animaciones que combaten y disparan están muy grandes, ocupan mucha parte de
+// la carta… reducelas a un 60 %». Las formaciones, sus fogonazos y explosiones se dibujan al 60 % (la simbología no cambia).
+const WG_BATALLA_ESCALA = 0.6;
 function _wgBatallaDibujar(ctx,S,ahora,dpr){
   if(!_wgCorre() || WG.replayando) return;
   const pares=_wgHumo().pares;
@@ -38835,7 +38838,7 @@ function _wgBatallaDibujar(ctx,S,ahora,dpr){
     const fs=v.formaciones||(v.formaciones=_wgBatallaFormacion(v.a,v.b,c));
     // Sólo 0,4 s de entrada y 1 s de salida: opacidad plena el resto.
     const envolvente=Math.min(1,edad/400,(duracion-edad)/1000);
-    ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang); ctx.scale(WG_BATALLA_ESCALA,WG_BATALLA_ESCALA);   // v2.9.493
     for(let lado=0;lado<2;lado++){
       const u=lado?v.b:v.a, f=fs[lado], signo=lado?-1:1;
       const pierde=String(c.destruida??(c.gana!=null?(String(c.gana)===String(c.a)?c.b:c.a):''))===String(u.id);
