@@ -16,12 +16,12 @@ export function validarPlan(p,roster,personal){
   for(const id of g.alumnos){if(members.has(id)||!roster.some(c=>c.id===id&&c.ciclo===p.ciclo))return 'CURSANTE REPETIDO O AJENO AL CICLO.';members.add(id);}
   if(!g.encargados||Object.keys(g.encargados).some(k=>!ESTACIONES[k]))return 'PRUEBA NO VÁLIDA.';
   for(const [prueba,ps] of Object.entries(g.encargados)){if(!Array.isArray(ps)||new Set(ps).size!==ps.length||ps.some(id=>!puedeEvaluar(personal.find(x=>x.id===id))))return 'SOLO PROFESORES HABILITADOS PUEDEN EVALUAR.';if(prueba==='barras'&&!esExcelencia(g)&&ps.length)return 'BARRAS SE ORGANIZA EN UN GRUPO DE EXCELENCIA.';}
-  if(p.habilitado&&Object.keys(ESTACIONES).filter(x=>x!=='barras'||esExcelencia(g)).some(k=>!g.encargados[k]?.length))return 'ASIGNÁ EVALUADORES A TODAS LAS PRUEBAS ANTES DE HABILITAR.';
+  if(p.habilitado&&Object.keys(ESTACIONES).filter(x=>(x!=='barras'||esExcelencia(g))&&(x!=='talla_peso'||!esExcelencia(g))).some(k=>!g.encargados[k]?.length))return 'ASIGNÁ EVALUADORES A TODAS LAS PRUEBAS ANTES DE HABILITAR.';
   if(!Array.isArray(g.apoyos)||g.apoyos.length>100||g.apoyos.some(a=>!String(a.tarea||'').trim()||a.tarea.length>200||(!a.personal_id&&!String(a.nombre||'').trim())||(a.personal_id&&!personal.some(x=>x.id===a.personal_id))||String(a.nombre||'').length>160))return 'REVISAR PERSONAL DE APOYO Y TAREAS.';
  }
  return null;
 }
-export function asignaciones(plan,actor){return !plan?.habilitado?[]:plan.grupos.flatMap(g=>Object.keys(ESTACIONES).filter(p=>(p!=='barras'||esExcelencia(g))&&g.encargados[p]?.includes(actor)).map(prueba=>({grupo:g.id,color:g.color,prueba,alumnos:g.alumnos})));}
+export function asignaciones(plan,actor){return !plan?.habilitado?[]:plan.grupos.flatMap(g=>Object.keys(ESTACIONES).filter(p=>(p!=='barras'||esExcelencia(g))&&(p!=='talla_peso'||!esExcelencia(g))&&g.encargados[p]?.includes(actor)).map(prueba=>({grupo:g.id,color:g.color,prueba,alumnos:g.alumnos})));}
 export const puedeRegistrar=(plan,actor,id,prueba)=>asignaciones(plan,actor).some(a=>a.prueba===prueba&&a.alumnos.includes(id));
 // Coincidencia exacta por CI/ID o conjunto completo de nombres; nunca asigna coincidencias parciales.
 export function importarLineas(lines,roster){
@@ -38,3 +38,4 @@ export function importarLineas(lines,roster){
  }
  return {grupos,pendientes};
 }
+
