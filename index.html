@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.494</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.496</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -43191,7 +43191,9 @@ async function _wgEnfOrdenes(i, btn){
   const p=WG.estado&&WG.estado.partida;
   if(!p || p.estado!=='en_curso'){ _wgAviso('Primero iniciá la partida (▶ Iniciar): las órdenes sólo se reciben con la partida en curso.',5000); return; }
   const porNombre=new Map();
-  for(const u of _wgUnidadesVisibles()||[]) if(u && u.designacion) porNombre.set(_wgEnfNorm(u.designacion),u);
+  // v2.9.496: todas las fichas de la partida, no sólo las que deja ver la lente de VISTA AZUL/ROJO.
+  const todas=(WG.estado&&Array.isArray(WG.estado.unidades)&&WG.estado.unidades.length)?WG.estado.unidades:(_wgUnidadesVisibles()||[]);
+  for(const u of todas) if(u && u.designacion) porNombre.set(_wgEnfNorm(u.designacion),u);
   const ids=[], faltan=[];
   for(const x of [...(f.rojo||[]),...(f.azul||[])]){
     const u=porNombre.get(_wgEnfNorm(x.unidad));
@@ -43221,7 +43223,7 @@ function _wgEnfPanel(){
       +plan.fases.map((f,i)=>`<div style="border-top:1px solid #1f3442;padding:6px 0"><b>${i===act?'✓ ':''}${e(f.id)}</b> <span style="color:#8ea3b3">${e(f.ventana||'')}</span><br>`
         +`<span style="color:#ff8a80">🔴 ${e(f.nombreRojo||'')}</span><br><span style="color:#8ec5ff">🔵 ${e(f.nombreAzul||'')}</span><br>`
         +`<span style="color:#8ea3b3">${(f.rojo||[]).length} rojas · ${(f.azul||[]).length} azules · ${(f.enfrentamientos||[]).filter(x=>x.contacto).length} choques previstos</span><br>`
-        +`<button class="rg-doc" style="margin-top:4px" onclick="_wgEnfOrdenes(${i},this)" ${enCurso?'':'disabled'}>▶ Dar las órdenes de la ${e(f.id)}</button></div>`).join('')
+        +`<button class="rg-doc" style="margin-top:4px" onclick="_wgEnfOrdenes(${i},this)">▶ Dar las órdenes de la ${e(f.id)}</button></div>`).join('')
       +`<div style="color:#8ea3b3;margin-top:4px">Cada GU recibe la orden de su fase: marchar a su posición por la red vial (o defender si ya está ahí). Con <b>▶ PLAY</b> marchan y, donde se encuentran rojas y azules, combaten. Cuando el reloj llegue al final de la fase, dá las órdenes de la siguiente.</div>`
       : `<div style="margin-bottom:6px">Esta partida no tiene un plan por fases. Cargalo con «📂 Cargar escenario» (el .json del enfrentamiento) o elegilo acá abajo si las GG.UU. ya están en la partida.</div>`)
     +`<div style="margin-top:8px"><button class="rg-doc" onclick="document.getElementById('wg-enf-file').click()" title="Sólo el plan: no toca las unidades ni el terreno de la partida">📂 ${plan?'Cambiar':'Elegir'} el .json del enfrentamiento (sólo el plan)</button>`
@@ -51227,6 +51229,7 @@ async function wgIniciar(btn){
   document.getElementById('wg-config').style.display='none';
   await wgEstado();
   if(WG.teatro) wgHoja(null);
+  if(document.getElementById('wg-enf')) _wgEnfPanel();   // v2.9.496: el panel de fases se redibuja ya iniciada
 }
 
 /* ===== v2.9.90: RADIOGRAMAS (juego de guerra VENCER O MORIR) — vista del cursante ===== */
