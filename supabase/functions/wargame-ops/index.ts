@@ -4611,6 +4611,35 @@ function columnasG4Teatro(c: any) {
   }
 }
 
+// ============================================================
+// v2.9.495 — 🧹 UNA SOLA ORDEN VIVA POR UNIDAD (19-11-2026). La tabla guarda una orden por unidad y por
+// JORNADA (clave partida + turno + unidad) y, con el reloj continuo, una orden se cierra sólo cuando se
+// cumple. Una marcha que quedó TRABADA en combate seguía «pendiente» cuando el jugador le daba otra orden
+// en una jornada posterior: mientras la nueva corría, la vieja esperaba; cuando la nueva se cumplía, la
+// vieja REVIVÍA y la unidad volvía sola a su destino viejo. A escala táctica era peor: el motor toma la
+// primera marcha que encuentra, así que la vieja podía tapar a la nueva.
+// Ahora manda la orden más nueva (la de mayor id) que ya rige, y las anteriores se cierran. Rige la que no
+// tiene hora de arranque o cuya hora ya llegó en este paso (la misma cuenta que resolverTurno); en teatro
+// rigen todas, porque resolverTeatro no espera la hora de arranque. Una orden con hora de arranque futura
+// no corta a la que está corriendo: la corta cuando arranca.
+// ============================================================
+function ordenesSuperadas(ordenes: any[], ctx: { hora: number; horasTurno: number; horas: number; teatro?: boolean }): Set<any> {
+  const rige = (o: any) => !!ctx.teatro || o.inicio == null || !Number.isFinite(Number(o.inicio))
+    || (Number(o.turno) - 1) * ctx.horasTurno + Number(o.inicio) - ctx.hora < ctx.horas;
+  const ultima = new Map<any, number>();
+  for (const o of ordenes || []) {
+    if (!o || o.id == null || o.unidad_id == null || !rige(o)) continue;
+    if (!(Number(o.id) <= (ultima.get(o.unidad_id) ?? -Infinity))) ultima.set(o.unidad_id, Number(o.id));
+  }
+  const fuera = new Set<any>();
+  for (const o of ordenes || []) {
+    if (!o || o.id == null || o.unidad_id == null) continue;
+    const u = ultima.get(o.unidad_id);
+    if (u != null && Number(o.id) < u) fuera.add(o.id);
+  }
+  return fuera;
+}
+
 function resolverTeatro(estado: any) {
   // Sin reloj continuo (turno a turno): el día en 6 pasos de 4 h.
   if (!estado.tic) {
@@ -7407,8 +7436,13 @@ async function manejar(req: Request): Promise<Response> {
       const terreno = await cartaDelMotor(partida.id);
       const unidades = (rU as any).data || [];
       const instalLog = (rI as any).data || [];
-      const ordenes = (rO as any).data || [];
-      const corteOrden = ordenes.reduce((a: string, o: any) => (String(o.creada_en) > a ? String(o.creada_en) : a), "");
+      const leidas = (rO as any).data || [];
+      const corteOrden = leidas.reduce((a: string, o: any) => (String(o.creada_en) > a ? String(o.creada_en) : a), "");
+      // v2.9.495 — la orden más nueva de cada unidad manda: las anteriores se cierran junto con las cumplidas
+      // (T.fin) y no llegan al motor. No entran en «cerradas»: la pantalla no borra la orden que sí corre.
+      const superadas = ordenesSuperadas(leidas, { hora, horasTurno: hDur, horas, teatro: esTeatro(g) });
+      for (const id of superadas) T.fin.add(id);
+      const ordenes = leidas.filter((o: any) => !superadas.has(o.id));
       const sello = (u: any) => JSON.stringify([u.lng, u.lat, u.poder_actual, u.estado, u.combustible_km, u.municion, u.carga, u.trabajo, u.suprimida_hasta]);
       const antes = new Map<any, string>(unidades.map((u: any) => [u.id, sello(u)]));
       // 🤖 El G-4 automático mira una vez por jornada: forma y manda lo que falte.
