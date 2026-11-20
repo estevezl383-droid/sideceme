@@ -72,7 +72,7 @@ function pngLiso([r, g, b]) {
 const TILE_CARTA = pngLiso([92, 104, 72])
 const TILE_DEM = pngLiso([128, 14, 0]) // terrarium: 128·256 + 14 − 32768 = 3598 m (plano)
 
-async function abrir({ ancho = 1440, alto = 900, movil = false, consulta = '', preparar, escalaPantalla = 1 } = {}) {
+async function abrir({ ancho = 1440, alto = 900, movil = false, consulta = '', preparar, escalaPantalla = 1, ventanaMiUnidad = false } = {}) {
   const { chromium } = cargarPlaywright()
   const { srv, url } = await servir()
   const browser = await chromium.launch({ ...(process.env.SIDECEME_CHROMIUM ? { executablePath: process.env.SIDECEME_CHROMIUM } : {}), args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
@@ -90,6 +90,18 @@ async function abrir({ ancho = 1440, alto = 900, movil = false, consulta = '', p
     return r.abort()
   })
   if (preparar) await preparar(page, url)
+  // 19-11-2026: al abrir un ejercicio sin «🪖 Mi unidad» configurada aparece una ventana (organizacion/v1/mi-unidad.mjs).
+  // Las pruebas que no son de eso no la esperan: «Completar después» apenas aparece (`ventanaMiUnidad: true` la deja).
+  if (!ventanaMiUnidad)
+    await page.addInitScript(() => {
+      const mirar = () =>
+        new MutationObserver(() => {
+          const b = document.querySelector('[data-sid="mi-unidad-aviso"] [data-sid="mu-despues"]')
+          if (b) b.click()
+        }).observe(document.documentElement, { childList: true, subtree: true })
+      if (document.documentElement) mirar()
+      else document.addEventListener('DOMContentLoaded', mirar)
+    })
   await page.goto(url + consulta, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   const ok = page.getByRole('button', { name: /entendido/i })

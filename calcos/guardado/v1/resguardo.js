@@ -88,6 +88,7 @@
   }
   function limpio(n) { return String(n || '').trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').slice(0, 80) || 'ejercicio' }
   function dia(ms) { var d = new Date(ms); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) }
+  function hhmm(ms) { var d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()) }
   function horaMin(ms) { var d = new Date(ms); return pad(d.getHours()) + pad(d.getMinutes()) }
   function archivoDe(nombre) { return limpio(nombre) + '.json' } // en tu carpeta
   function respaldoDe(nombre, ms) { return limpio(nombre) + ' ' + dia(ms) + '.json' } // en tu carpeta/respaldos
@@ -111,7 +112,9 @@
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] }) }
 
   // ─── en el navegador ──────────────────────────────────────────────────────────────────
-  var est = { sesion: 'local', expira: null, nubeOk: 0, nubeVencida: false, renovada: 0, carpeta: null, permiso: '', carpetaUlt: 0, carpetaErr: '', localErr: '', copias: [], ultimo: {}, nubeDe: {}, abierto: '', nueva: null, aviso: '', verPanel: false }
+  var est = { sesion: 'local', expira: null, nubeOk: 0, nubeVencida: false, renovada: 0, carpeta: null, permiso: '', carpetaUlt: 0, carpetaErr: '', localErr: '', copias: [], ultimo: {}, nubeDe: {}, abierto: '', nueva: null, aviso: '', verPanel: false,
+    // 📄 el archivo del ejercicio (19-11-2026): «Guardar como» una vez; después «💾 Guardar» lo actualiza
+    archivo: null, archivoK: '', archivoPermiso: '', archivoUlt: 0, archivoErr: '' }
   var btn = null, pan = null, franja = null, idb = null, entrada = null
 
   function lee(k) { try { return sessionStorage.getItem(k) || localStorage.getItem(k) } catch (e) { return null } }
@@ -231,6 +234,7 @@
     try { s = texto(datos) } catch (e) { est.localErr = 'No se pudo preparar la copia del ejercicio: ' + ((e && e.message) || e); pintar(); return Promise.resolve(null) }
     var k = limpio(nombre), h = huella(s), ahora = Date.now()
     if (k !== est.abierto) { est.abierto = k; est.nueva = null; buscarNueva(k, h) }
+    if (k !== est.archivoK) cargarArchivo(k)
     if (!forzar && est.ultimo[k] === h) {
       if (est.carpetaErr && est.carpeta && est.permiso === 'granted') return enCarpeta(nombre, s, ahora).then(pintar)
       return Promise.resolve(null)
@@ -250,6 +254,7 @@
       })
       .catch(function (e) { est.localErr = 'No se pudo guardar la copia en este navegador: ' + ((e && e.message) || e) + '. Usa «Guardar como archivo JSON».'; est.aviso = est.localErr })
       .then(function () { return enCarpeta(nombre, s, ahora) })
+      .then(function () { return enArchivo(k, s, ahora) })
       .then(function () { pintar(); return { nombre: k, h: h } })
   }
   function buscarNueva(k, h) {
@@ -301,6 +306,70 @@
     }).catch(function () {}).then(pintar)
   }
 
+  // ── 📄 EL ARCHIVO DEL EJERCICIO (19-11-2026) ──
+  // Sergio: «que en el guardar como se vaya guardando el ejercicio como esté, o que haya la opción de guardar /
+  // actualizar, para que quede todo bien guardado en su computadora y no se pierda». Como en Word: la primera vez
+  // «Guardar como» (se elige nombre y carpeta); desde ahí «💾 Guardar» actualiza ESE archivo, y mientras se trabaja
+  // se actualiza solo cada minuto si el ejercicio cambió. Se recuerda por ejercicio (IndexedDB «ajustes»). Al
+  // volver a abrir el navegador, Chrome pide permiso otra vez: el primer «💾 Guardar» lo pide (es un toque).
+  // Sólo Chrome/Edge de computadora; en los demás, «Guardar como» descarga una copia nueva cada vez.
+  function puedeArchivo() { return typeof window.showSaveFilePicker === 'function' }
+  function cargarArchivo(k) {
+    est.archivo = null; est.archivoK = k || ''; est.archivoPermiso = ''; est.archivoUlt = 0; est.archivoErr = ''
+    if (!k) return Promise.resolve()
+    return op('ajustes', 'readonly', function (st) { return st.get('archivo:' + k) }).then(function (a) {
+      if (!a || !a.v || est.archivoK !== k || est.archivo) return // (si mientras tanto se eligió otro, queda ése)
+      est.archivo = a.v; est.archivoUlt = a.t || 0
+      return permisoDe(a.v, false).then(function (p) { if (est.archivoK === k) est.archivoPermiso = p })
+    }).catch(function () {}).then(pintar)
+  }
+  function marcarArchivo(k, h, t) { return op('ajustes', 'readwrite', function (st) { st.put({ k: 'archivo:' + k, v: h, t: t }) }).catch(function () {}) }
+  function recordarArchivo(k, h, ahora) {
+    est.archivo = h; est.archivoK = k; est.archivoPermiso = 'granted'; est.archivoUlt = ahora; est.archivoErr = ''
+    return marcarArchivo(k, h, ahora)
+  }
+  function escribirArchivo(h, txt) { return h.createWritable().then(function (w) { return w.write(txt).then(function () { return w.close() }) }) }
+  // automático (cada minuto, si cambió): sólo con permiso ya dado
+  function enArchivo(k, s, ahora) {
+    var h = est.archivo
+    if (!h || est.archivoK !== k || est.archivoPermiso !== 'granted') return Promise.resolve()
+    return escribirArchivo(h, contenido(s, ahora)).then(function () { est.archivoUlt = ahora; est.archivoErr = ''; marcarArchivo(k, h, ahora) }, function (e) {
+      est.archivoErr = (e && e.message) || String(e)
+      if (e && /NotAllowed|permission/i.test(e.name + ' ' + e.message)) est.archivoPermiso = 'prompt'
+    })
+  }
+  // el botón «💾 Guardar»: escribe ya, pidiendo permiso si hace falta
+  async function actualizarArchivo() {
+    var M = mesa(), nombre = M && M.nombre && M.nombre()
+    if (!nombre) { est.aviso = 'Abrí un ejercicio primero.'; return pintar() }
+    var k = limpio(nombre)
+    if (est.archivoK !== k) await cargarArchivo(k)
+    var h = est.archivo
+    if (!h) return bajarAhora()
+    try {
+      var p = await permisoDe(h, true)
+      est.archivoPermiso = p
+      if (p !== 'granted') { est.aviso = '⚠️ El navegador no dio permiso para escribir en «' + (h.name || archivoDe(nombre)) + '». Tocá otra vez «💾 Guardar» y elegí «Permitir», o usá «Guardar como otro archivo».'; return pintar() }
+      var ahora = Date.now()
+      await escribirArchivo(h, contenido(texto(M.foto()), ahora))
+      est.archivoUlt = ahora; est.archivoErr = ''
+      await marcarArchivo(k, h, ahora)
+      est.aviso = '✓ Guardado: «' + (h.name || archivoDe(nombre)) + '» actualizado (' + hora(ahora) + '). Mientras trabajás se sigue actualizando solo cada minuto.'
+      resguardar(false)
+    } catch (e) {
+      est.archivoErr = (e && e.message) || String(e)
+      est.aviso = '⚠️ No se pudo actualizar «' + (h.name || archivoDe(nombre)) + '»: ' + est.archivoErr + '. Usá «Guardar como otro archivo».'
+    }
+    pintar()
+  }
+  function olvidarArchivo() {
+    var k = est.archivoK
+    est.archivo = null; est.archivoPermiso = ''; est.archivoUlt = 0; est.archivoErr = ''
+    if (k) op('ajustes', 'readwrite', function (st) { st.delete('archivo:' + k) }).catch(function () {})
+    est.aviso = 'Listo: ya no se actualiza ese archivo. «💾 Guardar como archivo JSON» elige otro.'
+    pintar()
+  }
+
   // ── ⬇️ bajar ──
   function bajar(nombre, txt) {
     var u = URL.createObjectURL(new Blob([txt], { type: 'application/json' })), a = document.createElement('a')
@@ -323,7 +392,8 @@
         }
         if (h) {
           await escribir({ getFileHandle: function () { return Promise.resolve(h) } }, archivo, txt)
-          est.aviso = '✓ Archivo guardado: ' + (h.name || archivo) + '. Para abrirlo: 📁 botón con el nombre del ejercicio → 📂 Abrir archivo JSON.'
+          await recordarArchivo(limpio(nombre), h, ahora)
+          est.aviso = '✓ Archivo guardado: ' + (h.name || archivo) + '. Desde ahora «💾 Guardar» actualiza ESE archivo (y se actualiza solo cada minuto si cambió). Para abrirlo: 📁 botón con el nombre del ejercicio → 📂 Abrir archivo JSON.'
           return pintar()
         }
       }
@@ -347,8 +417,14 @@
       btn = document.createElement('button')
       btn.type = 'button'; btn.id = 'sid-resg-btn'
       btn.setAttribute('aria-controls', 'sid-resg-panel')
-      btn.title = 'Guardar como archivo JSON, elegir una carpeta y revisar las copias del ejercicio.'
-      btn.addEventListener('click', function () { est.verPanel = !est.verPanel; if (est.verPanel) resguardar(false); pintar() })
+      btn.title = 'Guardar el ejercicio en tu computadora (archivo JSON), elegir una carpeta y revisar las copias.'
+      btn.addEventListener('click', function () {
+        est.verPanel = !est.verPanel
+        // con un archivo ya elegido, el botón GUARDA (actualiza ese archivo) además de abrir el panel
+        if (est.verPanel && est.archivo) { pintar(); return actualizarArchivo() }
+        if (est.verPanel) resguardar(false)
+        pintar()
+      })
       document.body.appendChild(btn)
     }
     pan = document.createElement('div'); pan.id = 'sid-resg-panel'; pan.hidden = true; pan.setAttribute('role', 'region'); pan.setAttribute('aria-label', 'Guardar como')
@@ -360,6 +436,8 @@
       var q = a.getAttribute('data-r')
       if (q === 'entrar') entrar()
       else if (q === 'bajar') bajarAhora()
+      else if (q === 'actualizar') actualizarArchivo()
+      else if (q === 'olvidar-archivo') olvidarArchivo()
       else if (q === 'copia') bajarCopia(a.getAttribute('data-c'))
       else if (q === 'carpeta') elegirCarpeta()
       else if (q === 'permitir') permitirCarpeta()
@@ -411,13 +489,21 @@
   function nombreAbierto() { try { var M = mesa(); return (M && M.nombre && M.nombre()) || '' } catch (e) { return '' } }
   function pintar() {
     if (!pan) return
-    var mal = est.sesion === 'vencida' || est.localErr || est.carpetaErr || (est.carpeta && est.permiso && est.permiso !== 'granted')
-    if (btn) { btn.textContent = mal ? '⚠️ Guardar como' : '💾 Guardar como'; btn.classList.toggle('mal', !!mal); btn.setAttribute('aria-expanded', String(est.verPanel)) }
+    var arch = est.archivo && est.archivoK && est.archivoK === limpio(nombreAbierto()) ? est.archivo : null
+    var mal = est.sesion === 'vencida' || est.localErr || est.carpetaErr || (est.carpeta && est.permiso && est.permiso !== 'granted') || (arch && (est.archivoErr || est.archivoPermiso === 'prompt'))
+    if (btn) {
+      btn.textContent = (mal ? '⚠️ ' : '💾 ') + (arch ? 'Guardar' + (est.archivoUlt && !mal ? ' ✓ ' + hhmm(est.archivoUlt) : '') : 'Guardar como')
+      btn.classList.toggle('mal', !!mal); btn.setAttribute('aria-expanded', String(est.verPanel))
+    }
     pan.hidden = !est.verPanel
     if (est.verPanel) setTimeout(colocar, 0)
-    if (est.verPanel) pan.innerHTML = '<div class="cab"><b>💾 Guardar como · ' + esc(nombreAbierto() || 'el ejercicio') + '</b><button type="button" class="chico" data-r="cerrar">✕</button></div>' +
-      '<button type="button" class="grande" data-r="bajar">💾 Guardar como archivo JSON</button>' +
-      '<p class="nota">' + (typeof window.showSaveFilePicker === 'function' ? 'Elige el nombre y dónde guardar el archivo. Si el navegador no permite elegir, se solicitará una descarga.' : 'El archivo se descarga con el nombre del ejercicio. Tu navegador decide si pregunta la carpeta o usa Descargas.') + '</p>' +
+    if (est.verPanel) pan.innerHTML = '<div class="cab"><b>💾 Guardar · ' + esc(nombreAbierto() || 'el ejercicio') + '</b><button type="button" class="chico" data-r="cerrar">✕</button></div>' +
+      (arch
+        ? '<button type="button" class="grande" data-r="actualizar">💾 Guardar · actualizar «' + esc(arch.name || archivoDe(nombreAbierto())) + '»</button>' +
+          '<p class="nota">' + (est.archivoPermiso === 'prompt' ? '🔓 El navegador pide permiso otra vez para escribir en ese archivo: tocá el botón de arriba y elegí «Permitir». ' : est.archivoUlt ? '✓ Última vez: ' + esc(hora(est.archivoUlt)) + '. ' : '') + 'Mientras trabajás se actualiza solo cada minuto si el ejercicio cambió. <button type="button" class="chico" data-r="olvidar-archivo">Dejar de usar ese archivo</button></p>' +
+          '<button type="button" data-r="bajar">💾 Guardar como otro archivo…</button>'
+        : '<button type="button" class="grande" data-r="bajar">💾 Guardar como archivo JSON</button>' +
+          '<p class="nota">' + (puedeArchivo() ? 'Elige el nombre y dónde guardar el archivo. Desde ahí, «💾 Guardar» actualiza ESE mismo archivo (y se actualiza solo cada minuto si cambió). Si el navegador no permite elegir, se solicitará una descarga.' : 'El archivo se descarga con el nombre del ejercicio. Tu navegador decide si pregunta la carpeta o usa Descargas (cada vez es una copia nueva).') + '</p>') +
       '<ul>' + lineaCortadas() + lineaNube() + lineaCarpeta() + lineaCopias() + '</ul>' +
       '<p class="nota">Un .json se abre con <b>📁 Ejercicio → 📂 Abrir archivo JSON</b>: entra como ejercicio NUEVO y el que tenías abierto no se toca.</p>' +
       (est.aviso ? '<p role="status" class="nota' + (/^(⚠️|No se pudo|El navegador bloqueó)/.test(est.aviso) ? ' error' : /^✓/.test(est.aviso) ? ' ok' : '') + '">' + esc(est.aviso) + '</p>' : '')
@@ -427,9 +513,10 @@
     else if (est.renovada && Date.now() - est.renovada < 8000) f = '<b>🔑 Sesión de SIDECEME renovada:</b> <span>la Mesa vuelve a guardar en la nube.</span>'
     else if (est.nueva) f = '<b>🛟 En esta computadora hay una versión de «' + esc(est.nueva.nombre) + '» más nueva (' + esc(hora(Date.parse(est.nueva.t))) + ') que la de SIDECEME.</b> <span>Bajala y abrila con 📁 Ejercicio → 📂 Abrir archivo JSON (entra como ejercicio nuevo).</span><button type="button" data-r="copia" data-c="' + esc(est.nueva.clave) + '">⬇️ Bajar esa versión</button><button type="button" class="chico" data-r="nueva-no">No, gracias</button>'
     else if (est.sesion === 'por-vencer') f = '<b>⏳ Tu sesión de SIDECEME vence ' + esc(hora(est.expira)) + '.</b> <span>Entrá de nuevo a SIDECEME en otra pestaña antes y la Mesa la toma sola.</span><button type="button" data-r="entrar">🔑 Entrar a SIDECEME</button>'
-    else if (est.carpeta && est.permiso === 'prompt' && nombreAbierto()) f = '<b>📁 Tu carpeta «' + esc(est.carpeta.name) + '» espera permiso</b> <span>para seguir guardando ahí el ejercicio.</span><button type="button" data-r="permitir">🔓 Permitir</button>'
+    else if (arch && est.archivoPermiso === 'prompt') f = '<b>📄 «' + esc(arch.name || archivoDe(nombreAbierto())) + '» espera permiso</b> <span>para seguir guardándose solo en tu computadora.</span><button type="button" data-r="actualizar">🔓 Permitir y guardar</button>'
+    else if (est.carpeta && est.permiso === 'prompt' && nombreAbierto()) f ='<b>📁 Tu carpeta «' + esc(est.carpeta.name) + '» espera permiso</b> <span>para seguir guardando ahí el ejercicio.</span><button type="button" data-r="permitir">🔓 Permitir</button>'
     franja.hidden = !f
-    franja.className = est.sesion === 'vencida' ? 'mal' : est.nueva || est.sesion === 'por-vencer' || (est.carpeta && est.permiso === 'prompt') ? 'ojo' : 'bien'
+    franja.className = est.sesion === 'vencida' ? 'mal' : est.nueva || est.sesion === 'por-vencer' || (est.carpeta && est.permiso === 'prompt') || (arch && est.archivoPermiso === 'prompt') ? 'ojo' : 'bien'
     if (franja.__f !== f) { franja.innerHTML = f; franja.__f = f }
   }
 
@@ -473,7 +560,7 @@
     // puro
     leerSesion: leerSesion, texto: texto, huella: huella, vacio: vacio, limpio: limpio, archivoDe: archivoDe, respaldoDe: respaldoDe, bajadaDe: bajadaDe, contenido: contenido, podar: podar, masNueva: masNueva, MAX_COPIAS: MAX_COPIAS,
     // en el navegador
-    iniciar: iniciar, vigilar: vigilarFetch, revisarSesion: revisarSesion, resguardar: resguardar, usarCarpeta: usarCarpeta, copiasDe: copiasDe, copiaTexto: copiaTexto, bajarAhora: bajarAhora,
+    iniciar: iniciar, vigilar: vigilarFetch, revisarSesion: revisarSesion, resguardar: resguardar, usarCarpeta: usarCarpeta, copiasDe: copiasDe, copiaTexto: copiaTexto, bajarAhora: bajarAhora, actualizarArchivo: actualizarArchivo,
     get estado() { return est }
   }
 })

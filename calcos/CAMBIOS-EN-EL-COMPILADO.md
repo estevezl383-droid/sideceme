@@ -57,3 +57,32 @@ objetivos […] aprietan y no pasa nada».
 - **Fuente**: `src/lib/plantillaSituacional.js`, `src/components/PanelPICB.jsx`, `src/App.jsx`.
 - **Probado**: 44 casos del motor en Node (11 esquemas × 3 situaciones → plantilla + objetivos + flechas) y en la Mesa
   servida en local con este compilado y el ejercicio CE-VII sin avenidas: plantilla 17 fichas, 3 objetivos, 3 flechas.
+
+## 19-11-2026 · 🪖 Mi unidad y su contexto + 💾 Guardar · actualizar — `index-mi-unidad-20261119.js`
+
+Sergio, con la F2·P3 y los apéndices de organización del tema base «DIAMANTE»: «que se disgreguen las unidades…
+darles de una vez las opciones de los documentos… si son cuerpo de ejército las opciones de cuerpo de ejército, si son
+división la de división». Después: «en realidad hay 4 cuerpos de ejército y a veces más divisiones: dales la chance de
+armar bien sus unidades… de ahora en adelante deben ponerse los datos de configuración: quién soy, quién es mi unidad
+superior, mis adyacentes, quiénes dependen de mí… como el ejercicio ya está corriendo, que al abrir les aparezca».
+Y: «que en el Guardar como se vaya guardando el ejercicio, o que haya guardar / actualizar en su computadora».
+
+- **Módulo nuevo** `organizacion/v1/mi-unidad.mjs`: catálogo del tema base (CE-I, CE-II con sus 14; CE-III y CE-IV sin
+  organigrama en los apéndices; DIV. MEC.-1, DIV-2, DIV-10, DIV. MEC.-2, DIV-4, DIV-5 con sus COE), formulario
+  (nivel · quién soy · superior · adyacentes · dependientes editables · puesto), `colocarMisUnidades` (pone mi unidad si
+  falta y sus dependientes alrededor, bajo `dependeDe`; las que ya estaban se vinculan, sin duplicar; nunca toca
+  enemigas ni dependientes de OTRA unidad), ventana al abrir un ejercicio con fichas y sin `ops.configUnidad`.
+  Si el módulo fallara, un límite de errores muestra el recuadro de antes (no se cae la Mesa).
+- **Compilado** (6 reemplazos sobre `index-acostar-20261117.js`, `pruebas/reemplazos-2026-11-19-mi-unidad.js`,
+  `node pruebas/construir-mi-unidad.js <entrada> <salida>`): import; `SIDcfgPuente()` (guardar = identidad de siempre
+  `SIDelegirUnidad` + Orden superior `unidad`/`escalonSuperior`/`unidadesAdyacentes` + `ops.configUnidad` + puesto con
+  `t9/xN/Pr`; colocar = mismo camino que ⊞ Disgregar, con ↶ Deshacer); el puente en el ctx del G-3 (`SIDcfg`); la F2·P3
+  muestra «🪖 Mi unidad y su contexto» con el recuadro de antes plegado; la ventana en la Mesa; la hoja se llama
+  «Tareas específicas, implícitas y esenciales de Operaciones · Mi unidad y sus dependientes».
+- **`guardado/v1/resguardo.js`** (`?v=20261119-guardar`): «Guardar como» recuerda el archivo elegido (por ejercicio,
+  IndexedDB `ajustes`, clave `archivo:<nombre>`); desde ahí el botón dice «💾 Guardar ✓ hh:mm», un toque ACTUALIZA ese
+  archivo (pide permiso si Chrome lo olvidó) y además se actualiza solo cada minuto si el ejercicio cambió. «Guardar como
+  otro archivo…» y «Dejar de usar ese archivo» en el panel. Sin selector (Safari/iPhone) sigue la descarga de siempre.
+- **Fuente React NO trasladada** (`src/App.jsx`, `src/components/PanelG3.jsx`): si se recompila, portar los 6 puntos.
+- **Probado**: `pruebas/e2e/mi-unidad.cjs` (Chrome real, sin errores de consola): ventana al abrir → CE-II y sus 14 →
+  F2·P3 resumen → DIV-5 y sus 15 → Guardar como → Guardar actualiza el mismo archivo; 34 comprobaciones del módulo en Node.

@@ -116,6 +116,9 @@ async function esperar(page, leer, cumple, ms = 20000) {
     await clic(page.getByRole('button', { name: '📄 Documentos', exact: true }))
     await clic(page.getByRole('button', { name: /Analizar la misión|Análisis de la misión/ }).first())
     await clic(page.getByRole('button', { name: /F2·P3.*Tareas específicas/ }).first())
+    // 19-11-2026: el recuadro de antes quedó plegado en «Otras formas» bajo «🪖 Mi unidad y su contexto».
+    const plegado = page.locator('[data-sid="mi-unidad"] details')
+    if (await plegado.count()) await plegado.first().evaluate((d) => { d.open = true })
     const caja = page.locator('[data-sid="dependientes"]')
     await caja.waitFor({ timeout: 10000 })
     assert.match(await caja.innerText(), /Las unidades de CE-II[\s\S]*UNA sola ficha/)
