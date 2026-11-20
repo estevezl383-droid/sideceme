@@ -24,7 +24,7 @@ function table(rows,widths){return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto
 function firmaWord(config){return p('')+table(roles.map((r,i)=>[config[Object.keys(PRUEBAS)[i]]||'',r]).reduce((a,r,i)=>{a[0][i]=r[0]+'\n________________________';a[1][i]=r[1];return a;},[[],[]]),Array(5).fill(2900))+p('________________________     JEFE DE CURSO: '+(config.jefe_curso||''))+p('________________________     JEFE DE ENTRENAMIENTO FÍSICO: '+(config.jefe_efm||''))+p('________________________     JEFE DE LA SAC.: '+(config.jefe_sac||''))+p('________________________     JEFE DE ESTUDIOS: '+(config.jefe_estudios||''))+p('________________________     COMANDANTE DE LA ECEME.: '+(config.comandante||''));}
 async function word(list,config,scope){
  const headers=cabeceras(list),conBarras=list.some(esHojaExcelencia);
- const response=await fetch(new URL('./modelo-hoja.json?v=42',import.meta.url));if(!response.ok)throw Error('NO SE PUDO CARGAR EL MODELO WORD.');const parts=await response.json();const responseEx=await fetch(new URL('./modelo-excelencia.json?v=42',import.meta.url));if(!responseEx.ok)throw Error('NO SE PUDO CARGAR EL MODELO DE EXCELENCIA.');const partsEx=await responseEx.json();const original=parts['word/document.xml'];let body='',pictures=[];
+ const response=await fetch(new URL('./modelo-hoja.json?v=43',import.meta.url));if(!response.ok)throw Error('NO SE PUDO CARGAR EL MODELO WORD.');const parts=await response.json();const responseEx=await fetch(new URL('./modelo-excelencia.json?v=43',import.meta.url));if(!responseEx.ok)throw Error('NO SE PUDO CARGAR EL MODELO DE EXCELENCIA.');const partsEx=await responseEx.json();const original=parts['word/document.xml'];let body='',pictures=[];
  if(scope==='curso'){
   const widths=[360,850,2700,400,...Array(headers.length-4).fill(conBarras?510:590)];
   body=membrete.map(x=>p(x,18,true)).join('')+p('MATRIZ DE LA EVALUACIÓN FÍSICA MILITAR · '+list[0].c.ciclo,22,true)+p(`FECHA: ${list[0].fecha} · CURSO: ${config.cursoLabel||'TODOS'} · ${list.filter(s=>s.final!=null).length}/${list.length} COMPLETOS · ${estadoExportacion(list)}`)+table([headers,...list.map((s,i)=>matriz(s,i,conBarras))],widths)+firmaWord(config);
@@ -86,6 +86,7 @@ export async function descargar({formato,scope,list,config,authorized=()=>true})
  if(!list.length)throw Error('NO HAY CURSANTES EN ESTA SELECCIÓN.');const snapshot=structuredClone(list),cfg={...config,comandante:'Gral. Brig. José Jhonny Pardo Pardo'};const blob=await ({word,excel,pdf}[formato])(snapshot,cfg,scope);if(!authorized())throw Error('SESIÓN FINALIZADA.');const ext={word:'docx',excel:'xlsx',pdf:'pdf'}[formato];save(blob,`EFM_${scope}_${snapshot[0].fecha}_${scope==='individual'?snapshot[0].c.id:(cfg.cursoLabel||'TODO_EL_CICLO').replace(/[^\w-]/g,'_')}.${ext}`);
 }
 export {word,excel,pdf};
+
 
 
 
