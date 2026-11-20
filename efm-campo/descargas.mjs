@@ -46,13 +46,14 @@ function signatures(config){return Object.keys(PRUEBAS).map((p,i)=>[config[p]||'
 async function excel(list,config,scope){
  const headers=cabeceras(list),conBarras=list.some(esHojaExcelencia);
  if(typeof globalThis.ensureXLSX!=='function')throw Error('GENERADOR EXCEL NO DISPONIBLE.');await globalThis.ensureXLSX();const X=globalThis.XLSX,wb=X.utils.book_new();
- const groups=scope==='hojas'?list.map(s=>[s]):[list];
+ const groups=scope==='hojas'?list.map(s=>[s]):[list.filter(s=>!esHojaExcelencia(s)),list.filter(esHojaExcelencia)].filter(g=>g.length);
  groups.forEach((group,idx)=>{
-  const rows=[...membrete.map(x=>[x]),[],['MATRIZ DE LA EVALUACIÓN FÍSICA MILITAR'],[`FECHA: ${group[0].fecha} · ${group[0].c.ciclo} · CURSO: ${config.cursoLabel||group[0].c.paralelo||'TODOS'} · ${estadoExportacion(group)}`],[],headers,...group.map((s,i)=>matriz(s,i,conBarras)),[],...signatures(group.length===1?{...config,...Object.fromEntries(Object.keys(PRUEBAS).map(p=>[p,evaluador(group[0],p)]))}:config).map(([name,role])=>['________________________',name,role])];
+  const ex=group.every(esHojaExcelencia),headers=ex?['N.º','GRADO','APELLIDOS Y NOMBRES','EDAD',...Object.values(PRUEBAS_EXCELENCIA).flatMap(n=>[n,'NOTA / 100','APORTE 20 %']),'FINAL 100 %']:cabeceras(group),conBarras=false;
+  const rows=[...membrete.map(x=>[x]),[],['MATRIZ DE LA EVALUACIÓN FÍSICA MILITAR'],[`FECHA: ${group[0].fecha} · ${group[0].c.ciclo} · CURSO: ${config.cursoLabel||group[0].c.paralelo||'TODOS'} · ${estadoExportacion(group)}`],[],headers,...group.map((s,i)=>ex?[i+1,gradoArma(s.c),s.c.nombre_completo,edad(s.nacimiento,s.fecha)??'PENDIENTE',...valoresHoja(s)]:matriz(s,i,conBarras)),[],...(ex?Object.entries(PRUEBAS_EXCELENCIA).map(([key,name])=>[group.length===1?evaluador(group[0],key):config[key]||'','EVALUADOR '+name]):signatures(group.length===1?{...config,...Object.fromEntries(Object.keys(PRUEBAS).map(p=>[p,evaluador(group[0],p)]))}:config)).map(([name,role])=>['________________________',name,role])];
   if(group.length===1){const s=group[0],d=datosHoja(s,config);rows.push([],['FECHA DE NACIMIENTO',d.nacimiento,'CI',d.ci,'SEXO',d.sexo],['FIRMA DEL EVALUADO','________________________','HUELLA DIGITAL','________________________'],['VALORACIÓN MÉDICA','APTO / NO APTO'],['PRESIÓN ARTERIAL',''],['SATURACIÓN',''],['PULSO',''],['SELLO Y FIRMA ENFERMERA (O)','________________________'],['SELLO Y FIRMA MÉDICO S.O.','________________________'],['GRUPO',s.organizacion?.grupo||''],['OBSERVACIONES',novedadesHoja(s)]);}
   const ws=X.utils.aoa_to_sheet(rows);ws['!cols']=headers.map((_,i)=>({wch:i===2?38:i===1?13:i===3?8:11}));ws['!merges']=[0,1,2,3,5,6].map(r=>({s:{r,c:0},e:{r,c:headers.length-1}}));ws['!rows']=rows.map((r,i)=>({hpt:i===8?40:24}));ws['!autofilter']={ref:`A9:${X.utils.encode_col(headers.length-1)}${9+group.length}`};
   for(const k of Object.keys(ws)){if(k[0]==='!')continue;const cell=ws[k],pos=X.utils.decode_cell(k);cell.s={font:{name:'Arial',sz:10,bold:pos.r<9},alignment:{vertical:'center',wrapText:true},border:{bottom:{style:'thin',color:{rgb:'BBBBBB'}}}};if(pos.r===8)cell.s.fill={fgColor:{rgb:'D9E9E5'}};if(cell.t==='n')cell.z='0.00';}
-  X.utils.book_append_sheet(wb,ws,scope==='hojas'?`${idx+1} ${group[0].c.id}`.slice(0,31).replace(/[\\/?*\[\]:]/g,'_'):'EVALUACIÓN');
+  X.utils.book_append_sheet(wb,ws,scope==='hojas'?`${idx+1} ${group[0].c.id}`.slice(0,31).replace(/[\\/?*\[\]:]/g,'_'):ex?'EXCELENCIA':'EVALUACIÓN');
  });
  return new Blob([X.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
 }
@@ -85,4 +86,5 @@ export async function descargar({formato,scope,list,config,authorized=()=>true})
  if(!list.length)throw Error('NO HAY CURSANTES EN ESTA SELECCIÓN.');const snapshot=structuredClone(list),cfg={...config,comandante:'Gral. Brig. José Jhonny Pardo Pardo'};const blob=await ({word,excel,pdf}[formato])(snapshot,cfg,scope);if(!authorized())throw Error('SESIÓN FINALIZADA.');const ext={word:'docx',excel:'xlsx',pdf:'pdf'}[formato];save(blob,`EFM_${scope}_${snapshot[0].fecha}_${scope==='individual'?snapshot[0].c.id:(cfg.cursoLabel||'TODO_EL_CICLO').replace(/[^\w-]/g,'_')}.${ext}`);
 }
 export {word,excel,pdf};
+
 
