@@ -17,7 +17,7 @@
   if(loading||open||!owner())return;loading=true;
   try{
    if(!document.getElementById('efmc-style')){const s=document.createElement('link');s.id='efmc-style';s.rel='stylesheet';s.href='efm-campo/style.css?v=29';document.head.append(s);}
-   const tipo=session().tipo,app=tipo==='cursante'?await import('./alumno.mjs?v=36'):await import('./app.mjs?v=40');
+   const tipo=session().tipo,app=tipo==='cursante'?await import('./alumno.mjs?v=36'):await import('./app.mjs?v=41');
    open=true;const account=allowedKey;await app.abrir({invoke,evaluacionId,vistaInicial,postulantes,cicloInicial:soloPostulantes?'POSTULANTES 2027':'1ER CICLO',owner:session().user.id,authorized:()=>owner()&&allowedKey===account,soporteEvaluador:enSoporte()&&tipo==='docente',onClose:()=>{open=false;checkedAt=0;refresh();}});
   }catch(e){open=false;alert(e.message);}finally{loading=false;}
  }
@@ -71,6 +71,7 @@
  }
  const observer=new MutationObserver(refresh);observer.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']});setInterval(refresh,2000);refresh();
 })();
+
 
 
 
