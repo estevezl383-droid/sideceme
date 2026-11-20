@@ -10,7 +10,7 @@ import {fechaEditable,leerFechaEditable,validarNacimiento,fechaPerfil} from './p
 import {calificar,edad,calificarExcelencia,esExcelencia} from './baremos.mjs?v=22';
 import {resumen,PRUEBAS,marca,ultima} from './informes.mjs?v=36';
 import {validarMedidas,calificarMedidas} from './medidas.mjs?v=22';
-import {descargar} from './descargas.mjs?v=42';
+import {descargar} from './descargas.mjs?v=43';
 import {descargarPlantilla} from './plantilla-notas.mjs?v=41';
 import {digital,nacimiento,sexoInicial,siguiente,gradoArma} from './ui.mjs?v=22';
 const names={talla_peso:'TALLA / PESO',flexiones:'FLEXIONES',abdominales:'ABDOMINALES',aerobica:'AERÓBICA 3.200 M',natacion:'NATACIÓN',barras:'BARRAS · EXCELENCIA'};
@@ -291,6 +291,7 @@ export async function abrir({invoke:invokeBase,onClose,owner,vistaInicial='estac
  const livePoll=setInterval(sincronizar,1000);window.addEventListener('focus',sincronizar);document.addEventListener('visibilitychange',sincronizar);
  await load();
 }
+
 
 
 
