@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.496</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.498</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -30143,6 +30143,8 @@ async function _wgInvoke(accion, extra){
     if(!WG_MON_LECTURAS[accion]) return {ok:false,error:'Pantalla de monitoreo: sólo mira.'};
     if(accion==='pulso') extra={ partida_id:WG.partidaId, clave_acceso:WG.clave };
   }
+  // v2.9.498 — PARTIDA PERDIDA: esta pestaña ya no le pregunta nada al servidor.
+  if(WG._perdida && accion!=='listar_partidas' && accion!=='crear_partida') return {ok:false,error:WG._perdida};
   const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
   // v2.9.274 — INVITADO POR ENLACE: no tiene cuenta ni token. Se identifica con
   // la clave de su bando (que ya viaja en `extra`) más su nombre. El servidor
@@ -30176,11 +30178,57 @@ async function _wgInvoke(accion, extra){
       // non-2xx status code" y se pierde el motivo REAL que manda la función.
       let msg=error.message||'error';
       try{ if(error.context && typeof error.context.json==='function'){ const b=await error.context.json(); if(b&&b.error) msg=b.error; } }catch(_){}
+      _wgVigilarAcceso(extra, error, msg);   // v2.9.498
       return {ok:false,error:msg};
     }
+    if(data && data.ok) WG._sinAccesoN=0;    // v2.9.498
     return data||{ok:false,error:'sin respuesta'};
   }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
   finally{ if(espera!==null) clearTimeout(espera); }
+}
+// ============================================================
+// v2.9.498 — «SE LES CUELGA Y NO DAN LAS OPCIONES» (Sergio, 21-11-2026).
+// Una pestaña abierta sobre una partida que ya no existe (el árbitro la BORRÓ),
+// con el enlace de un bando que cambió o con la sesión vencida seguía preguntando
+// al servidor, dos veces por segundo y para siempre; el servidor le contestaba
+// «Sin acceso». La noche del 20-11 fueron 15.375 negativas de dos pestañas en 2 h
+// y media: la pantalla quedaba quieta, sin opciones, y nadie le decía por qué.
+// Ahora, a la TERCERA negativa seguida sobre la MISMA partida, la pestaña deja de
+// preguntar (apaga el reloj, el en vivo y los monitores) y lo dice en grande.
+// Una respuesta buena vuelve el contador a cero: un tropiezo suelto no la corta.
+// ============================================================
+const WG_SIN_ACCESO_RE=/sin acceso|clave de bando inv[aá]lida|no sos parte de esta partida|partida no encontrada|no sos el [aá]rbitro/i;
+function _wgVigilarAcceso(extra, error, msg){
+  try{
+    const st=error && error.context && error.context.status;
+    if(st!==403 && st!==404) return;
+    if(!WG.partidaId || !extra || Number(extra.partida_id)!==Number(WG.partidaId)) return;
+    if(!WG_SIN_ACCESO_RE.test(String(msg||''))) return;
+    WG._sinAccesoN=(WG._sinAccesoN||0)+1;
+    if(WG._sinAccesoN>=3) _wgPartidaPerdida(msg);
+  }catch(_e){}
+}
+function _wgPartidaPerdida(msg){
+  if(WG._perdida) return;
+  WG._perdida='Esta pantalla ya no tiene acceso a la partida ('+String(msg||'Sin acceso')+').';
+  // Se apaga todo lo que pregunta solo.
+  try{ WG.vivo=false; clearTimeout(WG._vivoTimer); WG._vivoTimer=null; }catch(_e){}
+  try{ if(WG._ticW){ WG._ticW.terminate(); WG._ticW=null; } }catch(_e){}
+  try{ clearInterval(WG._ticI); WG._ticI=null; clearTimeout(WG._ticRefT); WG._ticRefT=null; }catch(_e){}
+  ['_sync','_monT','_monI','_puestoT','_bitDTimer','_regT'].forEach(k=>{ try{ clearInterval(WG[k]); WG[k]=null; }catch(_e){} });
+  try{ if(WG._canal && typeof WG._canal.unsubscribe==='function') WG._canal.unsubscribe(); }catch(_e){}
+  if(document.getElementById('wg-perdida')) return;
+  const d=document.createElement('div');
+  d.id='wg-perdida';
+  d.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(5,10,20,.82);display:flex;align-items:center;justify-content:center;padding:16px';
+  d.innerHTML='<div style="max-width:520px;background:#101a2b;border:1px solid #e2521b;border-radius:10px;padding:18px 20px;color:#e8f1ff;font:14px/1.5 system-ui,sans-serif">'
+    +'<div style="font-size:17px;font-weight:700;margin-bottom:8px">⛔ Esta pantalla perdió la partida N° '+_rgEsc(WG.partidaId)+'</div>'
+    +'<div style="margin-bottom:8px">El servidor contesta: <b>'+_rgEsc(msg||'Sin acceso')+'</b></div>'
+    +'<div style="font-size:13px;opacity:.9;margin-bottom:12px">Pasa cuando el árbitro <b>borró</b> la partida, cuando <b>cambió el enlace</b> de tu bando '
+    +'o cuando tu <b>sesión de SIDECEME venció</b>. Para no trabar a los demás, esta pestaña <b>dejó de consultar</b> al servidor.<br>'
+    +'Cerrala, o tocá el botón y entrá de nuevo (si sos de un bando, pedile al árbitro el enlace nuevo).</div>'
+    +'<button onclick="location.href=location.origin+location.pathname" style="background:#e2521b;color:#fff;border:0;border-radius:6px;padding:9px 14px;font-weight:700;cursor:pointer">Volver a empezar</button></div>';
+  document.body.appendChild(d);
 }
 function _wgEsInstructor(){ const ses=getSession(); return !!(ses && ses.tipo==='docente'); }
 // v2.9.490 — TODOS LOS ALUMNOS PUEDEN ARMAR SU PARTIDA DE PRÁCTICA (17-11-2026).
@@ -30911,7 +30959,7 @@ async function wgCargarMisPartidas(){
   // se recuerda entre recargas, para no volver a abrirlo cada vez.
   // ============================================================
   const _abiertas=_wgLobbyAbiertas();
-  cont.innerHTML = ps.length ? ps.map(p=>{
+  cont.innerHTML = '<div id="wg-tope-alumno"></div>' + (ps.length ? ps.map(p=>{
    const _ab=_abiertas.has(String(p.id));
    return `<div class="rg-card">`
     +`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">`
@@ -30919,8 +30967,15 @@ async function wgCargarMisPartidas(){
         +`title="Clic para desplegar u ocultar las invitaciones, los puestos y la sala">`
         +`<b><span id="wg-chev-${p.id}" style="display:inline-block;width:14px;opacity:.75;`
         +`transition:transform .15s">${_ab?'▾':'▸'}</span> ${_rgEsc(p.nombre)}</b>`
-        +`<div class="rg-meta" style="margin-left:14px">#${p.id} · ${_rgEsc(p.estado)} · turno ${p.turno_actual}</div></div>`
-      +`<button class="rg-doc" onclick="wgAbrir(${p.id},'')">Abrir como árbitro</button></div>`
+        +`<div class="rg-meta" style="margin-left:14px">#${p.id} · ${_rgEsc(p.estado)} · turno ${p.turno_actual}<span id="wg-inc-${p.id}"></span></div></div>`
+      +`<div style="display:flex;gap:6px;flex-wrap:wrap">`
+      +`<button class="rg-doc" onclick="wgAbrir(${p.id},'')">Abrir como árbitro</button>`
+      // v2.9.498 — 🗑️ A LA VISTA. Estaba sólo adentro de la tarjeta plegada y los
+      // alumnos no lo encontraban: creaban otra partida en vez de borrar la que no andaba.
+      +`<button class="rg-doc" id="wg-borrar-${p.id}" style="color:#ffb4a8;border-color:rgba(255,120,120,.35)"`
+      +` title="Borra la partida y todo lo suyo. No se puede deshacer."`
+      +` onclick="wgBorrarPartida(${p.id},'${_rgEsc(p.nombre).replace(/'/g,"\\'")}',${p.turno_actual})">🗑️ Borrar</button>`
+      +`</div></div>`
     +`<div id="wg-cuerpo-${p.id}" style="display:${_ab?'block':'none'}">`
     +`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;`
       +`border-top:1px solid rgba(140,210,255,.14)">`
@@ -30969,7 +31024,47 @@ async function wgCargarMisPartidas(){
     +`<div id="wg-inv-${p.id}"></div>`
     +`</div>`
     +`</div>`;
-  }).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Aún no creaste partidas.</div>';
+  }).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Aún no creaste partidas.</div>');
+  _wgLobbyResumen();   // v2.9.498: marca las INCOMPLETAS y el tope de 5 por alumno
+}
+// ============================================================
+// v2.9.498 — LA LISTA DICE CUÁLES ESTÁN INCOMPLETAS Y CUÁNTAS QUEDAN.
+// Sergio (21-11-2026): «si una partida está incompleta que les salga la opción
+// de borrar; no deben tener más de 5 partidas». La noche del 20-11 un alumno
+// creó 20 partidas en 3 h y media y 6 se iniciaron SIN fichas.
+// `wargame-borrar` (v3, accion "resumen") cuenta las fichas y los enlaces de
+// bando de cada partida propia. Sin fichas = INCOMPLETA: su 🗑️ se pinta y se
+// borra sin pedir que escriban el nombre. El tope de 5 lo hace cumplir la
+// base (trigger wg_tope_partidas_cursante); acá sólo se muestra y se avisa.
+// Si la función no contesta, la lista queda como estaba.
+// ============================================================
+async function _wgLobbyResumen(){
+  let r=null;
+  try{ r=await _wgInvokeEF('wargame-borrar',{ accion:'resumen' }); }catch(_e){}
+  if(!r || !r.ok || !Array.isArray(r.partidas)) return;
+  const vacias=new Set();
+  r.partidas.forEach(x=>{
+    const el=document.getElementById('wg-inc-'+x.id);
+    if(!el) return;
+    if(Number(x.unidades)===0){
+      vacias.add(String(x.id));
+      el.innerHTML=' · <b style="color:#ffb4a8">⚠️ INCOMPLETA: no tiene fichas</b>';
+      const b=document.getElementById('wg-borrar-'+x.id);
+      if(b){ b.style.background='rgba(226,82,27,.3)'; b.style.color='#fff'; b.textContent='🗑️ Borrar (incompleta)'; }
+    }else if(Number(x.bandos)===0){
+      el.innerHTML=' · <span style="opacity:.8">sin enlaces de bando — 🔗 Armar los seis enlaces</span>';
+    }
+  });
+  WG._lobbyVacias=vacias;
+  const tope=Number(r.tope)||0, n=Number(r.creadas)||0;
+  WG._miTope=tope; WG._misCreadas=n;
+  const caja=document.getElementById('wg-tope-alumno');
+  if(!tope || !caja) return;
+  caja.innerHTML = n>=tope
+    ? '<div class="rg-card" style="border-color:rgba(255,120,120,.5);color:#ffd2c8;font-size:12.5px;line-height:1.5">'
+      +'⛔ Tenés <b>'+n+'</b> partidas y el máximo por alumno es <b>'+tope+'</b>. Para crear otra, borrá las que no uses (🗑️). '
+      +'Las marcadas <b>INCOMPLETA</b> no tienen fichas: son las primeras para borrar.</div>'
+    : '<div class="rg-meta" style="font-size:12px;margin-bottom:6px">Tus partidas: <b>'+n+'</b> de '+tope+' (máximo por alumno).</div>';
 }
 // v2.9.329 — qué tarjetas quedaron desplegadas (se recuerda entre recargas).
 function _wgLobbyAbiertas(){
@@ -30997,7 +31092,7 @@ async function wgBorrarPartida(id, nombre, turno){
   if(!confirm(`¿Borrar la partida «${nombre}» (#${id})?\n\n`
     +`Se borran TAMBIÉN sus unidades, el terreno importado, las órdenes, la `
     +`bitácora y los replays.\n\nEsto no se puede deshacer.`)) return;
-  if(Number(turno)>0){
+  if(Number(turno)>0 && !(WG._lobbyVacias && WG._lobbyVacias.has(String(id)))){   // v2.9.498
     const t=prompt(`Esa partida ya lleva ${turno} turno(s) jugados.\n\n`
       +`Para confirmar, escribí el nombre exacto de la partida:`);
     if(t===null) return;
@@ -31027,6 +31122,11 @@ async function wgCrearPartida(btn){
   const nombre=(document.getElementById('wg-nom').value||'').trim();
   const dur=Number(document.getElementById('wg-dur').value)||2;
   if(!nombre){ alert('Poné un nombre.'); return; }
+  if(WG._miTope && WG._misCreadas>=WG._miTope){   // v2.9.498
+    alert('Ya tenés '+WG._misCreadas+' partidas y el máximo por alumno es '+WG._miTope+'.\n\n'
+      +'Borrá una que no uses con 🗑️ (en tu lista de partidas) y volvé a crear.');
+    return;
+  }
   if(btn) btn.disabled=true;
   let r;
   try{ r=await _wgInvoke('crear_partida',{ nombre, duracion_turno_horas:dur }); }
@@ -34617,7 +34717,12 @@ const WG_DRON_VIRAJE = 26;      // °/s de viraje sostenido de un ala fija
 const WG_DRON_VMIN   = 70;      // km/h — por debajo no se sostiene
 const WG_DRON_VMAX   = 130;     // km/h — techo del CW 40 con motor
 const WG_DRON_ALTMIN = 300;
-const WG_DRON_ALTMAX = 5000;
+// v2.9.497 — Sergio (20-11-2026): «que el G-2 pueda elevar a más de 5000, que su
+// límite sea 10000». En el teatro las distancias son de cientos de km y a 5.000 m
+// el visor abarcaba poco. Arriba de 5.000 m los botones ▲▼ van de a 1.000 m: de
+// 3.000 a 10.000 son 9 toques y no 18. Mayús+↑↓ sube igual, hasta el techo nuevo.
+const WG_DRON_ALTMAX = 10000;
+const WG_DRON_ALT_ALTO = 5000;   // desde acá el paso de los botones es de 1.000 m
 // v2.9.314: −24° para que la torreta arranque en el mismo encuadre que el visor
 // automático (90−24 = pitch 66). Si se dejaba en −16, apenas tocabas una tecla
 // de vuelo el pilotaje devolvía la cámara a 74 y el chispeo volvía con ella.
@@ -34738,6 +34843,10 @@ function _wgPanelTel(bando, pil, d){
         +`torreta ${(pil.pan>=0?'+':'')}${Math.round(pil.pan)}°/${Math.round(pil.tilt)}°`
       : `${d.kmh||WG_DRON_KMH} km/h · ${d.alt} m · automático`;
   }
+  // v2.9.497: la altura de la cabecera es la de AHORA. Antes quedaba la del despegue
+  // («· 3000 m») aunque el aparato ya volara a 10.000 m.
+  const ah=document.getElementById('dron-alth-'+bando);
+  if(ah) ah.textContent=Math.round(_wgAltDron(bando,{d}));
   // v2.9.284: qué te da el sensor AHORA MISMO. Sin esto el operador no tiene
   // cómo saber por qué un contacto no se le identifica.
   const sen=document.getElementById('dron-sen-'+bando);
@@ -34843,13 +34952,18 @@ function wgDronAltura(bando, dm){
   WG.dronManual=WG.dronManual||{};
   if(!WG.dronManual[bando]) WG.dronManual[bando]=true;
   const p=_wgPiloto(bando, true); if(!p) return;
+  if(dm>0 ? p.alt>=WG_DRON_ALT_ALTO : p.alt>WG_DRON_ALT_ALTO) dm=Math.sign(dm)*1000;   // v2.9.497
+  const techo=(dm>0 && p.alt>=WG_DRON_ALTMAX);
   p.alt=Math.max(WG_DRON_ALTMIN, Math.min(WG_DRON_ALTMAX, p.alt + dm));
   const el=document.getElementById('dron-alt-'+bando);
   if(el) el.textContent=Math.round(p.alt)+' m';
+  const ah=document.getElementById('dron-alth-'+bando); if(ah) ah.textContent=Math.round(p.alt);   // v2.9.497
   const sen=document.getElementById('dron-sen-'+bando);
   if(sen) sen.innerHTML=_wgAlcanceSensorHTML(bando, (_wgDronBando(bando)||{}).d);
   WG._contFirma=null;                 // que la lista de contactos se recalcule
-  _wgAviso(dm>0
+  _wgAviso(techo
+    ? `⬆️ <b>${Math.round(p.alt)} m</b> — es el <b>techo del CW 40</b>: más alto no sube.`
+    : dm>0
     ? `⬆️ <b>${Math.round(p.alt)} m</b> — más altura: se abarca más terreno, pero con <b>menos detalle</b>.`
     : `⬇️ <b>${Math.round(p.alt)} m</b> — más bajo: <b>más detalle</b>, se reconoce el arma desde más lejos.`, 3200);
 }
@@ -35058,7 +35172,7 @@ function _wgTarjetaDronHTML(bando){
         background:rgba(255,255,255,.08);border:1px solid ${col}66;color:#eaf2fb">▼</button>
       <span id="dron-alt-${bando}" style="font-family:ui-monospace,Menlo,monospace;font-size:12px;
         font-weight:900;color:${col};min-width:58px;text-align:center">${Math.round(_wgAltDron(bando,{d}))} m</span>
-      <button onclick="wgDronAltura('${bando}',400)" title="Subir: se abarca más, pero con menos detalle"
+      <button onclick="wgDronAltura('${bando}',400)" title="Subir (hasta 10.000 m): se abarca más, pero con menos detalle"
         style="width:30px;padding:5px 0;border-radius:7px;cursor:pointer;font-weight:900;font-size:13px;
         background:rgba(255,255,255,.08);border:1px solid ${col}66;color:#eaf2fb">▲</button>
     </div>`:''}
@@ -35073,7 +35187,7 @@ function _wgTarjetaDronHTML(bando){
       <span style="margin-left:auto;font-size:9px;font-weight:700;opacity:.85;color:${d?'#8ef0b4':'#ffb15c'}">
         ${d?'EN VUELO':'EN TIERRA'}</span></div>
     <div class="rg-meta" style="font-size:9.5px;line-height:1.4;margin-bottom:5px;opacity:.85">
-      ${d ? `Observa <b>${d.km} km</b> al <b>${Math.round(d.rumbo)}°</b> · ${d.alt} m · ${d.kmh||WG_DRON_KMH} km/h`
+      ${d ? `Observa <b>${d.km} km</b> al <b>${Math.round(d.rumbo)}°</b> · <span id="dron-alth-${bando}">${Math.round(_wgAltDron(bando,{d}))}</span> m · ${d.kmh||WG_DRON_KMH} km/h`
           : `Listo en ${_rgEsc(u.designacion||'el puesto de mando')} — despegue vertical, no necesita pista.`}
       <br>Enlace ${WG_CW40.enlaceKm} km · autonomía ${WG_CW40.autonomiaH} h</div>
     ${rosa}
@@ -49684,6 +49798,12 @@ function _wgHudTabs(){
   }else if(WG.soy==='azul' || WG.soy==='rojo'){
     const r=_wgRolNom();
     h=`<span class="wg-tab t-${WG.soy} on solo"><i class="pt"></i><span>BANDO ${WG.soy.toUpperCase()}${r?' · '+_rgEsc(r).toUpperCase():''}</span></span>`;
+    // v2.9.497 — el G-2 también abre las 🖥️ pantallas compartidas, las de SU bando.
+    if(_wgRol()==='g2' && !WG.mon && !WG.maqueta)
+      h+=`<button class="wg-tab t-pan" onclick="wgPantallasAbrir(${Number(WG.partidaId)})" data-tip="${_rgEsc(
+        'PANTALLAS COMPARTIDAS|Abre en OTRA VENTANA cuatro monitores de tu bando: panorámica, G-3, G-4 y carta, cada uno con su tablero.'
+        +'|Es sólo para mirar y sólo muestra lo que ve tu bando. Si el oficial de ese puesto está conectado, su recuadro sigue su cámara en vivo.')}">`
+        +`<i class="ic">🖥️</i><span>PANTALLAS<span class="lgo"> COMPARTIDAS</span></span></button>`;
   }
   if(el._f!==h){ el._f=h; el.innerHTML=h; }
 }
@@ -50657,11 +50777,23 @@ const WG_MON_SIN_MARGEN={ top:0, bottom:0, left:0, right:0 };
 // ------------------------------------------------------------
 // LA VENTANA MADRE: cuatro recuadros, cada uno con su nombre arriba y al centro
 // ------------------------------------------------------------
-function _wgURLPantallas(pid, lado){
-  return location.origin+location.pathname+'?wg='+encodeURIComponent(pid)+'&pantallas='+(lado==='rojo'?'rojo':'azul');
+// v2.9.497 — Sergio (20-11-2026): «que el G-2 tenga la opción de poner en modo pantalla
+// compartida». El oficial no tiene sesión de árbitro: la ventana y sus cuatro recuadros
+// viajan con la CLAVE DE SU ENLACE (`&k=`), así que el servidor les da sólo lo que ve su
+// bando (`bandoPorClave`), nunca el otro. Con clave no hay botón para cambiar de bando.
+function _wgURLPantallas(pid, lado, clave){
+  return location.origin+location.pathname+'?wg='+encodeURIComponent(pid)+'&pantallas='+(lado==='rojo'?'rojo':'azul')
+    +(clave ? '&k='+encodeURIComponent(clave) : '');
 }
-function wgPantallasAbrir(pid){ window.open(_wgURLPantallas(pid, WG.vistaArb==='rojo'?'rojo':'azul'),'_blank'); }
-function _wgPantallasMontar(pid, lado){
+function wgPantallasAbrir(pid){
+  if(WG.soy==='azul' || WG.soy==='rojo'){
+    const k=WG.clave || (WG._inv&&WG._inv.clave) || '';
+    if(!k){ _wgAviso('🖥️ Las pantallas compartidas se abren desde el enlace de tu bando.', 4000); return; }
+    window.open(_wgURLPantallas(pid, WG.soy, k),'_blank'); return;
+  }
+  window.open(_wgURLPantallas(pid, WG.vistaArb==='rojo'?'rojo':'azul'),'_blank');
+}
+function _wgPantallasMontar(pid, lado, clave){
   const rojo=lado==='rojo';
   document.title='Pantallas compartidas · '+(rojo?'ROJO':'AZUL');
   const st=document.createElement('style');
@@ -50709,8 +50841,9 @@ function _wgPantallasMontar(pid, lado){
       <span class="tit">PANTALLAS COMPARTIDAS</span><span id="pc-sub">—</span>
       <span class="solo">SÓLO MONITOREO</span>
       <div class="der">
-        <button class="${rojo?'':'on'}" onclick="wgPantallasLado('azul')">🔵 AZUL</button>
-        <button class="${rojo?'on':''}" onclick="wgPantallasLado('rojo')">🔴 ROJO</button>
+        ${clave ? `<button class="on" disabled style="cursor:default" title="Las pantallas de tu bando">${rojo?'🔴 ROJO':'🔵 AZUL'}</button>`
+        : `<button class="${rojo?'':'on'}" onclick="wgPantallasLado('azul')">🔵 AZUL</button>
+        <button class="${rojo?'on':''}" onclick="wgPantallasLado('rojo')">🔴 ROJO</button>`}
         <button onclick="wgMaquetaPantalla()" title="Ocupa toda la pantalla (Esc para salir)">🖥️ Pantalla completa</button>
       </div></div>
     <div id="pc-grid">${WG_MON_ORDEN.map(p=>`<section class="pc-cel" data-p="${p}">
@@ -50721,7 +50854,7 @@ function _wgPantallasMontar(pid, lado){
         <button class="pc-max" onclick="wgPantallasAgrandar('${p}')" title="Agrandar esta pantalla / volver a las cuatro">⛶</button>
       </section>`).join('')}</div>`;
   document.body.appendChild(m);
-  WG._pcPid=pid; WG._pcLado=rojo?'rojo':'azul';
+  WG._pcPid=pid; WG._pcLado=rojo?'rojo':'azul'; WG._pcClave=clave||'';
   window.addEventListener('resize', _wgPantallasMedir);
   document.addEventListener('fullscreenchange', _wgPantallasMedir);
   window.addEventListener('message', _wgPantallasMensaje);
@@ -50731,10 +50864,11 @@ function _wgPantallasMontar(pid, lado){
   const base=location.origin+location.pathname;
   WG_MON_ORDEN.forEach((p,i)=>setTimeout(()=>{
     const f=m.querySelector(`.pc-cel[data-p="${p}"] iframe`);
-    if(f) f.src=`${base}?wg=${encodeURIComponent(pid)}&mon=${WG._pcLado}-${p}`;
+    if(f) f.src=`${base}?wg=${encodeURIComponent(pid)}&mon=${WG._pcLado}-${p}`
+      +(WG._pcClave ? '&k='+encodeURIComponent(WG._pcClave) : '');
   }, i*1400));
 }
-function wgPantallasLado(lado){ if(lado!==WG._pcLado) location.href=_wgURLPantallas(WG._pcPid, lado); }
+function wgPantallasLado(lado){ if(!WG._pcClave && lado!==WG._pcLado) location.href=_wgURLPantallas(WG._pcPid, lado); }
 // Cada puesto se dibuja a tamaño de pantalla y se achica entero al recuadro: así su
 // consola se ve como la de ese oficial y no apretada en un cuarto de pantalla.
 function _wgPantallasMedir(){
@@ -50770,13 +50904,18 @@ function _wgPantallasMensaje(ev){
 // ------------------------------------------------------------
 // CADA RECUADRO: el puesto, en modo mirar
 // ------------------------------------------------------------
-function _wgMonEntrar(pid, lado, puesto){
+function _wgMonEntrar(pid, lado, puesto, clave){
   const rol=WG_MON_CAM[puesto].rol||puesto;   // v2.9.484: la carta mira con la lente del Comandante
   WG.mon={ lado, puesto }; WG.vistaArb=lado; WG.rol=rol;
-  WG._inv={ partida:pid, bando:lado, clave:'', rol };
+  WG._inv={ partida:pid, bando:lado, clave:clave||'', rol };
+  // v2.9.497 — abierta por un oficial (G-2): entra como invitado con la clave de su
+  // enlace — sin token y SIN sentarse en el puesto (ni `_wgPuestosCall` ni latido).
+  if(clave){ WG.invitado='Pantallas compartidas'; WG.soy=lado; }
   // Un cartel del navegador congelaría el recuadro hasta que alguien lo cierre.
   window.alert=(t)=>{ const m=String(t||'').split('\n')[0];
-    _wgMonAvisar({ error:/sesi[oó]n|enlace/i.test(m) ? 'Sin sesión de árbitro: abrí esta ventana desde su consola' : m.slice(0,70) }); };
+    _wgMonAvisar({ error:/sesi[oó]n|enlace|clave/i.test(m)
+      ? (clave ? 'El enlace del bando no abre esta partida' : 'Sin sesión de árbitro: abrí esta ventana desde su consola')
+      : m.slice(0,70) }); };
   window.confirm=()=>false; window.prompt=()=>null;
   document.body.classList.add('wg-mon');
   const st=document.createElement('style');
@@ -50793,7 +50932,10 @@ function _wgMonEntrar(pid, lado, puesto){
     body.wg-mon #wg-hud-dron{ top:46px !important; }`;
   document.head.appendChild(st);
   setTimeout(async()=>{
-    try{ showScreen('screen-wargame'); await wgAbrir(pid,''); await _wgMonArrancar(); }
+    try{ showScreen('screen-wargame'); await wgAbrir(pid, clave||'');
+      // La clave manda: si es de otro bando, el recuadro no escucha las cámaras de ese bando.
+      if(clave && WG.estado && WG.soy!==lado){ _wgMonAvisar({ error:'Esa clave es de otro bando' }); return; }
+      await _wgMonArrancar(); }
     catch(e){ _wgMonAvisar({ error:String((e&&e.message)||e).slice(0,70) }); }
   },60);
 }
@@ -51221,6 +51363,15 @@ async function _wgColocarEn(latlng){
   await wgEstado();
 }
 async function wgIniciar(btn){
+  // v2.9.498 — la noche del 20-11 seis partidas se iniciaron con CERO fichas (una
+  // corrió hasta el turno 331 sin nada en el mapa): el alumno tocaba Iniciar antes
+  // de traer el escenario, y después no tenía a quién darle órdenes.
+  if(WG.estado && Array.isArray(WG.estado.unidades) && !WG.estado.unidades.length){
+    alert('Esta partida todavía NO tiene fichas.\n\n'
+      +'Primero: ⚙️ CONFIGURAR → «Traer escenario del Generador de Calcos» → «Cargar escenario (reemplaza)» '
+      +'y elegí tu ejercicio.json.\n\nCuando veas las fichas azules y rojas en el mapa, recién ahí tocá 🚀 Iniciar partida.');
+    return;
+  }
   if(!confirm('¿Iniciar la partida? Los EM podrán dar órdenes; el tiempo corre cuando toques ▶ PLAY.')) return;
   if(btn) btn.disabled=true;
   const r=await _wgInvoke('iniciar',{ partida_id:WG.partidaId });
@@ -56440,9 +56591,9 @@ function detectarInvitacionWargameEnURL(){
   // proyecta el ejercicio completo, que es lo que se usa en la sala.
   WG.maqueta = (p.get('maqueta')==='1');
   // v2.9.473 — la ventana de las cuatro pantallas, y cada una de ellas adentro.
-  if(id && p.get('pantallas')){ _wgPantallasMontar(Number(id), p.get('pantallas')); return true; }
+  if(id && p.get('pantallas')){ _wgPantallasMontar(Number(id), p.get('pantallas'), clave); return true; }
   const mon=String(p.get('mon')||'').split('-');
-  if(id && (mon[0]==='azul'||mon[0]==='rojo') && WG_MON_CAM[mon[1]]){ _wgMonEntrar(Number(id), mon[0], mon[1]); return true; }
+  if(id && (mon[0]==='azul'||mon[0]==='rojo') && WG_MON_CAM[mon[1]]){ _wgMonEntrar(Number(id), mon[0], mon[1], clave); return true; }
   if(id && WG.maqueta && !clave){
     // Sin clave: sólo sirve si quien abre es el árbitro y tiene sesión.
     setTimeout(async()=>{ try{ showScreen('screen-wargame'); await wgAbrir(Number(id),''); }catch(_e){} }, 60);
@@ -56478,6 +56629,7 @@ function detectarInvitacionWargameEnURL(){
 // tiene sesión de SIDECEME. Es la misma puerta que usa para jugar.
 // ============================================================
 async function _wgPuestosCall(payload){
+  if(WG._perdida) return {ok:false,error:WG._perdida};   // v2.9.498
   const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
   try{
     const { data, error } = await sb.functions.invoke('wargame-puestos',
@@ -56486,6 +56638,7 @@ async function _wgPuestosCall(payload){
       let msg=error.message||String(error);
       let extra={};
       try{ const j=await error.context.json(); if(j){ extra=j; if(j.error) msg=j.error; } }catch(_e){}
+      _wgVigilarAcceso(payload, error, msg);   // v2.9.498
       return Object.assign({ok:false,error:msg}, extra);
     }
     return data||{ok:false,error:'sin respuesta'};
