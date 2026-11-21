@@ -1,0 +1,37 @@
+name: Reconsideraciones y modificaciones
+on:
+  push:
+    paths:
+      - 'assets/solicitudes-modificacion.js'
+      - 'supabase/seguridad/solicitudes-ops/**'
+      - 'supabase/seguridad/009_resolucion_solicitud_atomica.sql'
+      - 'tests/solicitudes-*'
+      - '.github/workflows/solicitudes.yml'
+  pull_request:
+    paths:
+      - 'assets/solicitudes-modificacion.js'
+      - 'supabase/seguridad/solicitudes-ops/**'
+      - 'supabase/seguridad/009_resolucion_solicitud_atomica.sql'
+      - 'tests/solicitudes-*'
+      - '.github/workflows/solicitudes.yml'
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Dependencias de pruebas
+        run: |
+          npm install --prefix "$RUNNER_TEMP/solicitudes-test" --save-exact @electric-sql/pglite@0.5.16 playwright@1.51.1
+          node "$RUNNER_TEMP/solicitudes-test/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Resolución atómica e interfaz
+        env:
+          SIDECEME_PGLITE_MODULE: ${{ runner.temp }}/solicitudes-test/node_modules/@electric-sql/pglite
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/solicitudes-test/node_modules/playwright
+        run: |
+          node --test tests/solicitudes-atomicas.test.cjs
+          node tests/solicitudes-modificacion-browser.cjs

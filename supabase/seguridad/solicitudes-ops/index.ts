@@ -42,7 +42,7 @@ const cors = {
   "Content-Type": "application/json",
 };
 
-const VERSION = "2.9.414";
+const VERSION = "2.9.414-resolucion-atomica";
 const TIPOS = ["reconsideracion", "anulacion", "modificacion"];
 // Una firma dibujada en el canvas pesa unos 25 KB; esto deja mucho margen.
 const MAX_FIRMA = 600_000;
@@ -367,6 +367,24 @@ Deno.serve(async (req) => {
         return ok();
       }
 
+      case "preparar_modificacion": {
+        const solicitud = await cargarSolicitud(body.id);
+        if (!solicitud) return err("Solicitud no encontrada.", 404);
+        const bloq = bloqueoResolver(u, solicitud);
+        if (bloq) return err(bloq, 403);
+        if (estadoDe(solicitud) !== "pendiente") return err("La solicitud ya fue resuelta.", 409);
+        const [san, reglas] = await Promise.all([
+          sb.from("sanciones").select("id,folio,cursante_nombre,falta_id,falta_descripcion,puntos_aplicados,modificada_en,anulada,estado")
+            .eq("id", solicitud.sancion_id).maybeSingle(),
+          sb.from("reglamentos").select("id,articulo,categoria,descripcion,puntos").eq("activo", true)
+            .order("articulo").order("puntos").limit(1000),
+        ]);
+        if (san.error || reglas.error) return err("No se pudo cargar la sanción y el reglamento.", 500);
+        if (!san.data) return err("Sanción no encontrada.", 404);
+        if (san.data.anulada || san.data.estado === "ANULADA") return err("La sanción está anulada.", 409);
+        return ok({ sancion: san.data, reglamentos: reglas.data, solicitud: sinFirmas(solicitud) });
+      }
+
       case "resolver": {
         const PREFIJO: Record<string, string> = { anular: "ANULADA", rechazar: "RECHAZADA", modificar: "MODIFICAR" };
         const decision = String(body.decision || "");
@@ -378,19 +396,17 @@ Deno.serve(async (req) => {
         const bloq = bloqueoResolver(u, s);
         if (bloq) return err(bloq, 403);
         if (estadoDe(s) !== "pendiente") return err("La solicitud ya fue resuelta.", 409);
-        if (decision === "anular") {
-          // La sanción la anula sanciones-ops (con su auditoría); acá solo se cierra
-          // la solicitud, y no se asienta "ANULADA" sobre una sanción que no lo está.
-          const san = await sancionDe(String(s.sancion_id || ""));
-          if (!san || san.anulada !== true) return err("La sanción todavía no figura anulada.", 409);
-        }
-        const { error } = await sb.from("solicitudes_anulacion").update({
-          estado: decision === "rechazar" ? "rechazado" : "aprobado",
-          comentario_comandante: `${PREFIJO[decision]} por ${u.nombre}: ${razon}`,
-          fecha_resolucion: new Date().toISOString(),
-        }).eq("id", s.id);
-        if (error) return err("No se pudo guardar la resolución: " + error.message, 500);
-        return ok();
+        // Una sola transacción valida, modifica, audita y cierra la solicitud.
+        // Los clientes anteriores, sin valores finales, no pueden aprobar en falso.
+        const { data, error } = await sb.rpc("resolver_solicitud_atomica", {
+          p_solicitud_id: s.id,
+          p_actor_id: u.id,
+          p_decision: decision,
+          p_razon: razon,
+          p_modificacion: body.modificacion ?? null,
+        });
+        if (error) return err(error.message || "No se pudo guardar la resolución.", error.code === "P0001" ? 409 : 500);
+        return ok(data || {});
       }
 
       case "retomar": {
