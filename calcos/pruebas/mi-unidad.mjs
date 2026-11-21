@@ -4,7 +4,7 @@ const { igual, configInicial, colocarMisUnidades, CATALOGO, paraGuardar, fichaMi
 let n = 0; const ok = (c, m) => { assert.ok(c, m); n++ }
 ok(igual('CE - II', 'CE-II'), 'CE - II'); ok(igual('DIMEC-1', 'DIV. MEC.-1'), 'DIMEC'); ok(igual('DIV MEC -1 – CE-I', 'DIV. MEC.-1'), 'con superior')
 ok(!igual('DIV-1', 'DIV-10'), 'DIV-1≠DIV-10'); ok(!igual('DIV. MEC.-1', 'DIV-1'), 'MEC≠INF'); ok(!igual('CE-I', 'CE-II'), 'CE-I≠CE-II')
-ok(CATALOGO.length === 10, 'catálogo 10'); ok(CATALOGO.find(c => c.nombre === 'CE-II').dependientes.length === 14, 'CE-II 14')
+ok(CATALOGO.length === 18, 'catálogo 18 ' + CATALOGO.length); ok(CATALOGO.find(c => c.nombre === 'CE-II').dependientes.length === 14, 'CE-II 14')
 ok(CATALOGO.find(c => c.nombre === 'DIV-5').dependientes.length === 15, 'DIV-5 15 ' + CATALOGO.find(c => c.nombre === 'DIV-5').dependientes.length)
 ok(CATALOGO.find(c => c.nombre === 'DIV. MEC.-1').dependientes.length === 17, 'DIMEC-1 17 ' + CATALOGO.find(c => c.nombre === 'DIV. MEC.-1').dependientes.length)
 for (const c of CATALOGO) { const ks = c.dependientes.map(d => d.designacion); ok(new Set(ks).size === ks.length, 'sin repetidos ' + c.nombre) }
@@ -32,4 +32,21 @@ ok(r4.nuevas.some(u => u.designacion === 'RI-15') && r4.unidades.find(u => u.id 
 ok(configurada({ configUnidad: { confirmada: true, unidad: 'CE-I' } }) && !configurada({}), 'configurada')
 const enemiga = { id: 'e', bando: 'enemigo', tipo: 'unidad', escalon: 'division', designacion: 'DIV-2' }
 const r5 = colocarMisUnidades([ce, enemiga], g, {}); ok(r5.unidades.find(u => u.id === 'e').dependeDe === undefined && r5.nuevas.some(u => u.designacion === 'DIV-2'), 'no toca enemigas')
+// 21-11-2026 · orden de batalla de la DEMIL + paleta de símbolos
+const P = await import(new URL('../organizacion/v1/paleta-unidades.mjs', import.meta.url).href)
+const cat = (n) => CATALOGO.find((c) => c.nombre === n)
+ok(cat('FF.TT.T.O.').dependientes.map((d) => d.designacion).join() === 'CE-I,CE-II,CE-III,CE-IV' && nivelDeNombre('FF.TT.T.O.') === 'ejercito', 'FF.TT.T.O. con 4 CE')
+ok(cat('CE-III').dependientes.map((d) => d.designacion).join() === 'DIV-8,DIV-9,DIV-6', 'CE-III = DIV-8, 9, 6 (DEMIL)')
+ok(cat('DIV-8').superior === 'CE-III' && cat('DIV-7').superior === 'CZI - CREM' && cat('DIV-3').reducida, 'superiores DEMIL')
+ok(JSON.stringify(M.arbolTemaBase().map((g) => g.cabeza)) === '["CE-I","CE-II","CE-III","CE-IV","CZSE","CZI - CREM"]', 'árbol')
+ok(M.superioresDe('cuerpo')[0] === 'FF.TT.T.O.' && M.superioresDe('division').includes('CE-IV'), 'superiores por nivel')
+ok(P.prefijoDe('RI-21') === 'RI-' && P.prefijoDe('DIV. MEC.-1') === 'DIV. MEC.-' && P.prefijoDe('CE-II') === 'CE-' && P.prefijoDe('RGTO. ART. 100') === 'RGTO. ART. ', 'prefijos')
+ok(P.incompleta({ designacion: 'RI-', prefijo: 'RI-' }) && !P.incompleta({ designacion: 'RI-21', prefijo: 'RI-' }) && !P.incompleta({ designacion: 'RI-' }), 'incompleta')
+const o = P.otraIgual({ designacion: 'RI-21', prefijo: 'RI-', escalon: 'regimiento', arma: 'infanteria' }); ok(o.designacion === 'RI-' && o.escalon === 'regimiento' && P.incompleta(o), 'Enter = otra igual')
+const gp = paraGuardar({ nivel: 'cuerpo', unidad: 'CE-IV', superior: 'FF.TT.T.O.', dependientes: [{ id: 'a', ...P.filaDePaleta(P.deEscalon('division')[0]) }, { id: 'b', ...P.filaDePaleta(P.deEscalon('division')[1]), designacion: 'DIV. MEC.-4' }] })
+ok(gp.dependientes.length === 1 && gp.dependientes[0].designacion === 'DIV. MEC.-4' && gp.dependientes[0].arma === 'mecanizada' && !('prefijo' in gp.dependientes[0]), 'la que quedó sin número no se guarda')
+ok(P.ESCALONES_PALETA.every(([v]) => P.deEscalon(v).length > 0) && new Set(P.PALETA.map((x) => x.id)).size === P.PALETA.length, 'paleta completa, sin repetidos')
+for (const it of P.PALETA) { const s = P.simboloSVG(it); ok(s.startsWith('<svg') && s.endsWith('</svg>') && !/NaN|undefined/.test(s), 'svg ' + it.id) }
+ok(P.simboloSVG({ escalon: 'regimiento', arma: 'ninguna', textoSimbolo: '<b>' }).includes('&lt;b&gt;'), 'texto escapado')
+ok(fichaMia({ nivel: 'ejercito', unidad: 'FF.TT.T.O.' }, { lat: -17, lng: -66 }).textoSimbolo === 'FF.TT.', 'ficha FF.TT.T.O.')
 console.log('✅', n, 'comprobaciones')

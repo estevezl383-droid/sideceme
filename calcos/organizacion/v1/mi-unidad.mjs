@@ -24,11 +24,22 @@
 //
 // Los organigramas de los apéndices 1, 2, 3, 5, 7, 9, 11 y 13 son DIBUJOS de Word (la Mesa no los puede leer):
 // las listas de abajo salen de esos dibujos y de los COE (apéndices 4, 6, 8, 10, 12 y 14), que sí son texto.
+//
+// 21-11-2026 · Sergio: «que se pueda directamente seleccionar el icono o el símbolo de la unidad y solo se le
+// coloque el número… que se vaya sumando a la lista. Igual los cuerpos de ejército CE I, CE II, CE III, CE IV y más
+// opciones para darle buen contexto al ejercicio».
+//   · ⑤ tiene la PALETA DE SÍMBOLOS (paleta-unidades.mjs): tocás el símbolo, se suma el renglón con su sigla y
+//     escribís solo el número; Enter suma otra igual. Cada renglón muestra su símbolo, como en la carta.
+//   · El orden de batalla del Anexo B (Sistema de Fuerzas) a la DEMIL N° 01/26: FF.TT.T.O. (con CE-I…CE-IV), el
+//     CE-III con sus DIV-8, DIV-9 y DIV-6, y las DIV-3, 6, 7, 8, 9, 11 y 12 con sus regimientos. El CE-IV no
+//     figura en ningún documento: queda para armarlo con la paleta.
+//   · Nivel FF.TT.T.O., atajos para «mi unidad superior» y «🌳 la organización del tema base» para elegir tocando.
 
 import { ubicarAlrededor, mismaUnidadOSuperior, sigla } from '../../disgregar/v1/disgregar.mjs?v=disgregar20261020'
 import { clave, ARMAS, ESCALONES_FILA, leerLista, leerRenglon } from './organigrama.mjs?v=20261110'
+import { simboloSVG, ESCALONES_PALETA, deEscalon, escalonDebajo, filaDePaleta, incompleta, otraIgual } from './paleta-unidades.mjs?v=20261121'
 
-export const VERSION_MI_UNIDAD = '20261119'
+export const VERSION_MI_UNIDAD = '20261121'
 
 // ─── El tema base «DIAMANTE» ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -68,12 +79,23 @@ const apoyoDiv = ({ at, ing, ingMec, agua, com, log, pm, im, av }) => [
   ...(av != null ? [F(`SEC. AV. EJ.-${av}`, 'seccion', 'aviacion', num(av))] : []),
 ]
 
+// Anexo B (Sistema de Fuerzas) a la DEMIL N° 01/26 (carpeta «DEMIL. DIAMANTE»): FUERZAS TERRESTRES → CTO (CE-I,
+// CE-II, CE-III), CZSE (DIV-3 (-), DIV-11*, DIV-12*) y CZI - CREM (DIV-7). Es un dibujo: el orden de las columnas
+// coincide con los apéndices (CE-I = DIV MEC-2, DIV-4, DIV-5; CE-II = DIV MEC-1, DIV-2, DIV-10).
+const DEMIL = 'Anexo B (Sistema de Fuerzas) a la DEMIL N° 01/26'
+const ce = (r) => F(`CE-${r}`, 'cuerpo', 'ninguna', { textoSimbolo: 'CE' })
+const ri = (n) => reg('RI', 'infanteria', n)
+const rc = (n) => reg('RC', 'caballeria', n)
+
 export const CATALOGO = [
+  { nombre: 'FF.TT.T.O.', nivel: 'ejercito', arma: 'ninguna', textoSimbolo: 'FF.TT.', superior: 'CTO', fuente: `${DEMIL} (el CE-IV no figura: está para armarlo)`,
+    dependientes: [ce('I'), ce('II'), ce('III'), ce('IV')] },
   { nombre: 'CE-I', nivel: 'cuerpo', superior: 'FF.TT.T.O.', fuente: 'Apéndice 2 (Organigrama del CE-I) al Anexo C',
     dependientes: [divMec(2), divInf(4), divInf(5), ...tropasCE(90)] },
   { nombre: 'CE-II', nivel: 'cuerpo', superior: 'FF.TT.T.O.', fuente: 'Apéndice 1 (Organigrama del CE-II) al Anexo C',
     dependientes: [divMec(1), divInf(2), divInf(10), ...tropasCE(100)] },
-  { nombre: 'CE-III', nivel: 'cuerpo', superior: 'FF.TT.T.O.', fuente: '', dependientes: [] },
+  { nombre: 'CE-III', nivel: 'cuerpo', superior: 'FF.TT.T.O.', fuente: `${DEMIL} (sus tropas de Cuerpo no figuran)`,
+    dependientes: [divInf(8), divInf(9), divInf(6)] },
   { nombre: 'CE-IV', nivel: 'cuerpo', superior: 'FF.TT.T.O.', fuente: '', dependientes: [] },
   { nombre: 'DIV. MEC.-1', nivel: 'division', arma: 'mecanizada', superior: 'CE-II', fuente: 'Apéndices 3 y 4 (Organigrama y COE de la DIMEC-1)',
     dependientes: [cys(1), reg('RIM', 'mecanizada', 8, { reducida: true }), reg('REIM', 'mecanizada', 23), reg('RECB', 'cabmec', 1), reg('RECB', 'cabmec', 2),
@@ -99,9 +121,48 @@ export const CATALOGO = [
     dependientes: [cys(5), reg('RI', 'infanteria', 13), reg('RI', 'infanteria', 15), reg('RI', 'infanteria', 37), reg('RI', 'infanteria', 38),
       F('REG. SAT. SELV.-16', 'regimiento', 'ninguna', { textoSimbolo: 'SAT.SELV.', ...num(16) }), reg('RCB', 'cabmec', 6), reg('RAC', 'artilleria', 5),
       ...apoyoDiv({ at: 5, ing: 5, agua: 5, com: 5, log: 'IX', pm: 5, im: 5 })] },
+  // Las del CE-III y las de las zonas, como las trae la DEMIL (sin COE: solo sus regimientos).
+  { nombre: 'DIV-8', nivel: 'division', arma: 'infanteria', superior: 'CE-III', fuente: DEMIL,
+    dependientes: [ri(7), ri(10), F('RSS-12', 'regimiento', 'ninguna', { textoSimbolo: 'SAT.SELV.', ...num(12) }), rc(10), reg('RAA', 'antiaerea', 8), F('BPM-III', 'batallon', 'policiamilitar')] },
+  { nombre: 'DIV-9', nivel: 'division', arma: 'infanteria', superior: 'CE-III', fuente: DEMIL,
+    dependientes: [ri(26), ri(31), ri(32), F('REPPN-1', 'regimiento', 'ninguna', { textoSimbolo: 'REPPN', ...num(1) })] },
+  { nombre: 'DIV-6', nivel: 'division', arma: 'infanteria', superior: 'CE-III', fuente: DEMIL,
+    dependientes: [ri(17), ri(29), rc(2), reg('RA', 'artilleria', 3)] },
+  { nombre: 'DIV-3', nivel: 'division', arma: 'infanteria', reducida: true, superior: 'CZSE', fuente: `${DEMIL} (DIV-3 (-))`,
+    dependientes: [ri(5), ri(20), rc(3), F('BAT. ING.-I', 'batallon', 'ingenieria')] },
+  { nombre: 'DIV-11', nivel: 'division', arma: 'infanteria', superior: 'CZSE', fuente: `${DEMIL} (marcada con *: sin unidades)`, dependientes: [] },
+  { nombre: 'DIV-12', nivel: 'division', arma: 'infanteria', superior: 'CZSE', fuente: `${DEMIL} (marcada con *: sin unidades)`, dependientes: [] },
+  { nombre: 'DIV-7', nivel: 'division', arma: 'infanteria', superior: 'CZI - CREM', fuente: DEMIL,
+    dependientes: [ri(18), ri(19), reg('RAA', 'antiaerea', 7), F('BPM-III', 'batallon', 'policiamilitar')] },
 ]
 
+// De quién puede depender cada nivel (atajos de ③).
+export function superioresDe(nivel = '') {
+  const ces = CATALOGO.filter((c) => c.nivel === 'cuerpo').map((c) => c.nombre)
+  const divs = CATALOGO.filter((c) => c.nivel === 'division').map((c) => c.nombre)
+  if (nivel === 'ejercito') return ['CTO']
+  if (nivel === 'cuerpo') return ['FF.TT.T.O.']
+  if (nivel === 'division') return [...ces, 'CZSE', 'CZI - CREM']
+  if (nivel === 'brigada') return [...ces, ...divs]
+  if (nivel === 'regimiento') return divs
+  return []
+}
+
+// La organización del tema base, para verla entera y elegir tocando: [{ cabeza, hijas: [catálogo…] }].
+export function arbolTemaBase() {
+  const divs = CATALOGO.filter((c) => c.nivel === 'division')
+  const grupos = CATALOGO.filter((c) => c.nivel === 'cuerpo').map((c) => ({ cabeza: c.nombre, cat: c, hijas: divs.filter((d) => limpio(d.superior) === c.nombre) }))
+  for (const d of divs) {
+    if (grupos.some((g) => g.hijas.includes(d))) continue
+    let g = grupos.find((x) => !x.cat && x.cabeza === limpio(d.superior))
+    if (!g) grupos.push((g = { cabeza: limpio(d.superior) || '—', cat: null, hijas: [] }))
+    g.hijas.push(d)
+  }
+  return grupos
+}
+
 export const NIVELES = [
+  ['ejercito', 'FF.TT.T.O.'],
   ['cuerpo', 'Cuerpo de Ejército'],
   ['division', 'División'],
   ['brigada', 'Brigada'],
@@ -212,7 +273,7 @@ export function paraGuardar(cfg = {}) {
     unidad: limpio(cfg.unidad).toUpperCase(),
     superior: limpio(cfg.superior),
     adyacentes: (cfg.adyacentes || []).map(limpio).filter(Boolean),
-    dependientes: (cfg.dependientes || []).filter((f) => limpio(f.designacion)).map(({ id, va, designacion, escalon, arma, textoSimbolo, numeroUnidad, reducida }) => ({
+    dependientes: (cfg.dependientes || []).filter((f) => limpio(f.designacion) && !incompleta(f)).map(({ id, va, designacion, escalon, arma, textoSimbolo, numeroUnidad, reducida }) => ({
       id, va: va !== false, designacion: limpio(designacion), escalon: escalon || 'batallon', arma: arma || 'infanteria',
       ...(textoSimbolo ? { textoSimbolo } : {}), ...(numeroUnidad ? { numeroUnidad: String(numeroUnidad) } : {}), ...(reducida ? { reducida: true } : {}),
     })),
@@ -231,12 +292,14 @@ const nombre = (u) => limpio(u?.designacion) || 'la unidad'
 export function fichaMia(cfg = {}, centro = { lat: 0, lng: 0 }, id = Date.now()) {
   const cat = delCatalogo(cfg.unidad)
   const nivel = cfg.nivel || cat?.nivel || nivelDeNombre(cfg.unidad) || 'division'
-  const esCE = nivel === 'cuerpo'
-  const arma = cat?.arma || (esCE ? 'ninguna' : leerRenglon(cfg.unidad)?.arma || 'infanteria')
+  const sinArma = nivel === 'cuerpo' || nivel === 'ejercito'
+  const arma = cat?.arma || (sinArma ? 'ninguna' : leerRenglon(cfg.unidad)?.arma || 'infanteria')
+  const texto = cat?.textoSimbolo || (nivel === 'cuerpo' ? 'CE' : nivel === 'ejercito' ? 'FF.TT.' : '')
   return {
     id, bando: 'propias', tipo: 'unidad', escalon: nivel === 'ejercito' ? 'ejercito' : nivel, arma, instalacion: '',
     designacion: limpio(cfg.unidad).toUpperCase(),
-    ...(esCE && arma === 'ninguna' ? { textoSimbolo: 'CE' } : {}),
+    ...(arma === 'ninguna' && texto ? { textoSimbolo: texto } : {}),
+    ...(cat?.reducida ? { reducida: true } : {}),
     ...(numeroDe(cfg.unidad) ? { numeroUnidad: numeroDe(cfg.unidad) } : {}),
     futura: false, agrupacion: false,
     lat: Math.round(Number(centro.lat) * 1e6) / 1e6, lng: Math.round(Number(centro.lng) * 1e6) / 1e6,
@@ -365,6 +428,11 @@ const CSS = `
 .sid-mu-fila{display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:4px 0;border-bottom:1px solid #243246}
 .sid-mu-fila input[type=text]{flex:1 1 170px;min-width:120px}
 @media (max-width:560px){.sid-mu-fila select{flex:1 1 40%}}
+.sid-mu-simb{transition:transform .08s ease,box-shadow .08s ease}
+.sid-mu-simb:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 0 0 2px #ffd447}
+.sid-mu-simb:active:not(:disabled){transform:scale(.95)}
+.sid-mu-nueva{animation:sidMuNueva 1.4s ease-out}
+@keyframes sidMuNueva{0%{background:rgba(255,212,71,.3)}100%{background:transparent}}
 `
 function ponerCss() {
   try {
@@ -403,7 +471,20 @@ const st = {
   area: { width: '100%', boxSizing: 'border-box', minHeight: 90, background: '#0c131d', color: '#eef3fa', border: '1px solid #3a4a63', borderRadius: 6, padding: 6, fontSize: 12.5, marginTop: 4 },
   resumen: { display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 10px', marginTop: 6, fontSize: 13 },
   et: { color: '#9fb0c8' },
+  paleta: { marginTop: 8, padding: '8px 9px 9px', border: '1px dashed #4f7fb8', borderRadius: 9, background: '#0e1a2a' },
+  paletaTit: { fontWeight: 800, color: '#ffd447', fontSize: 12.5 },
+  tabSi: { background: '#ffd447', color: '#1b1400', border: '1px solid #ffd447', fontWeight: 800 },
+  grilla: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 },
+  simbBtn: { display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: 74, padding: '5px 2px 4px', background: '#f3f7fd', border: '1px solid #9db8dc', borderRadius: 8, cursor: 'pointer', color: '#0f2a4d', fontSize: 11, fontWeight: 800, lineHeight: 1.1 },
+  simbFila: { display: 'inline-flex', background: '#f3f7fd', borderRadius: 5, padding: '1px 3px', flex: '0 0 auto' },
+  inpFalta: { border: '2px solid #ff9d47', background: '#1d1408' },
+  falta: { color: '#ffb36b', fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap' },
+  arbol: { marginTop: 7, padding: '6px 8px', border: '1px solid #2c4262', borderRadius: 8, background: '#0f1824' },
+  arbolFila: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, marginTop: 5 },
+  arbolBtn: { background: 'transparent', border: 'none', color: '#9fd0ff', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', textAlign: 'left', padding: 0, width: '100%', lineHeight: 1.4 },
 }
+
+const ESCALONES_MU = [...ESCALONES_FILA, ['cuerpo', 'CE']]
 
 const sinTexto = (arma, antes) => (arma !== 'ninguna' ? '' : antes || '')
 
@@ -414,13 +495,55 @@ function Formulario({ react: R, puente, modo, onListo, onCerrar }) {
   const [pegar, setPegar] = R.useState(null)
   const [otraAdy, setOtraAdy] = R.useState('')
   const [error, setError] = R.useState('')
+  const [escPal, setEscPal] = R.useState(null)
+  const [foco, setFoco] = R.useState(null)
+  const [verArbol, setVerArbol] = R.useState(false)
   const unidades = puente.unidades || []
   const bloqueado = !!puente.finalizado
   const cat = delCatalogo(cfg.unidad)
   const madre = buscarMia(unidades, cfg.unidad)
   const filas = cfg.dependientes || []
-  const estado = filas.map((f) => (limpio(f.designacion) ? enLaCarta(unidades, madre, f) : null))
-  const porColocar = filas.filter((f, i) => f.va !== false && limpio(f.designacion) && !estado[i])
+  const estado = filas.map((f) => (limpio(f.designacion) && !incompleta(f) ? enLaCarta(unidades, madre, f) : null))
+  const porColocar = filas.filter((f, i) => f.va !== false && limpio(f.designacion) && !incompleta(f) && !estado[i])
+  // El renglón recién sumado: foco en su nombre con el cursor al final, para escribir solo el número.
+  R.useEffect(() => {
+    if (!foco || typeof document === 'undefined') return
+    try {
+      const el = document.querySelector(`[data-mu-fila="${String(foco.id).replace(/["\\]/g, '')}"]`)
+      if (!el) return
+      el.focus({ preventScroll: true })
+      const n = String(el.value || '').length
+      el.setSelectionRange(n, n)
+      el.scrollIntoView({ block: 'nearest' })
+    } catch {}
+  }, [foco])
+  // Suma un renglón (al final, o debajo de otro) y lo deja listo para escribir.
+  const sumarFila = (fila, despuesDe = null) => {
+    if (bloqueado) return
+    const nueva = conId(fila)
+    setEditada(true)
+    setError('')
+    setCfg((c) => {
+      const l = [...(c.dependientes || [])]
+      const i = despuesDe != null ? l.findIndex((x) => x.id === despuesDe) : -1
+      if (i >= 0) l.splice(i + 1, 0, nueva)
+      else l.push(nueva)
+      return { ...c, dependientes: l }
+    })
+    setFoco({ id: nueva.id, n: Date.now() })
+  }
+  const sumarDelTemaBase = (c) =>
+    sumarFila({
+      designacion: c.nombre,
+      escalon: c.nivel,
+      arma: c.arma || (c.nivel === 'cuerpo' ? 'ninguna' : 'infanteria'),
+      ...(c.nivel === 'cuerpo' ? { textoSimbolo: 'CE' } : c.textoSimbolo ? { textoSimbolo: c.textoSimbolo } : {}),
+      ...(numeroDe(c.nombre) ? { numeroUnidad: numeroDe(c.nombre) } : {}),
+      ...(c.reducida ? { reducida: true } : {}),
+    })
+  const tab = escPal && escPal.nivel === cfg.nivel ? escPal.v : escalonDebajo(cfg.nivel)
+  const temaBase = (cfg.nivel === 'ejercito' ? CATALOGO.filter((c) => c.nivel === 'cuerpo') : cfg.nivel === 'cuerpo' ? CATALOGO.filter((c) => c.nivel === 'division') : []).filter((c) => !igual(c.nombre, cfg.unidad))
+  const superiores = superioresDe(cfg.nivel)
   const cambiar = (campos) => {
     setCfg((c) => ({ ...c, ...campos }))
     setError('')
@@ -459,8 +582,16 @@ function Formulario({ react: R, puente, modo, onListo, onCerrar }) {
   const sugerencias = hermanas.length ? hermanas : libres
   const validar = () => {
     const f = faltantes(cfg)
-    if (f.length) {
-      setError(`Falta completar: ${f.join(', ')}.`)
+    // Las que quedaron solo con la sigla de la paleta («RI-»): falta su número.
+    const sinNumero = filas.filter((x) => x.va !== false && incompleta(x))
+    if (f.length || sinNumero.length) {
+      setError(
+        [
+          f.length ? `Falta completar: ${f.join(', ')}.` : '',
+          sinNumero.length ? `Falta el número de: ${sinNumero.map((x) => limpio(x.designacion)).join(', ')} (escribilo o sacala con ✕).` : '',
+        ].filter(Boolean).join(' '),
+      )
+      if (sinNumero.length) setFoco({ id: sinNumero[0].id, n: Date.now() })
       return null
     }
     return paraGuardar(cfg)
@@ -494,17 +625,31 @@ function Formulario({ react: R, puente, modo, onListo, onCerrar }) {
   }
 
   const boton = (txt, activo, onClick, extra = {}) => h('button', { type: 'button', style: { ...st.chip, ...(activo ? st.chipSi : {}) }, onClick, disabled: bloqueado, ...extra }, txt)
+  const chipArbol = (c) =>
+    c ? h('button', { key: 'arb' + c.nombre, type: 'button', style: { ...st.chipChico, ...(igual(c.nombre, cfg.unidad) ? st.tabSi : {}) }, disabled: bloqueado, 'data-arbol': c.nombre, title: c.fuente || c.nombre, onClick: () => elegirUnidad(c) }, c.nombre + (c.reducida ? ' (-)' : '')) : null
   const quick = CATALOGO.filter((c) => c.nivel === cfg.nivel)
   const nivelOtro = cfg.nivel && !NIVELES.some(([v]) => v === cfg.nivel)
 
   const filaDep = (f, i) => {
     const ya = estado[i]
+    const falta = incompleta(f)
     return h(
       'div',
-      { className: 'sid-mu-fila', key: f.id, 'data-sid': ya ? 'mu-puesta' : 'mu-falta' },
+      { className: 'sid-mu-fila' + (foco && foco.id === f.id ? ' sid-mu-nueva' : ''), key: f.id, 'data-sid': ya ? 'mu-puesta' : 'mu-falta' },
       h('input', { type: 'checkbox', checked: f.va !== false, disabled: bloqueado || !!ya, title: ya ? 'Ya está en la carta' : 'Entra en «⚡ Colocar»', onChange: (e) => cambiarFila(f.id, { va: e.target.checked }) }),
-      h('input', { type: 'text', style: st.inp, value: f.designacion || '', placeholder: 'Nombre (ej. RI-21)', disabled: bloqueado, onChange: (e) => cambiarFila(f.id, { designacion: e.target.value }) }),
-      h('select', { style: st.sel, value: f.escalon || 'batallon', title: 'Escalón', disabled: bloqueado, onChange: (e) => cambiarFila(f.id, { escalon: e.target.value }) }, ...ESCALONES_FILA.map(([v, t]) => h('option', { key: v, value: v }, t))),
+      h('span', { style: st.simbFila, title: 'Así sale en la carta', 'data-sid': 'mu-simbolo', dangerouslySetInnerHTML: { __html: simboloSVG(f, { ancho: 38 }) } }),
+      h('input', {
+        type: 'text', style: falta ? { ...st.inp, ...st.inpFalta } : st.inp, value: f.designacion || '', placeholder: 'Nombre (ej. RI-21)', disabled: bloqueado, 'data-mu-fila': f.id,
+        title: falta ? 'Escribí el número (o el nombre). Enter: suma otra igual' : 'Enter: suma otra igual debajo',
+        onChange: (e) => cambiarFila(f.id, { designacion: e.target.value }),
+        onKeyDown: (e) => {
+          if (e.key !== 'Enter') return
+          e.preventDefault()
+          if (!falta && limpio(f.designacion)) sumarFila(otraIgual(f), f.id)
+        },
+      }),
+      falta ? h('span', { style: st.falta }, '← el número') : null,
+      h('select', { style: st.sel, value: f.escalon || 'batallon', title: 'Escalón', disabled: bloqueado, onChange: (e) => cambiarFila(f.id, { escalon: e.target.value }) }, ...ESCALONES_MU.map(([v, t]) => h('option', { key: v, value: v }, t))),
       h('select', { style: { ...st.sel, maxWidth: 170 }, value: f.arma || 'ninguna', title: 'Arma', disabled: bloqueado, onChange: (e) => cambiarFila(f.id, { arma: e.target.value, textoSimbolo: sinTexto(e.target.value, f.textoSimbolo) }) }, ...ARMAS.map(([v, t]) => h('option', { key: v, value: v }, t))),
       ya ? h('span', { style: st.ok, title: 'Ya está en la carta' }, '✓ en la carta') : null,
       h('button', { type: 'button', style: st.quitar, title: 'Sacarla de la lista', disabled: bloqueado, onClick: () => { setEditada(true); cambiar({ dependientes: filas.filter((x) => x.id !== f.id) }) } }, '✕'),
@@ -530,10 +675,33 @@ function Formulario({ react: R, puente, modo, onListo, onCerrar }) {
       h('div', { style: st.botonera }, ...quick.map((c) => boton(c.nombre, igual(c.nombre, cfg.unidad), () => elegirUnidad(c), { key: c.nombre, 'data-unidad': c.nombre, title: c.fuente ? `Tema base «DIAMANTE» · ${c.fuente}` : 'Sin organigrama en los apéndices: armá sus unidades abajo' }))),
     h('input', { type: 'text', style: st.inpAncho, value: cfg.unidad || '', placeholder: quick.length ? 'o escribila: CE-III, DIV-7, BRIG. MEC.-3…' : 'Escribí tu unidad: CE-III, DIV-7, BRIG. MEC.-3…', disabled: bloqueado, 'data-sid': 'mu-unidad', onChange: (e) => escribirUnidad(e.target.value) }),
     cat && cat.fuente ? h('div', { style: st.nota }, `📚 Tema base «DIAMANTE» · ${cat.fuente}.`) : null,
-    cat && !cat.fuente ? h('div', { style: st.nota }, `Los apéndices no traen el organigrama del ${cat.nombre}: armá sus unidades en ⑤ (➕ o 📋 pegar lista).`) : null,
+    cat && !cat.dependientes.length ? h('div', { style: st.nota }, `Los documentos no traen las unidades del ${cat.nombre}: armalas en ⑤ tocando los símbolos de la paleta (o 📋 pegar lista).`) : null,
+    // (un botón y no un <details>: el único <details> de la caja sigue siendo «Otras formas»)
+    h(
+      'div',
+      { style: st.arbol, 'data-sid': 'mu-arbol' },
+      h('button', { type: 'button', style: st.arbolBtn, 'aria-expanded': verArbol ? 'true' : 'false', 'data-sid': 'mu-arbol-ver', onClick: () => setVerArbol((v) => !v) },
+        `${verArbol ? '▾' : '▸'} 🌳 Toda la organización del tema base «DIAMANTE» (FF.TT.T.O. · CE-I a CE-IV · divisiones): tocá tu unidad`),
+      ...(verArbol
+        ? [
+            h('div', { key: 'fftt', style: st.arbolFila }, chipArbol(delCatalogo('FF.TT.T.O.')), h('span', { style: { ...st.nota, marginTop: 0 } }, `depende del CTO · ${DEMIL}`)),
+            ...arbolTemaBase().map((g) =>
+              h(
+                'div',
+                { key: 'g' + g.cabeza, style: { ...st.arbolFila, paddingLeft: g.cat ? 16 : 0 } },
+                g.cat ? chipArbol(g.cat) : h('b', { style: { color: '#cfe0f5', fontSize: 12.5 } }, g.cabeza),
+                h('span', { style: { color: '#6f86a3' } }, '→'),
+                ...(g.hijas.length ? g.hijas.map(chipArbol) : [h('span', { key: 'vacio', style: { ...st.nota, marginTop: 0 } }, 'sin organigrama en los documentos: armalo con la paleta de ⑤')]),
+              ),
+            ),
+          ]
+        : []),
+    ),
     // ③ superior
     h('div', { style: st.paso }, '③ Mi unidad superior (de quién dependo) ', h('span', { style: st.oblig }, 'obligatorio')),
     h('input', { type: 'text', style: st.inpAncho, value: cfg.superior || '', placeholder: 'Ej.: FF.TT.T.O. · CE-II', disabled: bloqueado, 'data-sid': 'mu-superior', onChange: (e) => cambiar({ superior: e.target.value }) }),
+    superiores.length > 0 &&
+      h('div', { style: st.botonera }, ...superiores.map((s) => h('button', { key: 'sup' + s, type: 'button', style: { ...st.chipChico, ...(igual(s, cfg.superior) ? st.tabSi : {}) }, disabled: bloqueado, 'data-superior': s, onClick: () => cambiar({ superior: s }) }, s))),
     // ④ adyacentes
     h('div', { style: st.paso }, '④ Mis unidades adyacentes ', h('span', { style: st.opcional }, '(las de mi mismo nivel a los costados; tocá para agregar)')),
     h(
@@ -549,20 +717,53 @@ function Formulario({ react: R, puente, modo, onListo, onCerrar }) {
       h('button', { type: 'button', style: st.btnLinea, disabled: bloqueado || !limpio(otraAdy), onClick: () => { agregarAdy(otraAdy); setOtraAdy('') } }, '+ Agregar'),
     ),
     // ⑤ dependientes
-    h('div', { style: st.paso }, `⑤ Quiénes dependen de mí (${filas.length}) `, h('span', { style: st.opcional }, '— cambiá nombre, escalón y arma; destildá las que no van; ✕ la saca')),
+    h('div', { style: st.paso }, `⑤ Quiénes dependen de mí (${filas.length}) `, h('span', { style: st.opcional }, '— sumalas tocando los símbolos de la paleta; cambiá nombre, escalón y arma; destildá las que no van; ✕ la saca')),
     madre
       ? h('div', { style: st.nota }, `✓ ${nombre(madre)} ya está en la carta. ${estado.filter(Boolean).length} de ${filas.length} dependientes ya están puestas.`)
       : limpio(cfg.unidad)
         ? h('div', { style: st.nota }, `${limpio(cfg.unidad).toUpperCase()} todavía no está en la carta: «⚡ Colocar» la pone donde estás mirando (o en tu Área de Operaciones) y sus unidades alrededor.`)
         : null,
     ...filas.map(filaDep),
+    // 🎖️ La paleta: un toque = un renglón con su sigla; se escribe solo el número.
+    h(
+      'div',
+      { style: st.paleta, 'data-sid': 'mu-paleta' },
+      h('div', { style: st.paletaTit }, '🎖️ PALETA: tocá el símbolo y se suma a la lista; escribís solo el número ', h('span', { style: st.opcional }, '(Enter = otra igual)')),
+      h('div', { style: { ...st.botonera, marginTop: 6 } }, ...ESCALONES_PALETA.map(([v, t]) => h('button', { key: v, type: 'button', style: { ...st.chipChico, ...(tab === v ? st.tabSi : {}) }, 'data-pal-esc': v, onClick: () => setEscPal({ v, nivel: cfg.nivel }) }, t))),
+      h(
+        'div',
+        { style: st.grilla },
+        ...deEscalon(tab).map((it) =>
+          h(
+            'button',
+            { key: it.id, type: 'button', className: 'sid-mu-simb', style: { ...st.simbBtn, opacity: bloqueado ? 0.5 : 1 }, disabled: bloqueado, title: `${it.titulo}: tocá y se suma «${it.prefijo}…»`, 'data-paleta': it.prefijo, onClick: () => sumarFila(filaDePaleta(it)) },
+            h('span', { dangerouslySetInnerHTML: { __html: simboloSVG(it, { ancho: 50 }) } }),
+            h('span', null, it.rotulo),
+          ),
+        ),
+      ),
+      temaBase.length > 0 &&
+        h(
+          'div',
+          { style: { marginTop: 8 } },
+          h('div', { style: { ...st.nota, marginTop: 0 } }, `📚 ${cfg.nivel === 'ejercito' ? 'Los cuerpos' : 'Las divisiones'} del tema base «DIAMANTE»: tocá para sumarla con su nombre`),
+          h(
+            'div',
+            { style: st.botonera },
+            ...temaBase.map((c) => {
+              const ya = filas.some((f) => igual(f.designacion, c.nombre))
+              return h('button', { key: 'tb' + c.nombre, type: 'button', style: { ...st.chipChico, ...(ya ? { opacity: 0.5, cursor: 'default' } : {}) }, disabled: bloqueado || ya, title: ya ? 'Ya está en la lista' : c.fuente ? `${c.nombre} · ${c.fuente}` : c.nombre, 'data-tema-base': c.nombre, onClick: () => sumarDelTemaBase(c) }, (ya ? '✓ ' : '+ ') + c.nombre + (c.reducida ? ' (-)' : ''))
+            }),
+          ),
+        ),
+    ),
     h(
       'div',
       { style: { ...st.botonera, marginTop: 7 } },
-      h('button', { type: 'button', style: st.btnLinea, disabled: bloqueado, onClick: () => { setEditada(true); cambiar({ dependientes: [...filas, conId({ designacion: '', escalon: cfg.nivel === 'cuerpo' ? 'division' : 'regimiento', arma: 'infanteria' })] }) } }, '➕ Agregar unidad'),
+      h('button', { type: 'button', style: st.btnLinea, disabled: bloqueado, onClick: () => sumarFila({ designacion: '', escalon: escalonDebajo(cfg.nivel), arma: 'infanteria' }) }, '➕ Agregar unidad'),
       h('button', { type: 'button', style: st.btnLinea, disabled: bloqueado, onClick: () => setPegar(pegar == null ? '' : null) }, '📋 Pegar lista'),
       cat && cat.dependientes.length > 0 && h('button', { type: 'button', style: st.btnLinea, disabled: bloqueado, title: 'Vuelve a la lista del apéndice (las que ya están en la carta siguen ahí)', onClick: () => { setEditada(false); cambiar({ dependientes: cat.dependientes.map(conId) }) } }, `↺ Las del apéndice (${cat.dependientes.length})`),
-      cfg.nivel === 'cuerpo' && (!cat || !cat.dependientes.length) && h('button', { type: 'button', style: st.btnLinea, disabled: bloqueado, title: 'Las tropas de Cuerpo de los apéndices 1 y 2, sin número: agregale tus divisiones y los números', onClick: () => { setEditada(true); cambiar({ dependientes: [...filas, ...tropasCE('').filter((t) => !filas.some((f) => igual(f.designacion, t.designacion))).map(conId)] }) } }, '↺ Tropas tipo de un CE (11)'),
+      cfg.nivel === 'cuerpo' && !(cat?.dependientes || []).some((d) => d.escalon !== 'division') && h('button', { type: 'button', style: st.btnLinea, disabled: bloqueado, title: 'Las tropas de Cuerpo de los apéndices 1 y 2, sin número: agregale tus divisiones y los números', onClick: () => { setEditada(true); cambiar({ dependientes: [...filas, ...tropasCE('').filter((t) => !filas.some((f) => igual(f.designacion, t.designacion))).map(conId)] }) } }, '↺ Tropas tipo de un CE (11)'),
     ),
     pegar != null &&
       h(
